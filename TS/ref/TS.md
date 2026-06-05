@@ -1020,6 +1020,8 @@ complete it.
 **xxiv | Preface to the First Edition (2019)**
 
 
+<a id="chapter-1"></a>
+
 **CHAPTER 1**
 
 ### Getting to Know TypeScript
