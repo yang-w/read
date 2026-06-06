@@ -1,0 +1,37 @@
+.red {
+  color: red;
+}
+.orange {
+  color: #FFA233;
+}
+.underline-orange {
+  border-bottom: 4px solid #FFA233;
+}
+.blue {
+  color: blue;
+}
+.yellowBG {
+  background-color: yellow;
+}
+.bold {
+  font-weight: bold;
+}
+.underline {
+  border-bottom: 1px solid;
+}
+.white-on-black {
+  padding: 5px;
+  background-color: black;
+  color: white;
+}
+.border {
+  padding: 10px;
+  border: 1px solid;
+}
+.border .title {
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 0;
+  border-bottom: 1px solid #e3e3e3;
+}

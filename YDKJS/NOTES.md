@@ -47,4 +47,4 @@
 
 ## Notes by Chapter
 
-<!-- Detailed notes go into /Users/ywang46/Documents/workspace/todo/Reading Notes/guide.md -->
+<!-- Detailed notes go into docs/guide.md -->
