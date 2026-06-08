@@ -1,6 +1,6 @@
 <link href="css/style.css" rel="stylesheet"></link>
 
-* [1. Transpiling, Build Pipeline, JS Engine, Compile vs Runtime](#ydkjs-ch1)
+* [1. Transpiling, Build Pipeline, JS/TS Compile vs Runtime](#ydkjs-ch1)
 * [3.10 Global Variable / Local Variable](#global-local)
 * [3.10.1 Declarations with `let` and `const`](#let-const)
 * [3.10.2 Hoisting](#hoist)
@@ -46,7 +46,7 @@
 * [Big data with virtualization](#virtualization-windowing)
 * [HTML and CSS gotcha](#html-css-gotcha)
 
-#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Build Pipeline, JS Engine, Compile vs Runtime</a>
+#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Build Pipeline, JS/TS Compile vs Runtime</a>
 
 ### 1.1 Transpiling
 - **forwards-compatibility**: 
@@ -64,11 +64,11 @@
 
 Webpack:
 1. Transpiles source files with Babel
-2. Parses own AST (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
+2. Parses own **AST** (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
 3. Outputs bundle.js → shipped to browser
 
 Browser (V8):
-1. Re-parses bundle.js: builds own AST → compiles to bytecode
+1. Re-parses bundle.js: builds own **AST** → compiles to bytecode
 2. Executes bytecode → runtime
 
 ### 1.3 Compile time vs Runtime — JS vs TypeScript
