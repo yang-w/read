@@ -6,8 +6,8 @@
 - [x] [foreword.md](get-started/foreword.md)
 - [x] [preface.md](preface.md)
 - [x] [ch1.md — What Is JavaScript?](get-started/ch1.md)
-- [ ] [ch2.md — Surveying JS](get-started/ch2.md) ← next
-- [ ] [ch3.md — Digging To The Roots Of JS](get-started/ch3.md)
+- [x] [ch2.md — Surveying JS](get-started/ch2.md)
+- [ ] [ch3.md — Digging To The Roots Of JS](get-started/ch3.md) ← next
 - [ ] [ch4.md — The Bigger Picture](get-started/ch4.md)
 - [ ] [apA.md — Exploring Further](get-started/apA.md)
 - [ ] [apB.md — Practice, Practice, Practice!](get-started/apB.md)

@@ -64,11 +64,11 @@
 
 Webpack:
 1. **Transpiles** source files with Babel
-2. Parses own AST (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
+2. Parses own **AST** (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
 3. Outputs bundle.js → shipped to browser
 
 Browser (V8):
-1. Re-parses bundle.js: builds own AST → **compiles** to bytecode
+1. Re-parses bundle.js: builds own **AST** → **compiles** to bytecode
 2. Executes bytecode → runtime
 
 ### 1.3 Compile time vs Runtime — JS vs TypeScript
