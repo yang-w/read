@@ -1,6 +1,6 @@
 <link href="css/style.css" rel="stylesheet"></link>
 
-* [1. Transpiling, Build Pipeline, JS Engine, Compile vs Runtime](#ydkjs-ch1)
+* [1. Transpiling, Transpile vs Compile, Build Pipeline, Compile vs Runtime](#ydkjs-ch1)
 * [3.10 Global Variable / Local Variable](#global-local)
 * [3.10.1 Declarations with `let` and `const`](#let-const)
 * [3.10.2 Hoisting](#hoist)
@@ -46,7 +46,7 @@
 * [Big data with virtualization](#virtualization-windowing)
 * [HTML and CSS gotcha](#html-css-gotcha)
 
-#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Build Pipeline, JS Engine, Compile vs Runtime</a>
+#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Transpile vs Compile, Build Pipeline, Compile vs Runtime</a>
 
 ### 1.1 Transpiling
 - **forwards-compatibility**: 
@@ -63,12 +63,12 @@
 ### 1.2 Build pipeline (brwweb)
 
 Webpack:
-1. Transpiles source files with Babel
+1. **Transpiles** source files with Babel
 2. Parses own AST (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
 3. Outputs bundle.js → shipped to browser
 
 Browser (V8):
-1. Re-parses bundle.js: builds own AST → compiles to bytecode
+1. Re-parses bundle.js: builds own AST → **compiles** to bytecode
 2. Executes bytecode → runtime
 
 ### 1.3 Compile time vs Runtime — JS vs TypeScript
@@ -78,9 +78,32 @@ Browser (V8):
 |---|---|---|
 | **Plain JS** | no static check | V8 executes → crashes → user sees error |
 | **TypeScript** | `tsc` catches type errors on your machine | error never reaches user |
-- `tsc`: TypeScript compiler
+- `tsc`: TypeScript compiler (TS → JS)
 - **"JS errors appear at runtime"** → V8 is executing code and blows up mid-run
 - **"TS catches errors at compile time"** → `tsc` on your machine during dev, before browser sees anything
+
+### 1.4 Transpile vs Compile
+
+**Compile** (strict): source → fundamentally different form, not human-readable
+- V8: ✅ JS → bytecode (runs on V8's VM)
+
+**Transpile**: source → source, same abstraction level, still human-readable
+- Babel: ES6+ → ES5 ✅
+- `tsc`: TS → JS ✅ (transpile by strict definition)
+
+`tsc` is called "compile" by convention. The purpose feels similar (a build step that catches errors before anything runs), but the output is plain JS, not a lower-level form.
+
+**Function declaration**: The identifier `awesomeFunction` is associated with the function value during the **compile phase**, before execution.
+
+```javascript
+function awesomeFunction(coolThings) { return amazingStuff; }
+```
+
+**Function expression**: The identifier `awesomeFunction` is not associated with the function value until that statement during **runtime**.
+
+```javascript
+let awesomeFunction = function(coolThings) { return amazingStuff; };
+```
 
 ---
 
@@ -2926,6 +2949,8 @@ console.log(s.delete(arry)); // true, s是Set {[1], [1]}, arry被delete了
 - `undefined`和`null`都可以加入Set. <u>`NaN`是个特例,</u> 虽然`NaN !== NaN`, 但是Set里可以只被加入一次
 
 ```javascript
+3 === 3.0; // true
+
 // undefined和null都是primitive, 可以比较
 undefined === undefined; // true
 null === null; // true
@@ -2934,6 +2959,17 @@ undefined == null; // true
 
 NaN === NaN; // false
 [1] === [1]; // false
+
+var x = [ 1, 2, 3 ];
+var y = x;
+
+y === x;              // true
+y === [ 1, 2, 3 ];    // false
+x === [ 1, 2, 3 ];    // false
+
+var x = "10";
+var y = "9";
+x < y;      // true!! string compare, no number coerce
 ```
 
 #####<u>Constructor</u>
