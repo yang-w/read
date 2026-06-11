@@ -123,7 +123,6 @@ The same static/dynamic split shows up across JS — one side is a **language-le
 | Function **declaration** — name + value both registered | Function **expression** — assigned when that line executes |
 | `import` (ESM) | `require()` (CJS) |
 | `var` — name registered (value is `undefined` until line runs) | `let` / `const` — not available at all until line executes (TDZ) |
-| Function declaration — fully hoisted, callable before its line | `var` value assignment — happens at runtime |
 
 **Function declaration vs expression:**
 ```javascript
