@@ -1,6 +1,7 @@
 <link href="css/style.css" rel="stylesheet"></link>
 
 * [1. Transpiling, Transpile vs Compile, Build Pipeline, Compile vs Runtime](#ydkjs-ch1)
+	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
 * [3.10 Global Variable / Local Variable](#global-local)
 * [3.10.1 Declarations with `let` and `const`](#let-const)
 * [3.10.2 Hoisting](#hoist)
@@ -33,6 +34,7 @@
 * [8.3 Function Arguments and Parameters](#func-args-params)
 * [8.4 Functions as Values](#func-val)
 * [8.6 Closure](#closure)
+* [8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
 * [8.7 Function Properties, Methods, and Constructor](#func-prop-method-constructor)
 	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#func-prop)
 	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#func-apply-call-bind)
@@ -67,6 +69,23 @@ Webpack:
 2. Parses own **AST** (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
 3. Outputs bundle.js → shipped to browser
 
+**ESM vs CJS in Webpack**
+
+| | ESM (`import`) | CJS (`require`) |
+|---|---|---|
+| Resolution | Static — build time | Dynamic — runtime function call |
+| Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
+| Dynamic path | Not allowed | `require(`./\${name}`)` bundles entire dir |
+
+```javascript
+import { square } from "./math.js";   // statically analyzable → tree-shakeable
+const { square } = require("./math"); // fine, static path
+const fn = require(`./${name}`);      // dynamic path → Webpack bundles whole dir
+```
+
+- **Interop**: Webpack wraps CJS `node_modules` so ESM `import` works against them
+- **Output format** (`output.libraryTarget`) is independent of input — can output CJS, UMD, or ESM for older consumers
+
 Browser (V8):
 1. Re-parses bundle.js: builds own **AST** → **compiles** to bytecode
 2. Executes bytecode → runtime
@@ -93,17 +112,40 @@ Browser (V8):
 
 `tsc` is called "compile" by convention. The purpose feels similar (a build step that catches errors before anything runs), but the output is plain JS, not a lower-level form.
 
-**Function declaration**: The identifier `awesomeFunction` is associated with the function value during the **compile phase**, before execution.
+### <a name="compile-vs-runtime-pattern" id="compile-vs-runtime-pattern">1.5 Compile vs Runtime: A Recurring Pattern</a>
 
+The same static/dynamic split shows up across JS — one side is a **language-level syntax construct** the parser knows about before any code runs; the other is a **runtime value or function call** resolved only when that line executes.
+
+**Build time vs compile time**: same idea, different tools. "Compile time" = when `tsc` or V8 processes source. "Build time" = when the whole pipeline runs (Babel transpiles, Webpack bundles). Both happen before the browser executes anything — "build time" is just more accurate for Webpack since it bundler rather than compiles.
+
+| Compile / parse time (hoisted — usable before their line) | Runtime (only available when that line executes) |
+|---|---|
+| Function **declaration** — name + value both registered | Function **expression** — assigned when that line executes |
+| `import` (ESM) | `require()` (CJS) |
+| `var` — name registered (value is `undefined` until line runs) | `let` / `const` — not available at all until line executes (TDZ) |
+| Function declaration — fully hoisted, callable before its line | `var` value assignment — happens at runtime |
+
+**Function declaration vs expression:**
 ```javascript
 function awesomeFunction(coolThings) { return amazingStuff; }
-```
+// identifier awesomeFunction resolved/linked with function at compile phase, before execution
 
-**Function expression**: The identifier `awesomeFunction` is not associated with the function value until that statement during **runtime**.
-
-```javascript
 let awesomeFunction = function(coolThings) { return amazingStuff; };
+// identifier awesomeFunction not associated until this line runs at runtime
 ```
+
+**`import` vs `require()`** (see [§8.6.1](#module-systems)):
+```javascript
+import { square } from "./math.js";       // Webpack resolves at build time → tree-shakeable
+const { square } = require("./math");     // just a function call → Webpack can't always tree-shake
+```
+- `require()` (CJS) is Node.js only — browsers don't have it natively; `module.exports` is its export pair
+- `import` (ESM) works in both browser and Node.js (Node 12+); `export` is its export pair
+
+| | Export | Import | Environment |
+|---|---|---|---|
+| CJS | `module.exports = { ... }` | `require()` | Node.js only |
+| ESM | `export` | `import` | Browser + Node.js |
 
 ---
 
@@ -4443,6 +4485,65 @@ Ex6.2 how to fix
 	```
 	
 	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`() => { help.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`json.forEach`的`(elem)`, 即当时的item.
+
+#### <a name="module-systems" id="module-systems">8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
+> YDKJS > Scope & Closures > ch8
+
+All solve the same problem: how do files share code? They differ by era and environment.
+
+| Format | Environment | Loading | Syntax | Status |
+|---|---|---|---|---|
+| IIFE closure | Browser | Manual `<script>` order | `(function(){})()` | Legacy pattern |
+| CommonJS (CJS) | Node.js | Sync `require()` | `module.exports` / `require` | Dominant in Node |
+| AMD | Browser | Async, needs RequireJS | `define([deps], fn)` | Obsolete |
+| UMD | Both | Wrapper shim around CJS+AMD | Boilerplate | Legacy libs only |
+| ESM | Both | Static, async-capable | `import` / `export` | Modern standard |
+
+**Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.5](#compile-vs-runtime-pattern). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
+
+**CJS (Node.js)**
+```javascript
+// math.js
+module.exports = { square: x => x * x };
+
+// app.js
+const { square } = require("./math");
+```
+
+**AMD (browser, legacy)**
+```javascript
+define(["./math"], function(math) {
+    console.log(math.square(3));
+});
+```
+
+**UMD (compatibility shim — generated by bundlers, rarely written by hand)**
+```javascript
+(function(root, factory) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(); // CJS
+    else if (typeof define === 'function' && define.amd) define([], factory);    // AMD
+    else root.myLib = factory();                                                  // global
+}(this, function() { return { square: x => x * x }; }));
+```
+
+**ESM (modern standard)**
+```javascript
+// math.js
+export const square = x => x * x;
+
+// app.js
+import { square } from "./math.js";
+```
+
+ESM singleton — file scope replaces IIFE, `count` is private to the module. ES modules are evaluated **once** regardless of how many files import them.
+```javascript
+// counter.js
+let count = 0;
+export function increment() { return count++; }
+export function reset()     { count = 0; }
+```
+
+---
 
 #### <a name="func-prop-method-constructor" id="func-prop-method-constructor">8.7 Function Properties, Methods, and Constructor</a>
 ##### <a name="func-prop" id="func-prop">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
