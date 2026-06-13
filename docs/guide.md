@@ -71,16 +71,66 @@ Webpack:
 
 **ESM vs CJS in Webpack**
 
+Webpack parses code into ASTs, walks `import`/`require` to build a dependency graph, and uses AST-level export information to determine what can be safely included or removed during optimization (tree shaking).
+
 | | ESM (`import`) | CJS (`require`) |
 |---|---|---|
-| Resolution | Static — build time | Dynamic — runtime function call |
+| Dependency graph building | AST → static `import` bindings → precise dependency graph | AST → `require()` calls → graph built (mostly static for literal paths) |
+| Export model | Named bindings → direct references to functions/values | Object export → properties on a mutable object |
 | Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
 | Dynamic path | Not allowed | `require(`./\${name}`)` bundles entire dir |
 
+CJS
 ```javascript
-import { square } from "./math.js";   // statically analyzable → tree-shakeable
-const { square } = require("./math"); // fine, static path
-const fn = require(`./${name}`);      // dynamic path → Webpack bundles whole dir
+// transform.js
+function getViewport() {
+  return window.innerWidth;
+}
+function unusedHelper() {
+  console.log("unused");
+}
+module.exports = {
+  getViewport,
+  unusedHelper
+};
+
+// app.js
+const { getViewport } = require("./transform");
+getViewport();
+
+// bundle.js
+module.exports = {
+  getViewport: function () {
+    return window.innerWidth;
+  },
+  unusedHelper: function () { // unusedHelper also included
+    console.log("unused");
+  }
+};
+
+const transform = __webpack_require__("./transform");
+transform.getViewport();
+```
+
+ESM
+```javascript
+// transform.js
+export function getViewport() {
+	return window.innerWidth;
+}
+export function unusedHelper() {
+  console.log("unused");
+}
+
+// app.js
+import { getViewport } from "./transform";
+getViewport();
+
+// bundle.js, unusedHelper is removed
+function getViewport() {
+  return window.innerWidth;
+}
+getViewport();
 ```
 
 - **Interop**: Webpack wraps CJS `node_modules` so ESM `import` works against them
