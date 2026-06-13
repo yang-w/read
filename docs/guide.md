@@ -133,12 +133,9 @@ Webpack parses code into ASTs, walks `import`/`require` to build a dependency gr
 | | ESM (`import`) | CJS (`require`) |
 |---|---|---|
 | Dependency graph building | AST → static `import` bindings → precise dependency graph | AST → `require()` calls → graph built (mostly static for literal paths) |
-| Export model | Static bindings — each export is a named reference fixed at parse time (export is per function) | Plain object — `module.exports = {}`, properties resolved at runtime (exports is the whole object) |
+| Export model | Static bindings — each `export` is a named reference to a specific function — Webpack knows exactly what's used at parse time. (export is per function) | `module.exports` is a plain object, properties resolved at runtime. A consumer could access any property dynamically - Webpack keeps everything (exports is the whole object) |
 | Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
 | Dynamic path | Not allowed | `` require(`./\${name}`) `` bundles entire dir |
-
-In ESM, each `export` is a named reference to a specific function — Webpack knows exactly what's used.
-In CJS, `module.exports` is a plain object — a consumer could access any property dynamically (`mod["get" + "Viewport"]()`), so Webpack keeps everything.
 
 CJS
 ```javascript
