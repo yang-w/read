@@ -7,7 +7,7 @@
 - [x] [preface.md](preface.md)
 - [x] [ch1.md — What Is JavaScript?](get-started/ch1.md)
 - [x] [ch2.md — Surveying JS](get-started/ch2.md)
-- [ ] [apB.md — Practice, Practice, Practice!](get-started/apB.md)
+- [x] [apB.md — Practice, Practice, Practice!](get-started/apB.md)
 
 ### Book 2: Scope & Closures
 - [ ] [ch1.md — What's the Scope?](scope-closures/ch1.md)
