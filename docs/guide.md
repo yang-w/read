@@ -1,7 +1,8 @@
 <link href="css/style.css" rel="stylesheet"></link>
 
-* [1. Transpiling, Transpile vs Compile, Build Pipeline, Compile vs Runtime](#ydkjs-ch1)
+* [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#ydkjs-ch1)
 	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
+	* [1.6 Build Pipeline](#build-pipeline)
 * [3.10 Global Variable / Local Variable](#global-local)
 * [3.10.1 Declarations with `let` and `const`](#let-const)
 * [3.10.2 Hoisting](#hoist)
@@ -48,7 +49,7 @@
 * [Big data with virtualization](#virtualization-windowing)
 * [HTML and CSS gotcha](#html-css-gotcha)
 
-#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Transpile vs Compile, Build Pipeline, Compile vs Runtime</a>
+#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline</a>
 
 ### 1.1 Transpiling
 - **forwards-compatibility**: 
@@ -62,96 +63,7 @@
       - ES2020: optional chaining (`?.`), nullish coalescing (`??`), `BigInt`
       - ES2022: class fields (public/private)
 
-### 1.2 Build pipeline (brwweb)
-
-Webpack:
-1. **Transpiles** source files with Babel
-2. Parses own **AST** (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
-3. Outputs bundle.js → shipped to browser
-
-**ESM vs CJS in Webpack**
-
-Webpack parses code into ASTs, walks `import`/`require` to build a dependency graph, and uses AST-level export information to determine what can be safely included or removed during optimization (tree shaking).
-
-| | ESM (`import`) | CJS (`require`) |
-|---|---|---|
-| Dependency graph building | AST → static `import` bindings → precise dependency graph | AST → `require()` calls → graph built (mostly static for literal paths) |
-| Export model | Named bindings → direct references to functions/values | Object export → properties on a mutable object |
-| Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
-| Dynamic path | Not allowed | `require(`./\${name}`)` bundles entire dir |
-
-CJS
-```javascript
-// transform.js
-function getViewport() {
-  return window.innerWidth;
-}
-function unusedHelper() {
-  console.log("unused");
-}
-module.exports = {
-  getViewport,
-  unusedHelper
-};
-
-// app.js
-const { getViewport } = require("./transform");
-getViewport();
-
-// bundle.js
-module.exports = {
-  getViewport: function () {
-    return window.innerWidth;
-  },
-  unusedHelper: function () { // unusedHelper also included
-    console.log("unused");
-  }
-};
-
-const transform = __webpack_require__("./transform");
-transform.getViewport();
-```
-
-ESM
-```javascript
-// transform.js
-export function getViewport() {
-	return window.innerWidth;
-}
-export function unusedHelper() {
-  console.log("unused");
-}
-
-// app.js
-import { getViewport } from "./transform";
-getViewport();
-
-// bundle.js, unusedHelper is removed
-function getViewport() {
-  return window.innerWidth;
-}
-getViewport();
-```
-
-- **Interop**: Webpack wraps CJS `node_modules` so ESM `import` works against them
-- **Output format** (`output.libraryTarget`) is independent of input — can output CJS, UMD, or ESM for older consumers
-
-Browser (V8):
-1. Re-parses bundle.js: builds own **AST** → **compiles** to bytecode
-2. Executes bytecode → runtime
-
-### 1.3 Compile time vs Runtime — JS vs TypeScript
-"Compile time" is overloaded — it means different things in different contexts:
-
-| | "Compile time" | "Runtime" |
-|---|---|---|
-| **Plain JS** | no static check | V8 executes → crashes → user sees error |
-| **TypeScript** | `tsc` catches type errors on your machine | error never reaches user |
-- `tsc`: TypeScript compiler (TS → JS)
-- **"JS errors appear at runtime"** → V8 is executing code and blows up mid-run
-- **"TS catches errors at compile time"** → `tsc` on your machine during dev, before browser sees anything
-
-### 1.4 Transpile vs Compile
+### 1.2 Transpile vs Compile
 
 **Compile** (strict): source → fundamentally different form, not human-readable
 - V8: ✅ JS → bytecode (runs on V8's VM)
@@ -161,6 +73,17 @@ Browser (V8):
 - `tsc`: TS → JS ✅ (transpile by strict definition)
 
 `tsc` is called "compile" by convention. The purpose feels similar (a build step that catches errors before anything runs), but the output is plain JS, not a lower-level form.
+
+### 1.4 Compile time vs Runtime — JS vs TypeScript
+"Compile time" is overloaded — it means different things in different contexts:
+
+| | "Compile time" | "Runtime" |
+|---|---|---|
+| **Plain JS** | no static check | V8 executes → crashes → user sees error |
+| **TypeScript** | `tsc` catches type errors on your machine | error never reaches user |
+- `tsc`: TypeScript compiler (TS → JS)
+- **"JS errors appear at runtime"** → V8 is executing code and blows up mid-run
+- **"TS catches errors at compile time"** → `tsc` on your machine during dev, before browser sees anything
 
 ### <a name="compile-vs-runtime-pattern" id="compile-vs-runtime-pattern">1.5 Compile vs Runtime: A Recurring Pattern</a>
 
@@ -195,6 +118,89 @@ const { square } = require("./math");     // just a function call → Webpack ca
 |---|---|---|---|
 | CJS | `module.exports = { ... }` | `require()` | Node.js only |
 | ESM | `export` | `import` | Browser + Node.js |
+
+### <a name="build-pipeline" id="build-pipeline">1.6 Build pipeline (brwweb)</a>
+
+Webpack:
+1. **Transpiles** source files with Babel
+2. Parses own **AST** (Abstrct Syntax Tree): resolve imports, tree-shake (drop exports never imported), inject polyfills
+3. Outputs bundle.js → shipped to browser
+
+**ESM vs CJS in Webpack**
+
+Webpack parses code into ASTs, walks `import`/`require` to build a dependency graph, and uses AST-level export information to determine what can be safely included or removed during optimization (tree shaking).
+
+| | ESM (`import`) | CJS (`require`) |
+|---|---|---|
+| Dependency graph building | AST → static `import` bindings → precise dependency graph | AST → `require()` calls → graph built (mostly static for literal paths) |
+| Export model | Static bindings — each export is a named reference fixed at parse time (export is per function) | Plain object — `module.exports = {}`, properties resolved at runtime (exports is the whole object) |
+| Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
+| Dynamic path | Not allowed | `` require(`./\${name}`) `` bundles entire dir |
+
+In ESM, each `export` is a named reference to a specific function — Webpack knows exactly what's used.
+In CJS, `module.exports` is a plain object — a consumer could access any property dynamically (`mod["get" + "Viewport"]()`), so Webpack keeps everything.
+
+CJS
+```javascript
+// transform.js
+function getViewport() {
+  return window.innerWidth;
+}
+function unusedHelper() {
+  console.log("unused");
+}
+module.exports = {
+  getViewport,
+  unusedHelper
+};
+
+// app.js
+const { getViewport } = require("./transform");
+getViewport();
+
+// bundle.js — unusedHelper still bundled, Webpack can't tell it's unused
+var __webpack_modules__ = {
+  "./transform": function(module) {
+    function getViewport() { return window.innerWidth; }
+    function unusedHelper() { console.log("unused"); } // still included
+    module.exports = { getViewport, unusedHelper };
+  }
+};
+const transform = __webpack_require__("./transform");
+transform.getViewport();
+```
+
+ESM
+```javascript
+// transform.js
+export function getViewport() {
+	return window.innerWidth;
+}
+export function unusedHelper() {
+  console.log("unused");
+}
+
+// app.js
+import { getViewport } from "./transform";
+getViewport();
+
+// bundle.js — unusedHelper removed by tree-shaking
+var __webpack_modules__ = {
+  "./transform": function() {
+    function getViewport() { return window.innerWidth; }
+    // unusedHelper — completely gone
+  }
+};
+const transform = __webpack_require__("./transform");
+transform.getViewport();
+```
+
+- **Interop (interoperability)**: Webpack wraps CJS `node_modules` so ESM `import` works against them
+- **Output format** (`output.libraryTarget`) is independent of input — can output CJS, UMD, or ESM for older consumers
+
+Browser (V8):
+1. Re-parses bundle.js: builds own **AST** → **compiles** to bytecode
+2. Executes bytecode → runtime
 
 ---
 
