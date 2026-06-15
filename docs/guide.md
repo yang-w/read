@@ -853,6 +853,27 @@ console.log(foo instanceof String); // true
 console.log(foo instanceof Object); // true
 ```
 
+Ex4. **Explicit coercion** — calling `Number()` intentionally converts a string to a number.
+
+```javascript
+const dayStart = "07:30";  // string
+
+function toHr(time) {
+  const [hr, min] = time.split(":").map(str => Number(str));
+  //                                              Number("07") → 7, Number("30") → 30
+  return hr + min / 60;
+}
+
+toHr(dayStart); // 7.5
+
+// Coercing a parameter — caller might pass "30" (string) or 30 (number)
+const dur = Number(durationMinutes) / 60;
+
+"30" / 60;  // 0.5 — implicit coercion, / forces numeric context
+```
+
+Contrast: **implicit coercion** — JS converts automatically without you asking. See: `x < y; // true!! string compare, no number coerce` in [§11.1.1](#set).
+
 #### <a name="for-of" id="for-of">5.4.4 for/of</a>
 
 The `for/of` loop works with <span class="bold">iterable</span> objects. <span class="red">Arrays, strings, sets, and maps</span> are iterable: they represent a sequence or set of elements that you can loop or iterate through using a for/of loop.
@@ -3065,6 +3086,7 @@ var x = "10";
 var y = "9";
 x < y;      // true!! string compare, no number coerce
 ```
+Contrast explicit coercion with `Number()`: [§4.13.3 Ex4](#typeof-instanceof).
 
 #####<u>Constructor</u>
 
