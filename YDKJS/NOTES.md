@@ -10,11 +10,11 @@
 - [x] [apB.md — Practice, Practice, Practice!](get-started/apB.md)
 
 ### Book 2: Scope & Closures
-- [ ] [ch1.md — What's the Scope?](scope-closures/ch1.md)
-- [ ] [§3.10](../docs/guide.md#global-local)
+- [x] [ch1.md — What's the Scope?](scope-closures/ch1.md)
+- [x] [§3.10](../docs/guide.md#global-local)
   - [ch3.md — The Scope Chain](scope-closures/ch3.md)
-- [ ] [ch4.md — Around the Global Scope](scope-closures/ch4.md)
-- [ ] [§3.10.1](../docs/guide.md#let-const) [§3.10.2](../docs/guide.md#hoist)
+- [x] [ch4.md — Around the Global Scope](scope-closures/ch4.md)
+- [x] [§3.10.1](../docs/guide.md#let-const) [§3.10.2](../docs/guide.md#hoist)
   - [TDZ](scope-closures/ch5.md#uninitialized-variables-aka-tdz)
 - [ ] [ch6.md — Limiting Scope Exposure](scope-closures/ch6.md)
 - [ ] [§8.6](../docs/guide.md#closure)

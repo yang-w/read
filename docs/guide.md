@@ -3,9 +3,9 @@
 * [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#ydkjs-ch1)
 	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
 	* [1.6 Build Pipeline](#build-pipeline)
-* [3.10 Global Variable / Local Variable](#global-local)
-* [3.10.1 Declarations with `let` and `const`](#let-const)
-* [3.10.2 Hoisting](#hoist)
+* [3.10 Lexical Scope, Global vs Local](#global-local)
+* [3.10.1 `var` + Hoisting](#hoist)
+* [3.10.2 `let`/`const` + TDZ](#let-const)
 * [3.10.3 `Object.entries()`](#object-entires)
 * [3.10.3 Destructuring Assignment](#destructuring-assignment)
 * [4.11.1 Assignment with Operation](#assignment-with-operation)
@@ -201,17 +201,16 @@ Browser (V8):
 
 ---
 
-#### <a name="global-local" id="global-local">3.10 Global Variable / Local Variable</a>
+#### <a name="global-local" id="global-local">3.10 Lexical Scope, Global vs Local</a>
 
 - **Global variables** live as long as your application (your window / your web page) lives.
 - **Local variables** have short lives. They are created when the function is invoked, and deleted when the function is finished.
 
 **Lexical Scope** defines how variable names are resolved in nested functions (Climbing through the **Scope Chain**). 
+- The chain is determined at **compile time** by where declarations are placed in source code; 
+- the actual resolution (lookup/resolve) happens at **runtime**.
 
-- The <u>order of accessing a variable</u> is local variables (inner scope), parameters, outer scope(s) then as a last resort, the global variable (window). If your variable doesn’t exist in the global scope, JavaScript will return an undefined.
-
-Ex.
-
+Ex1.
 ```javascript
 var globalvar = 1; // Global Scope
  
@@ -235,10 +234,94 @@ console.log(outervar); // => Uncaught ReferenceError: outervar is not defined
 console.log(innervar); // => Uncaught ReferenceError: outervar is not defined
 ```
 
-- 一旦出了function, local variable就out of scope了, <span class="orange">等同于从没define过, 如果这时request local variable, 会throw ReferenceError</span>, 如上面出了inner后log(innerar) throw ReferenceError.
-- <span class="yellowBG">区别于`var a; console.log(a);` 这里是undefined不是error, 因为a已经define了, 只是没有initiate.</span>
+- var a; <- a define并且init undefined. 但是let a; <- a只define没有init. 要touch必须要init.
+- 一旦出了function, local variable就out of scope了, 等同于从没define过, 如果这时<span class="orange">request undefined variable (当前scope没有var过), 会throw ReferenceError</span>.
+- 区别于`var a; console.log(a);` 这里是undefined不是error
 
-Ex. <span class="orange">注意区别下面三个例子</span>
+Ex2. (compile-time evidence)
+```javascript
+var greeting = "Hello";
+console.log(greeting);
+greeting = ."Hi"; // SyntaxError: unexpected token .
+```
+- "Hello" is never printed. failed at compile/parse time
+
+**Browser global quirks**
+
+Ex1. Browser global with `id`
+```html
+<ul id="my-todo-list">
+   <li id="first">Write a book</li>
+   ..
+</ul>
+```
+```javascript
+window.first // <li id="first">Write a book</li>
+window["my-todo-list"] // <ul id="my-todo-list">..</ul>
+```
+- A DOM element with an id attribute automatically creates a global variable referencing it
+
+Ex2. Browser global `window.name`
+```
+var name = 42;
+console.log(typeof name); // string "42"
+
+var num = 42;
+console.log(typeof num); // number 42
+```
+- `window.name` is a built-in global property that always coerces its value to a string
+
+Ex3. `window.x` — only `var`/`function` create global properties
+```javascript
+var one = 1;
+let notOne = 2;
+const notTwo = 3;
+class notThree {}
+
+console.log(window.one);       // 1
+console.log(window.notOne);    // undefined
+console.log(window.notTwo);    // undefined
+console.log(window.notThree);  // undefined
+```
+- `window.x` global只能access `var/function`, `let/const/class`都不行
+
+#### <a name="hoist" id="hoist">3.10.1 `var` + Hoisting</a>
+
+- `var` is scoped to the **nearest function block**. Declaration is hoisted to the top of its function scope.
+
+**Hoisting** is JavaScript’s default behavior of moving **declarations** to the top of a function scope (<span class="orange">注意只是hoist到当前function内的top</span>).
+
+- 只针对var和function declaration (let/const存在hoist, 但是不一样, 见 [§3.10.2](#let-const)).
+- <span class="orange">Any function declaration will be hoisted at the top first, then variable</span>.
+- If you assign a function to a variable (function expression) only the variable part will be hoisted. However if you have a function declaration, the full function will be hoisted.
+- JavaScript in strict mode does not allow hoist, 即不允许variables to be used if they are not declared.
+
+Ex1.
+```javascript
+var foo = "outside"; 
+function logIt(){
+	console.log(foo); 
+	var foo = "inside";
+} 
+logIt(); // undefined
+```
+注意logIt里的foo被hoist后, local有了一个新的foo, 所以不会再向上找global的foo, 且local的还没复值, 所以是undefined
+
+<span class="orange">Ex2.</span>
+```javascript
+var a = 1; 
+function b() { 
+    a = 10; 
+    return; 
+    function a() {} 
+} 
+b(); 
+console.log(a);  // 1
+```
+- function declaration `function a(){}` is hoisted first and <span class="orange">it behaves like `var a = function () {};`</span>. Hence in local scope variable a is created, 所以后来的a=10是reset了这个a, 不是global的a, 所以log时a没变.
+- If you didnt have a function named as a, you will see 10 in the log. 因为a=10就是reset了global的a.
+
+<span class="orange">Ex3. `var` + IIFE</span> <span class="orange">注意区别下面三个例子</span>
 
 ```javascript
 x=1;
@@ -255,7 +338,7 @@ x=1;
 (function() {
 	var x=10; // function里的x是local,function执行完了就out of scope了.和外面的x是两个variable
 })();
-console.log(x); // 是1不是10!!!
+console.log(x); // 1, 不是10
 ```
 
 ```javascript
@@ -264,11 +347,47 @@ x=1;
 	x=10;
 	var x; // 相当于new了一个local x并且hoist了,所以function里的x都和外面的x无关了
 })();
-console.log(x); // 1 区别于上面的例子 是1不是10!!!
+console.log(x); // 1, 和上面一样, 不是10
 ```
 
-#### <a name="let-const" id="let-const">3.10.1 Declarations with `let` and `const`</a>
+<span class="orange">Ex4. Shadowing</span>
+```javascript
+// 1. primitve pass in as copy
+var studentName = "Suzy";
+function printStudent(studentName) {
+    studentName = studentName.toUpperCase();
+    console.log(studentName);
+}
+printStudent(studentName); // SUZY
+console.log(studentName); // Suzy没变
 
+// 2. reference val pass in as ref
+var student = { name: "Suzy" };
+function printStudentObj(s) {
+    s.name = s.name.toUpperCase();
+}
+printStudentObj(student);
+console.log(student.name); // "SUZY"变了
+```
+- When call `printStudent(studentName)`, the value "Suzy" is copied into the local parameter. Whatever happens to the local studentName inside the function has no effect on the outer one.
+  - This is because <span class="orange">strings (and all primitives</span> — numbers, booleans, etc.) <span class="orange">are passed by value in JS. The function gets a copy</span>, not a reference to the original.
+- 区别于如果param是reference value, student.name就变了
+
+<span class="orange">Ex5.</span>
+```javascript
+function setName(obj) {
+    obj.name = "Nicholas"; 
+    obj = {}; // when obj is overwritten inside func, it becomes a pointer to a local obj, will be destroyed once func finishes
+    obj.name = "Greg";
+}
+var person = new Object();
+setName(person);
+console.log(person.name);    // "Nicholas", 不是Greg!!
+```
+
+#### <a name="let-const" id="let-const">3.10.2 `let`/`const` + TDZ</a>
+
+- `let` is scoped to the **nearest enclosing block** `{ }` (can be smaller than a function block)
 - 对于`let`, 可以不付初始值, the value will be undefined
 - 但是`const`必须付初始值
 
@@ -279,27 +398,21 @@ const b = 0;
 
 `const` variable can NOT change through re-assignment or be re-declared, otherwise `TypeError` will be throwed.
 
-- 对于<span class="orange">primitive types</span> (undefined, null, boolean, number, string, symbol), value change is <u>NOT</u> possible.
+- 对于<span class="orange">primitive types</span> (undefined, null, number, string, boolean, symbol), value change is <u>NOT</u> possible.
 
 	```javascript
 	const x = 9;
 	x++; // TypeError, cannot change value
-	x *= 2; // TypeError, cannot change value
-	
-	x = 6; // TypeError, cannot change value
 	x = 9; // TypeError, 即使付同样的值也不行
 	```
 	
-- 对于<span class="orange">reference types</span> (object, array is object), as long as it's still pointing to the <u>same address</u>, it's possible to edit the value.
+- 对于<span class="orange">reference types</span> (object, array is object), as long as it’s still pointing to the <u>same address</u>, it’s possible to edit the value.
 	- Object: 注意下面可以改变x.foo的值, since x is still pointing the same address.
 	
 		```javascript
 		const x = {};
 		x.foo = "bar";
 		console.log(x); // {foo : "bar"}
-	
-		x.foo = "bar2";
-		console.log(x); // {foo : "bar2"}  
 		```
 	- Array: 与object一样, y始终指向同一个address, 只是address里存的值变了.
 
@@ -307,129 +420,127 @@ const b = 0;
 		const y = [];
 		y.push("foo");
 		console.log(y); // ["foo"]
-		
-		y.pop();
-		console.log(y); // []
 		```
-		
-`const`和`let`的<b>scope</b>只到the nearest wrapping code block (curly braces). 
 
-在while/for loop中, <u>每一次loop是一个scope.</u> 下例中, a brand new `next` variable is created on EVERY iteration. <u>Each iteration has no knowledge of a previously created `next` variable</u>. 
+**`let`/`const` hoisting + TDZ**
+
+`let`/`const` ARE hoisted (to the top of their enclosing block), but unlike `var`, they are NOT initialized. From the start of the block until the `let`/`const` line is reached, the variable sits in the **Temporal Dead Zone (TDZ)**. Touching it during TDZ throws `ReferenceError`.
+
+| | `var` | `let`/`const` |
+|---|---|---|
+| Scope | nearest function | nearest `{ }` block |
+| Hoisted | ✅ hoisted + initialized to `undefined` | ✅ hoisted, but **NOT initialized** (TDZ) |
+| Access before declaration | `undefined` | `ReferenceError` |
+
+Ex.
+```javascript
+function saySomething() {
+    var greeting = "Hello";
+    {
+        greeting = "Howdy";  // refError here (TDZ)
+        /**
+         * let is hoisted to the top of {} and 
+         * initialized HERE at runtime
+         */
+        let greeting = "Hi"; 
+        console.log(greeting);
+    }
+}
+
+saySomething(); // ReferenceError: Cannot access ‘greeting’ before init
+```
+- `let greeting` is hoisted to the top of `{}`, so `greeting` resolves to the inner `let` for the entire block — NOT the outer `var`. But it’s uninitialized (TDZ) until execution reaches the `let` line.
+
+**Shadowing rules between `let` and `var`**
+
+- 注意`let/const`只会被hoist到{}top VS `var`会被hoist到function top
 
 ```javascript
-while(stack.length > 0) {
-	const next = stack.pop(); 
+// Ex1: var -> {let} — fine
+function something() {
+  var special = "JavaScript";
+  {
+    let special = 42;   // totally fine shadowing
+  }
+}
+// Ex2: {let} -> {var} — SyntaxError
+function another() {
+  {
+    let special = "JavaScript";
+    {
+      var special = "JavaScript"; // SyntaxError, special has already been defined
+    }
+  } 
+}
+// Ex3: {let} -> new function’s var — fine
+function another() {
+  {
+    let special = "JavaScript";
+    ajax("https://some.url",function callback(){
+      var special = "JavaScript"; // 这是可以的
+    });
+  }
 }
 ```
+- Ex1中同样的name: var -> {let}是合法的
+- Ex2里let-> {var} SyntaxError: var attempting to cross a let boundary (var被hoist到function top 和let重叠了)
+- Ex3是合法的, 因为var是在一个新的function里
 
-<span class="white-on-black">Difference between let and var</span>
+**`let`/`const` vs `var` comparison**
 
-- The difference is scoping. var is scoped to the <span class="orange">nearest function block</span> and let is scoped to the <span class="orange">nearest enclosing block</span>, which can be smaller than a function block.
-- Variables declared with <u>let are not accessible before they are declared</u> in their enclosing block. <span class="orange">let不存在hoist</span>.
-
-	Ex. <span class="orange">注意下面这个例子</span>
-	
-	```javascript
-	console.log("globalVar: " + globalVar); // undefined, but visible
-	console.log("globalLet: " + globalLet); // ReferenceError: a is not defined, *not* visible
-	
-	var globalVar = "globalVar";
-	let globalLet = "globalLet";
-	
-	console.log("globalVar: " + globalVar); // globalVar
-	console.log("globalLet: " + globalLet); // globalLet
-	
-	function functionScoped() {
-	  console.log("functionVar: " + functionVar); // undefined, but visible
-	
-	  try {
-	    console.log("functionLet: " + functionLet); // ReferenceError, *not* visible
-	  } catch (exception) {
-	    console.log("functionLet: exception");
-	  }
-	
-	  var functionVar = "functionVar";
-	  let functionLet = "functionLet";
-	
-	  console.log("functionVar: " + functionVar); // functionVar
-	  console.log("functionLet: " + functionLet); // functionLet
-	}
-	
-	function blockScoped() {
-	  console.log("blockVar: " + blockVar); // undefined, but visible
-	
-	  try {
-	    console.log("blockLet: " + blockLet); // ReferenceError, *not* visible
-	  } catch (exception) {
-	    console.log("blockLet: exception");
-	  }
-	
-	  for (var blockVar = "blockVar", blockIndex = 0; blockIndex < 1; blockIndex++) {
-	    console.log("blockVar: " + blockVar); // visible here and whole function
-	  }; //blockVar: blockVar
-	
-	  for (let blockLet = "blockLet", letIndex = 0; letIndex < 1; letIndex++) {
-	    console.log("blockLet: " + blockLet); // visible only here
-	  }; //blockLet: blockLet
-	
-	  console.log("blockVar: " + blockVar); // blockVar: blockVar
-	
-	  try {
-	    console.log("blockLet: " + blockLet); // ReferenceError, *not* visible
-	  } catch (exception) {
-	    console.log("blockLet: exception");
-	  }
-	}
-	```
-	
-#### <a name="hoist" id="hoist">3.10.2 Hoisting</a>
-
-**Hoisting** is JavaScript’s default behavior of moving **declarations** to the top of a function scope (<span class="orange">注意只是hoist到当前function内的top</span>). 
-
-- 只针对var和function declaration, let/const不存在hoist.
-- <span class="orange">Any function declaration will be hoisted at the top first, then variable</span>.
-- If you assign a function to a variable (function expression) only the variable part will be hoisted. However if you have a function declaration, the full function will be hoisted.
-- JavaScript in strict mode does not allow hoist, 即不允许variables to be used if they are not declared.
-
-<span class="orange">Ex1.</span> 
-
+Ex. <span class="orange">注意下面这个例子</span>
 ```javascript
-var foo = "outside"; 
-function logIt(){
-	console.log(foo); 
-	var foo = "inside";
-} 
-logIt(); // undefined
-```	
-注意logIt里的foo被hoist后, local有了一个新的foo, <u>所以不会再向上找global的foo</u>, 且local的还没复值, 所以是undefined
+console.log("globalVar: " + globalVar); // undefined, but visible
+console.log("globalLet: " + globalLet); // ReferenceError: a is not defined, *not* visible
 
-<span class="orange">Ex2.</span>
+var globalVar = "globalVar";
+let globalLet = "globalLet";
 
-```javascript
-function setName(obj) { // 区别于Ex1, 这里不存在hoist
-    obj.name = "Nicholas"; 
-    obj = {}; // when obj is overwritten inside func, it becomes a pointer to a local obj, will be destroyed once func finishes
-    obj.name = "Greg";
+console.log("globalVar: " + globalVar); // globalVar
+console.log("globalLet: " + globalLet); // globalLet
+
+function functionScoped() {
+  console.log("functionVar: " + functionVar); // undefined, but visible
+
+  try {
+    console.log("functionLet: " + functionLet); // ReferenceError, *not* visible
+  } catch (exception) {
+    console.log("functionLet: exception");
+  }
+
+  var functionVar = "functionVar";
+  let functionLet = "functionLet";
+
+  console.log("functionVar: " + functionVar); // functionVar
+  console.log("functionLet: " + functionLet); // functionLet
 }
-var person = new Object();
-setName(person);
-console.log(person.name);    // "Nicholas", 不是Greg!!
-```
 
-<span class="orange">Ex3.</span> 
+function blockScoped() {
+  console.log("blockVar: " + blockVar); // undefined, but visible
 
-```javascript
-var a = 1; 
-function b() { 
-    a = 10; 
-    return; 
-    function a() {} 
-} 
-b(); 
-console.log(a);  // 1
+  try {
+    console.log("blockLet: " + blockLet); // ReferenceError, *not* visible
+  } catch (exception) {
+    console.log("blockLet: exception");
+  }
+
+  for (var blockVar = "blockVar", blockIndex = 0; blockIndex < 1; blockIndex++) {
+    console.log("blockVar: " + blockVar); // visible here and whole function
+  }; //blockVar: blockVar
+
+  for (let blockLet = "blockLet", letIndex = 0; letIndex < 1; letIndex++) {
+    console.log("blockLet: " + blockLet); // visible only here
+  }; //blockLet: blockLet
+
+  console.log("blockVar: " + blockVar); // blockVar: blockVar
+
+  try {
+    console.log("blockLet: " + blockLet); // ReferenceError, *not* visible
+  } catch (exception) {
+    console.log("blockLet: exception");
+  }
+}
 ```
-- function declaration `function a(){}` is hoisted first and <span class="orange">it behaves like `var a = function () {};`</span>. Hence in local scope variable a is created, 所以后来的a=10是reset了这个a, 不是global的a, 所以log时a没变.
--  If <span class="orange">you didnt have a function named as a, you will see 10 in the log. 因为a=10就是reset了global的a</span>.
 
 #### <a name="object-entires" id="object-entires">3.10.3 Object.entries()</a>
 
