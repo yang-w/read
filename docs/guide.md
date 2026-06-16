@@ -1,23 +1,26 @@
 <link href="css/style.css" rel="stylesheet"></link>
-
 * [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#ydkjs-ch1)
 	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
 	* [1.6 Build Pipeline](#build-pipeline)
 * [3.10 Lexical Scope, Global vs Local](#global-local)
 * [3.10.1 `var` + Hoisting](#hoist)
 * [3.10.2 `let`/`const` + TDZ](#let-const)
-* [3.10.3 `Object.entries()`](#object-entires)
-* [3.10.3 Destructuring Assignment](#destructuring-assignment)
-* [4.11.1 Assignment with Operation](#assignment-with-operation)
-* [4.13.3 The `typeof` and `instanceof` Operator](#typeof-instanceof)
-* [5.4.4 for/of](#for-of)
-* [5.4.5 for/in](#for-in)
+* [8.1 Defining Functions](#func-def)
+* [8.2 Invoking Functions](#func-invoke)
+* [8.3 Function Arguments and Parameters](#func-args-params)
+* [8.4 Functions as Values](#func-val)
+* [8.6 Closure](#closure)
+* [8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
 * [6.2 Creating Objects](#create-obj)
-* [6.9 Object Methods](#obj-method)
-* [6.7 Extending Objects](#extending-obj)
 * [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#extended-obj-literal-syntax)
 	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#extended-obj-literal-syntax-shorthand-prop-method)
 	* [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread)
+* [3.10.3 Destructuring Assignment](#destructuring-assignment)
+* [3.10.3 `Object.entries()`](#object-entires)
+* [5.4.4 for/of](#for-of)
+* [5.4.5 for/in](#for-in)
+* [6.7 Extending Objects](#extending-obj)
+* [6.9 Object Methods](#obj-method)
 * [7.1 Creating Arrays (`Array.of`, `Array.from`)](#create-arry)
 * [7.8 Array Methods](#arry-methods)
 	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#arry-iterator)
@@ -27,23 +30,18 @@
 	* [7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`](#arry-subarry)
 	* [7.8.6 Array Sorting Methods (`sort`, `reverse`)](#arry-sort)
 	* [7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)](#arry-to-string)
-* [7.9 Array-Like Objects](#arrylike-obj)
 * [11.1.1 The Set Class](#set)
 * [11.1.2 The Map Class](#map)
-* [8.1 Defining Functions](#func-def)
-* [8.2 Invoking Functions](#func-invoke)
-* [8.3 Function Arguments and Parameters](#func-args-params)
-* [8.4 Functions as Values](#func-val)
-* [8.6 Closure](#closure)
-* [8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
-* [8.7 Function Properties, Methods, and Constructor](#func-prop-method-constructor)
-	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#func-prop)
-	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#func-apply-call-bind)
-	* [8.8.2 Higher-Order Functions](#higher-order-func)
 * [9.2 Classes and Constructors](#class-constructor)
 * [9.3 Classes with the class Keyword](#class-with-class-keyword)
 * [9.4 Adding Methods to Existing Classes](#add-method-to-existing-class)
 * [9.5 Subclasses](#subclass)
+* [8.7 Function Properties, Methods, and Constructor](#func-prop-method-constructor)
+	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#func-prop)
+	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#func-apply-call-bind)
+	* [8.8.2 Higher-Order Functions](#higher-order-func)
+* [4.13.3 The `typeof` and `instanceof` Operator](#typeof-instanceof)
+* [4.11.1 Assignment with Operation](#assignment-with-operation)
 * [async/await](#async-await)
 * [Input change debounce](#input-debounce)
 * [Big data with virtualization](#virtualization-windowing)
@@ -211,6 +209,7 @@ Browser (V8):
 - the actual resolution (lookup/resolve) happens at **runtime**.
 
 Ex1.
+
 ```javascript
 var globalvar = 1; // Global Scope
  
@@ -235,10 +234,18 @@ console.log(innervar); // => Uncaught ReferenceError: outervar is not defined
 ```
 
 - var a; <- a define并且init undefined. 但是let a; <- a只define没有init. 要touch必须要init.
-- 一旦出了function, local variable就out of scope了, 等同于从没define过, 如果这时<span class="orange">request undefined variable (当前scope没有var过), 会throw ReferenceError</span>.
-- 区别于`var a; console.log(a);` 这里是undefined不是error
+- 一旦出了function, local variable就out of scope了, 等同于从没define过, 如果这时<span class="orange">accessing before initialization throws a ReferenceError</span>.
+- 区别于`var a; console.log(a);` 这里init as undefined 不是error
 
-Ex2. (compile-time evidence)
+**Error type → when it crashes**
+
+| Error type | When | Effect |
+|---|---|---|
+| `SyntaxError` | Parse/compile phase | Entire script doesn't run |
+| `ReferenceError`, `TypeError`, `RangeError` | Runtime | Code up to that line ran; execution stops there |
+
+Ex1. (compile-time evidence)
+
 ```javascript
 var greeting = "Hello";
 console.log(greeting);
@@ -246,9 +253,23 @@ greeting = ."Hi"; // SyntaxError: unexpected token .
 ```
 - "Hello" is never printed. failed at compile/parse time
 
+Ex2. (runtime ReferenceError — earlier lines still run)
+
+```javascript
+var studentName = "Kyle";
+{
+  console.log("-- hello --");  // ✅ prints — runtime hasn't hit TDZ yet
+  console.log(studentName);    // ❌ ReferenceError: TDZ — let below shadows outer var for whole block
+  let studentName = "Suzy";
+  console.log(studentName);    // never reached
+}
+```
+- Parse succeeded (no syntax error), so execution begins. `"-- hello --"` prints. TDZ error fires only when that line executes.
+
 **Browser global quirks**
 
 Ex1. Browser global with `id`
+
 ```html
 <ul id="my-todo-list">
    <li id="first">Write a book</li>
@@ -262,7 +283,8 @@ window["my-todo-list"] // <ul id="my-todo-list">..</ul>
 - A DOM element with an id attribute automatically creates a global variable referencing it
 
 Ex2. Browser global `window.name`
-```
+
+```javascript
 var name = 42;
 console.log(typeof name); // string "42"
 
@@ -272,6 +294,7 @@ console.log(typeof num); // number 42
 - `window.name` is a built-in global property that always coerces its value to a string
 
 Ex3. `window.x` — only `var`/`function` create global properties
+
 ```javascript
 var one = 1;
 let notOne = 2;
@@ -296,7 +319,10 @@ console.log(window.notThree);  // undefined
 - If you assign a function to a variable (function expression) only the variable part will be hoisted. However if you have a function declaration, the full function will be hoisted.
 - JavaScript in strict mode does not allow hoist, 即不允许variables to be used if they are not declared.
 
+> **Note:** function declaration inside a block `{}` — per ES6 spec, it’s block-scoped (hoisted to top of that block, not the enclosing function). Browser engines (V8) partially hoist the name to the outer function scope as `undefined` for backwards compat — the body is only assigned if the block actually executes. Avoid function declarations inside blocks.
+
 Ex1.
+
 ```javascript
 var foo = "outside"; 
 function logIt(){
@@ -308,6 +334,7 @@ logIt(); // undefined
 注意logIt里的foo被hoist后, local有了一个新的foo, 所以不会再向上找global的foo, 且local的还没复值, 所以是undefined
 
 <span class="orange">Ex2.</span>
+
 ```javascript
 var a = 1; 
 function b() { 
@@ -351,6 +378,7 @@ console.log(x); // 1, 和上面一样, 不是10
 ```
 
 <span class="orange">Ex4. Shadowing</span>
+
 ```javascript
 // 1. primitve pass in as copy
 var studentName = "Suzy";
@@ -374,6 +402,7 @@ console.log(student.name); // "SUZY"变了
 - 区别于如果param是reference value, student.name就变了
 
 <span class="orange">Ex5.</span>
+
 ```javascript
 function setName(obj) {
     obj.name = "Nicholas"; 
@@ -432,24 +461,34 @@ const b = 0;
 | Hoisted | ✅ hoisted + initialized to `undefined` | ✅ hoisted, but **NOT initialized** (TDZ) |
 | Access before declaration | `undefined` | `ReferenceError` |
 
-Ex.
+Ex1.
 ```javascript
 function saySomething() {
-    var greeting = "Hello";
-    {
-        greeting = "Howdy";  // refError here (TDZ)
-        /**
-         * let is hoisted to the top of {} and 
-         * initialized HERE at runtime
-         */
-        let greeting = "Hi"; 
-        console.log(greeting);
-    }
+  var greeting = "Hello";
+  {
+    greeting = "Howdy";  // refError here (TDZ)
+    /**
+     * let is hoisted to the top of {} and 
+     * initialized HERE at runtime
+     */
+    let greeting = "Hi"; 
+    console.log(greeting);
+  }
 }
-
 saySomething(); // ReferenceError: Cannot access ‘greeting’ before init
 ```
 - `let greeting` is hoisted to the top of `{}`, so `greeting` resolves to the inner `let` for the entire block — NOT the outer `var`. But it’s uninitialized (TDZ) until execution reaches the `let` line.
+
+Ex2.
+```javascript
+askQuestion(); // ReferenceError
+
+let studentName = "Suzy";
+function askQuestion() {
+  console.log(`${ studentName }, do you know?`);
+}
+```
+- 虽然askQuestion()可以在定义之前用, 但是此时`${studentName}`还在TDZ
 
 **Shadowing rules between `let` and `var`**
 
@@ -542,522 +581,977 @@ function blockScoped() {
 }
 ```
 
-#### <a name="object-entires" id="object-entires">3.10.3 Object.entries()</a>
-
-[MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
-
-```Object.entries(obj)```返回的是array of [key, val]  pairs. 注意[key, val]是array的形式, 不是object.
-
-并且注意```Object.entries```返回的<span class="red">没有inherited properties</span>.
-
-```javascript
-const obj1 = {
-    a: "aaa",
-    b: 42
-};
-// 注意entries returns [["a", "aaa"], ["b", 42]] 
-for(let [key, val] of Object.entries(obj1)) {
-    console.log(`key = ${key}, val = ${val}`);
-}
-// key = a, val = aaa
-// key = b, val = 42
-```
-
-同样适用于array
-
-```javascript
-let letters = [..."abc"];
-for(let [index, val] of letters.entries()) {
-	console.log(`index = ${index}, letter = ${val}`);
-}
-// index = 0, letter = a
-// index = 1, letter = b
-// index = 2, letter = c
-```
-
-#### <a name="destructuring-assignment" id="destructuring-assignment">3.10.3 Destructuring Assignment</a>
-
-[MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#object_destructuring)
-
-The <span class="bold">destructuring assignment</span> syntax is a JavaScript expression that makes it possible to unpack values from <span class="bold">arrays</span>, or properties from <span class="bold">objects</span>, into distinct variables.
-
-##### <span class="white-on-black">Array Destructuring</span>
-
-##### Swapping variables
-```javascript
-let [x, y] = [1, 2];
-[x, y] = [x+1, y+1];
-[x, y] = [y, x]; // swap
-console.log(`[x, y] = ${[x, y]}`);  // [x, y] = 3,2. toString()了
-console.log([x, y]); // [3, 2]
-```
-
-```javascript
-const arr = [1,2,3];
-// 1. swap 注意这里的arry[2], arry[1]是reference, 
-// 2. [arry[2], arry[1]] = [2, 3]. 右边的值已经取出来了, 虽然arry[2]先变成了arry[1], 但是当arry[1]=arry[2]时的arry[2]依然是原来的arry[2]
-[arr[2], arr[1]] = [arr[1], arr[2]];
-console.log(arr); // [1,3,2]
-```
-
-##### Default values
-
-```javascript
-// Default values
-let [c=2, d=5] = [1];
-console.log(`c = ${c}, d = ${d}`); // c = 1, d = 5
-```
-
-##### Parsing an array returned from a function
-
-```javascript
-// Parsing an array returned from a function
-function f() { return [1, 2, 3]; }
-let [f1, f2] = f();
-console.log(`f1 = ${f1}, f2 = ${f2}`); // f1 = 1, f2 = 2
-
-// Ignoring some returned values
-let [f3, , f4] = f(); //arry[1] is ignored
-console.log(`f3 = ${f3}, f4 = ${f4}`); // f3 = 1, f4 = 3
-```
-
-```javascript
-const [firstElem, secondElem] = [1,2,3,4,5];
-// is equivalent to:
-// const firstElem = arry[0];
-// const secondElem = arry[1];
-console.log(firstElem, secondElem); //1, 2
-```
-
-##### Using rest/spread operator to group the rest into an array
-
-```javascript
-// with ..., spread/rest will group the rest into an array
-let [a, ...rest] = [10, 20, 30];
-console.log(`a = ${a}, rest = ${rest}`); //a = 10, b = 20,30. b is Array[20, 30]
-console.log(rest); // [20, 30]
-```
-
-```javascript
-// destructuring on iterable object, anything can be used with for...of loop
-let [start, ...restOfStr] = "hello";
-console.log(start); // "h"
-// 注意这里是arry of charactors, 不是剩余的string
-console.log(restOfStr); // ["e", "l", "l", "o"] 
-```
-
-##### <span class="white-on-black">Object Destructuring</span>
-
-Object destructuring左手边是obj的key, 返回的是obj.key, 即val
-
-```javascript
-const user = {
-    id: 123,
-    is_verified: true
-};
-const {id, is_verified} = user;
-console.log(`user id = ${id}, isVerified = ${is_verified}`); // user id = 123, isVerified = true
-```
-
-##### Assigning to new variable names
-
-区别于array destructuring的default value, `let [a=1, b=2] = [4];`中用的等号, 这里是冒号
-
-```javascript
-const {id: id_renamed} = user;
-// assign id to id_renamed = 123
-console.log(`assign id to id_renamed = ${id_renamed}`);
-console.log(id); // Uncaught ReferenceError: tes is not defined
-```
-
-##### Default values
-
-区别于上面的assign new var用的是冒号, 这里default val和arry restructuring一样, 都是等号
-
-```javascript
-// 区别于array destructuring. 这里左手边必须是obj的key
-// 剩余一样 注意用等号: aa=1, 不是冒号
-const {aa = 1, bb = 2} = {aa: 3};
-console.log(`aa = ${aa}, bb = ${bb}`); // aa = 3, bb = 2
-```
-
-```javascript
-const { 
-  main: { 
-    content: { 
-      title = "defaultTitle" 
-    } = {} 
-  } = {}
-} = obj || {}; // deconstruct with default fallback
-console.log(title); // defaultTitle
-```
-
-##### Assignment without declaration + Using rest/spread operator to group the rest into an object
-
-注意{...} = {...}外面的括号是必须的
-
-```javascript
-let b;
-// The parentheses ( ... ) around the assignment statement are required.
-// 因为{ a, b, ...rest } is considered a block not an object literal
-// 要么就写成 const {a, b} = obj
-({ a, b, ...rest } = { a: 10, b: 20, c: 30, d: 40 });
-console.log(`a = ${a}, b = ${b}`); // a = 10, b = 20
-
-// spread will group the rest into an object
-console.log(rest); // {c: 30, d: 40}
-```
-
-##### Unpacking fields from objects passed as a function parameter
-
-```javascript
-//注意下面getFirstName是怎么得到fName的
-const user1 = {
-    id: 42,
-    name: "jdoe",
-    fullName: {
-        fName: "john",
-        lName: "doe"
-    }
-};
-function getId({id}) {
-    return `userId = ${id}`;
-}
-// 注意这里得不到fullName, 只有name和fullName中的fName
-function getFirstName({ name, fullName: {fName}}) {
-	try {
-	    console.log(fullName); // Uncaught ReferenceError: fullName is not defined
-	} catch(e) {}
-	return `${name} = ${fName}`;
-}
-// 注意这里为了同时得到fullName和fullName中的fName, fullName要单独写出来
-function getFullNameWithFName({ name, fullName, fullName: { fName }}) {
-    console.log(`fullName = ${JSON.stringify(fullName)}`); // {fName: "john", lName: "doe"}
-    return `${name} = ${fName}`;
-}
-//这里assign lName给last
-function getLastName({name, fullName: {lName: last}}) { 
-    return `${name} = ${last}`;
-}
-console.log(getId(user1)); // userId = 42
-console.log(getFirstName(user1)); // jdoe = john
-console.log(getFullNameWithFName(user1)); // jdoe = john
-console.log(getLastName(user1)); // jdoe = doe
-```
-
-##### Nested object and array destructuring
-
-```javascript
-const metadata = {
-    title: "metadata",
-    translations: [
-        {
-            locale: "en",
-            title: "en_title_metadata",
-            rel: {
-                a: "en_a",
-                b: "en_b"
-            }
-        },
-        {
-            locale: "es",
-            title: "es_titile_metadata",
-            rel: {
-                a: "es_a",
-                b: "es_b"
-            }
-        }
-    ],
-    url: "/en-US/metadata"
-};
-// 注意这里的写法读取的是translations[0].title
-let { 
-  title, 
-  translations: [{title: translatedTitle}] = []
-} = metadata;
-console.log(`title = ${title}, translated = ${translatedTitle}`); // title = metadata, translated = en_title_metadata
-
-// 1. 这里不能再用 {title: translatedTitle} 否则会报错 let/const不能同一个variable(translatedTitle) declare两次
-// 2. 注意这里读取的是translations[1].title
-let { translations: [, { title: translatedTitleEs }]} = metadata;
-console.log(`es translated = ${translatedTitleEs}`); // es translated = es_titile_metadata
-
-// For-of iteration and destructuring
-// 1. 注意这里是怎么对translations循环的 
-// 2. 注意rel_b的assign
-for (let { title, rel: { a, b: rel_b } } of metadata.translations) {
-    console.log(`title = ${title}, rel.a = ${a}, rel.b = ${rel_b}`);
-}
-// title = en_title_metadata, rel.a = en_a, rel.b = en_b
-// title = es_titile_metadata, rel.a = es_a, rel.b = es_b
-```
-
-##### Combined Array and Object Destructuring
-
-```javascript
-const props = [
-    { id: 1, name: "fizz"},
-    { id: 2, name: "bizz"},
-    { id: 3, name: "gizz"}
-];
-const [, , { name }] = props;
-console.log(`props[2].name = ${name}`); //props[2].name = gizz
-```
-
-##### The prototype chain is looked up when the object is deconstructed 
-
-When deconstructing an object, if a property is not accessed in itself, it will continue to look up along the prototype chain.
-
-```javascript
-let obj = {
-    anotherId: 123
-};
-obj.__proto__.prop = "456";
-const { anotherId, prop } = obj; // 注意这里不能再用{ id, prop }中的id了,因为前面已经declare过了
-console.log(`obj.id = ${anotherId}, obj.prop = ${prop}`); // obj.id = 123, obj.prop = 456
-```
-
-##### <span class="white-on-black">Destruct Function Arguments into Parameters</span>
-
-Ex1. Destructure args as array
-
-```javascript
-function vectorAdd1(v1, v2) {
-    return [v1[0]+v2[0], v1[1]+v2[1]];
-}
-// compare with destructured args
-function vectorAdd2([x1, y1], [x2, y2]) {
-    return [x1+x2, y1+y2];
-}
-console.log(vectorAdd2([1,2], [3,4])); // [4,6]
-```
-
-Ex2. Destructure args as object
-
-```javascript
-// 注意这里z的default val
-function vectorMultiply({ x, y, z=0 }, scalar) {
-    return {
-        x: x * scalar,
-        y: y * scalar,
-        z: z * scalar
-    };
-}
-console.log(vectorMultiply({ x: 1, y: 2}, 3)); // {x: 3, y: 6, z: 0}
-
-function vectorMultiply2({ x, y, z=0, ...props}, scalar) {
-    return {x: x*scalar, y: y*scalar, z: z*scalar, ...props};
-}
-// 除了x,y,z的props会原封不动的return: 这里的w:-1
-console.log(vectorMultiply2({ x: 1, y: 2, w: -1}, 3)); // { x: 3, y: 6, z: 0, w: -1 }
-```
-
-Ex3. Rename
-
-```javascript
-// 注意这里的rename, 左边的key是不变的, 右边的是rename
-function vectorAdd3({ x: x1, y: y1 }, { x: x2, y: y2 }) {
-    return {
-        x: x1 + x2,
-        y: y1 + y2
-    };
-}
-console.log(vectorAdd3({x: 1, y: 2}, {x: 3, y: 4})); // {x: 4, y: 6}
-```
-
-Ex4. 把from copy进to, 在to的insertAt插入, 插入的是from从fromIndex开始向后数numToCopy个
-
-```javascript
-function arryCopy({ from, to=from, fromIndex=0, numToCopy=from.length, insertAt=0 }) {
-    let valuesToCopy = from.splice(fromIndex, fromIndex + numToCopy);
-    to.splice(insertAt, 0, ...valuesToCopy);
-    return to;
-}
-let a = [1,2,3,4], b=[5,6,7,8];
-// 注意splice从index=2开始插入 所以(1,2,3)是插在7之前!!
-console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1,2,3),7,8]
-```
-
-- arryCopy的params是一个obj, key是from, to, fromIndex, numToCopy, insertAt. 对于obj每个key的defaultVal用等号赋值
-- 注意上例没有pass进fromIndex, 区别于func(a, b, c), 如果call的时候是func(1,2)则b=2, c=undefined, 不可能跳过b, 除非func(1, , 2). 但是obj可以随意跳过某个key
-
-#### <a name="assignment-with-operation" id="assignment-with-operation">4.11.1 Assignment with Operation</a>
-
-注意L1, the expression <span class="red">a is evaluated once</span>. 但是L2, it is <span class="red">evaluated twice</span>.
-
-```javascript
-a op= b
-a = a op b
-```
-
-注意区别下面两个Ex. 虽然assignment operator has right-to-left associativity, 但是Javascript会先evaluate一次, 把i先代入, 然后再从右往左计算. 
-
-所以Ex1中, data[i++] evaluate了两次. 区别于Ex2, data[i++]只evaluate了一次.
-
-```javascript
-// Ex1
-let data1 = [1,2,3,4,5], i1=1;
-data1[i1++] = data1[i1++]*10; // data[1++] = data[2++]*10
-console.log(data1); // [1, 30, 3, 4, 5]
-console.log(i1); // 3
-
-// Ex2
-let data2 = [1,2,3,4,5], i2=1;
-data2[i2++] *= 10; // data[1++] *= 10
-console.log(data2);// [1, 20, 3, 4, 5]
-console.log(i2); // 2
-
-let a=1, b=a++;
-console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1
-```
-
-#### <a name="typeof-instanceof" id="typeof-instanceof">4.13.3 The `typeof` and `instanceof` Operator</a>
-
-<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
-
-All <span class="orange bold">non-primitive</span> objects are instances of <b>Object</b>.
-
-<span class="white-on-black">typeof</span>
-
-The <b>`typeof`</b> operator is used for getting the <b>type of primitive values</b> mainly.
-
-`typeof` returns `undefined`, `number`, `string`, `boolean`, `symbol`, `object`, `function`. 和primitive types比, <span class="orange">没有`null`, 多了`function`</span>.
-
-Ex1.
-
-```javascript
-typeof 1; // number
-
-let foo = 1;
-typeof foo; // number
-
-typeof NaN; // number
-
-typeof null; // object
-
-typeof false; // boolean
-
-```
-
-Ex2. Anything that is created using the `new` operator is of type `object`, including `String`, `Boolean`, and `Number` :
-
-```javascript
-// 注意区别下面三种情况. 一旦用new了, 就是object了
-typeof Boolean(0) === "boolean"; // true; 注意这里是true, 
-typeof new Boolean(0) === "boolean"; // false
-typeof new Boolean(0) === "object"; // true
-```
-
-<span class="white-on-black">instanceof</span>
-
-The <b>`instanceof`</b> operator tests whether the prototype property of a constructor <b>appears anywhere in the prototype chain</b> of an object. 就是看这个object的prototype chain上有没有这个constructor.
-
-Ex3. 
-
-- 注意`typeof`和`instanceof`的区别
-- foo的prototype chain上先有String, 再有Object
-
-```javascript
-let foo = new String("foo");
-console.log(typeof foo); // object
-console.log(foo instanceof String); // true
-console.log(foo instanceof Object); // true
-```
-
-Ex4. **Explicit coercion** — calling `Number()` intentionally converts a string to a number.
-
-```javascript
-const dayStart = "07:30";  // string
-
-function toHr(time) {
-  const [hr, min] = time.split(":").map(str => Number(str));
-  //                                              Number("07") → 7, Number("30") → 30
-  return hr + min / 60;
-}
-
-toHr(dayStart); // 7.5
-
-// Coercing a parameter — caller might pass "30" (string) or 30 (number)
-const dur = Number(durationMinutes) / 60;
-
-"30" / 60;  // 0.5 — implicit coercion, / forces numeric context
-```
-
-Contrast: **implicit coercion** — JS converts automatically without you asking. See: `x < y; // true!! string compare, no number coerce` in [§11.1.1](#set).
-
-#### <a name="for-of" id="for-of">5.4.4 for/of</a>
-
-The `for/of` loop works with <span class="bold">iterable</span> objects. <span class="red">Arrays, strings, sets, and maps</span> are iterable: they represent a sequence or set of elements that you can loop or iterate through using a for/of loop.
-
-- ```for/of``` <span class="red">不能用于object</span>
-  - <b>Objects</b> are <b>not</b> (by default) iterable. Attempting to use ```for/of``` on a regular object throws a <span class="red">TypeError</span> at runtime.
-- ```for/in``` 可以loop thru object, 但是包括enumerable <u>inherited</u> props. 所以一般用Object.keys(obj) + for/of
-- ```for/in``` with array will loop through <b>index</b> 
-  - ```for(const index in str) { str[index] }```
-- ```forEach```<u>只能</u>用于array
-
-```javascript
-let arry = [1,2,3], sum = 0;
-for (let num of arry) {
-	// (let i=0,size=arry.length; i<size; ++i)
-	sum += num;
-}
-```
-
-- ```for/of``` with strings
-
-```javascript
-let getFreq = (str) => {
-    const freq = {};
-    
-    for(let char of str) { //不能用str.forEach, forEach只能用于array
-        if(!freq[char]) { //注意不是str[char]了, 区别于for/in才是index
-            freq[char] = 0;
-        }
-        freq[char]++;
-    }
-
-    Object.keys(freq).forEach((key) => console.log(key, freq[key]));
-};
-
-getFreq("mississippi");
-// "m: 1"
-// "i: 4"
-// "s: 4"
-// "p: 2"
-```
-
-#### <a name="for-in" id="for-in">5.4.5 for/in</a>
-
-While a ```for/of``` loop requires an <b>iterable</b> object after the of, a ```for/in``` loop works with any object after the in. 
-
-但是```for/in```会loop through <span class="red">enumerable <u>inherited</u> properties</span>. For this reason, many programmers prefer to use a ```for/of``` loop with ```Object.keys()``` instead of a ```for/in``` loop.
-
-Loop through Object的方法:
-
-<u>相较于for/in, 更常用for/of + Object.keys/values/entries</u>, 避免inherited properties
-
-- ```Object.keys(obj)```, ```Object.values(obj)```, ```Object.entries(obj)``` returns an array of a given object's <span class="red bold">own</span> <b>enumerable</b> key, value, [key, val] pair, <span class="red bold">no inherited</span> ones, 区别于```for/in```.
+#### <a name="func-def" id="func-def">8.1 Defining Functions</a>
+
+四种方法define function: function declaration, function expression, arrow function, nested function.
+
+- Function Declaration
+	- `function sum(...args) { ... "this" is window obj ...}`
+	-  will be hoisted to the top of block, before var hoisting. <b>Functions are first-class citizens</b>.
+	-  <span class="yellowBG">function declaration里的`this`是global window</span>
+- Function Expression
+	- `const sum = function(...args) {}`
+	- function expression can <span class="orange">include names, which can be used in recursive</span>. 注意下例中<span class="orange">factorial is only available within function f</span>.
+
+	
+		```javascript
+		const f = function factorial(x) {
+			if (x <= 1) return 1;
+			return x * factorial(x-1);
+		};
+		```
+
+	- Immediatly Invoking Function Expression (IIFE)
+
+		```javascript
+		const addCount = (function() {
+			let count = 1; // count是private, 只有通过addCount()才能access
+			return function() {
+				return count + 1;
+			}
+	    })();
+	    console.log(addCount()); // 2
+	    console.log(addCount()); // 3	
+	    ```
+	    
+- Arrow Function
+	- arrow function实际上类似没有function keyword也没有function name的function expression
+	- `const sum = (x, y) => x+y;`
+	- arrow function<span class="orange">没有`arguments`</span>
+	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于obj.method (Ex1), 也无法通过apply/call/bind改变scope (Ex2).
+		- <span class="yellowBG">Arrow functions establish/inherit "this" based on the scope where the arrow function is defined</span>: <span class="orange">进入arrow function之前, where "this" is bind to</span>.
+			- 如果obj.method是arrow function, arrow function里的this继承的是和obj同scope的this, 通常是window (Ex1). 
+			- 如果obj.method是普通function, 但是里面有setTimeout(() => {..this..})用了arrow function, 因为arrow function的this会inherit进入setTimout之前的this, 此时是obj (Ex3).
+			
+			Ex1. <i>注意下面calculator.add和calculator.minus, 无论是shorthand还是传统写法, `this`都是calculator</i>
+			
+			```javascript
+			let calculator = { // An object literal 
+				operand1: 1,
+				operand2: 1,
+				add() { // with method shorthand syntax
+				    console.log(`calculator.add, this = ${this}`); // calculator itself
+				    this.result = this.operand1 + this.operand2; 
+				},
+				minus: function() { // regular function
+				    console.log(`calculator.minus, this = ${this}`); // calculator itself, not window obj!!!
+				    this.result = this.operand1 - this.operand2;
+				},
+				arrowThis: () => { // arrow function "this" in obj.method
+				    console.log(`calculator.arrowThis, this = ${this}`); // window object
+				    console.log(this.operand1); // undefined
+				}
+			};
+			calculator.add();
+			console.log(calculator.result); // 2
+			calculator.minus();
+			console.log(calculator.result); // 0
+			calculator.arrowThis();
+			```
+		- <span class="orange">Not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
+			
+			Ex2. 
+			
+			```javascript
+			let obj = { num: 10 };
+			window.num = 100;
+			const add = function(a, b) { 
+			    console.log(`add.this = ${this}`);
+			    return this.num+a+b; 
+			};
+ 			// 如果直接call add, 此时add里log的this是window
+    		add(1, 2); // 103
+    		
+			// With Arrow functions, addArrow function is essentially created on the window (global) scope, 
+			// it will assume this is the window.
+			const addArrow = (a, b) => {
+			    console.log(`addArrow.this = ${this}`);
+			    return this.num + a + b;
+			}
+			/**
+			 * add.this = obj
+			 * result = obj.num + 1 + 2 = 13
+			 */
+			console.log(add.call(obj, 1, 2)); // 13
+			/**
+			 * addArrow.this = window obj, call没有bind成功
+			 * result = window.num + 1 + 2 = 103
+			 */
+			console.log(addArrow.call(obj, 1, 2)); // 103
+			```
+			
+		-  the greatest benefit of using Arrow functions is with DOM-level methods (<span class="orange">setTimeout, setInterval, addEventListener</span>) that usually required some kind of closure, call, apply or bind to ensure the function executed in the proper scope.
+			
+			注意<span class="orange">`setTimeout(func, delay)`的func</span>, by default if there is no set on `this` in the call or with `bind`, <span class="orange">func是executes on the window scope, 即func的this是window obj</span>.
+		
+			Ex3. 
+			
+			```javascript
+			let obj = {
+				count: 10,
+				doSomethingLater: function() {
+				    // setTimeout(func, delay)的func是executes on the window scope
+				    setTimeout(function() {
+				        console.log(`setTimeout.this = ${this}`); // window obj
+				        console.log(this.count); // undefined
+				    }, 300)
+				},
+				doSomethingLaterArrow: function() {
+				    // 进入setTimeout之前, "this" is bind to "obj"
+				    setTimeout(() => {
+				        /** 
+				         * 区别于doSomthingLater.setTimeout的function会产生this的scope是window
+				         * 这里因为arrow function本身没有this,
+				         * doSomethingLaterArrow.setTimeout的arrow function的this会inherit进入setTimout之前的this, 即obj
+				         */
+				        console.log(`setTimeout.arrowThis = ${this}`); // obj itself
+				        console.log(this.count); // 10
+				    }, 300)
+				}
+			};
+			obj.doSomethingLater();
+			obj.doSomethingLaterArrow();  
+			```
+- Nested Functions: 可以function里套function declaration
 
 	```javascript
-	let obj = {x: 1, y: 2};
-	console.log(Object.keys(obj).join('')) // "xy"
-	
-  console.log(Object.keys(obj).reduce((acc, cur) => acc + obj[cur], 0)); // 这里是obj[cur], cur是key
-	
-	Object.entries(obj).forEach(([key, val]) => console.log(key, val)) // 勿忘括号([key, val])
-	// "x 1"
-	// "y 2"
-	``` 
-	
--  ```for(let key in obj)``` will loop enumerates properties <span class="red">in the prototype chain</span> as well. 可以用```for/in``` test if property exists (both its own + inherited).
-
-	```javascript
-	let o = { x: 1 };
-	"x" in o // => true: o has an own property "x"
-	"y" in o // => false: o doesn"t have a property "y" 
-	"toString" in o // => true: o inherits a toString property
+	function squareAndSum(a, b) {
+		function square(x) { return x*x; }
+		return square(a) + square(b);
+	}
 	```
+
+#### <a name="func-invoke" id="func-invoke">8.2 Invoking Functions</a>
+
+Functions can be invoked in 5 ways: as function, as obj.method, as constructor, indireclty thru `apply`/`call`, implicit function invocation: `getter`/`setter`, `toString`, etc.
+
+- Function Invocation: `func(...args)`
+	- `func(...args)`
+	- inside func(){...this...}, `this` is window obj (non-strict) or `undefined` (strict). <span class="orange">注意下面把this放到function里</span>
+	
+		```javascript
+		"use strict"; // 勿忘双引号
+		/**
+		 * 如果是strict, this=undefined, isStrict = !undefined = true
+		 * 如果不是strict, this=window obj, isStrict = ![window obj] = false
+		 */
+		// 按道理, function() {.. this...} 里的this是window
+		// 不要写成 isStrict = !this. 要把this放到function里
+		const isStrict = (function() { return !this; })(); // IIFE
+		console.log(`is strict mode = ${isStrict}`);
+		```
+	- **Recursive** calls bahave like a <span class="orange">stack</span>, first in, last out. A calls B calls C: when C returns, it will back to B then A.
+- Method Invocation
+	- `obj.method(...args)`
+	- inside obj.method(){...this...}, `this` is obj.
+	
+	<span class="orange">Ex</span>. `this` in obj.method and nested function
+
+	```javascript
+	let calculator = {
+        operand1: 1,
+        operand2: 2,
+        add() {
+            console.log(`calculator.add.this = ${this}`); // calculator
+            this.result = this.operand1 + this.operand2;
+        },
+        scopeTest() {
+            console.log(`calculator.scopeTest.this = ${this}`); // calculator
+            console.log(this === calculator); // true
+            const self = this;
+            nestedFunc();
+
+            function nestedFunc() {
+                console.log(`calculator.scopeTest.nestedFunc.this = ${this}`); // window obj
+                console.log(`calculator.scopeTest.nestedFunc, self = ${self}`); // calculator
+                console.log(this === calculator); // false
+            }
+
+            const nestedFuncArrow = () => {
+                console.log(`calculator.scopeTest.nestedFuncArrow.this = ${this}`); // calculator
+            }
+            nestedFuncArrow();
+
+            nestedFunc.bind(this)(); // inside nestedFunc.this will be calculator
+        }
+    };
+    calculator.add();
+    console.log(calculator.result); // 3
+
+    calculator.scopeTest();
+	```
+	- 注意区别两种nested function: <span class="orange">function declaration(nestedFunc)</span>和<span class="orange">arrow function(nestedFuncArrow)</span>
+		- 如果nested function是declaration(calculator.scopeTest中的nestedFunc): `this`是window obj/undefined
+		- 但是如果nested function是arrow function(nestedFuncArrow), `this`依然是calcultor, 因为arrow function的this取决于where it is defined
+	- 解决nested function (declaration)的`this`的方法
+		- 进入nested function之前`self = this;` 用`self`
+		- 换成arrow function, 但是注意nestedFuncArrow要用在定义之后, 因为区别于nestedFunc是function declaration, `const nestedFuncArrow = ...`没有hoist
+		- 用bind, 勿忘bind(this)<span class="red">()</span>, 多出来的()是执行
+	- 注意上面对比`this === calculator`, `===`对比的是<span class="orange">location, 两个objs是永远不可能相等的</span>
+- Constructor Invocation: `const obj = new Object();`
+- Indireclty thru `call`/`apply`
+- Implicit function invocation: <span class="orange">`getter`/`setter` (accessor properties)</span>, `toString()`, `valueOf()`, etc
+	
+	```javascript
+	let p = {
+        x: 2,
+        y: 4,
+        get result() { // result就是一个accessor prop, 可以通过p.result trigger getter
+            return this.x + this.y;
+        },
+        set result(val) { // p.result = val will trigger setter
+            let ratio = val / this.result;
+            this.x *= ratio;
+            this.y *= ratio;
+        }
+    };
+    console.log(p.result); // 6, get result() is triggered
+    p.result = 3; // set result(3) is triggered
+    console.log(`p.x = ${p.x}, p.y = ${p.y}`); // p.x=1, p.y=2
+	```
+
+#### <a name="func-args-params" id="func-args-params">8.3 Function Arguments and Parameters</a>
+
+- Optional Parameters and Defaults
+
+	Ex1. 注意下面两种default的写法
+	
+	```javascript
+	const pushToArray1 = function(num, arry) {
+		arry = arry || []; // default to []
+		arry.push(num);
+		return arry;
+	};
+	const pushToArray2 = function(num, arry = []) { // default to []
+		arry.push(num);
+		return arry;
+	}
+	```
+		
+	Ex2. 注意下面height的default val用的是前一个param的val
+		
+	```javascript
+	const rect = (width, height=width*2) => ({ width, height });
+	rect(1); // { width: 1, height: 2 } 
+	rect(1, 3); // { width: 1, height: 3 }. 注意这里pass进height了,  height就不取width*2了
+	```
+- **Rest** Parameters in function **Definition** and **Spread** Operator in function **Invocation**
+
+	Ex1. Rest parameter in function defintion
+	
+	```javascript
+	function max(first = -Infinity, ...rest) {
+        let maxVal = first;
+        for(let n of rest) { // rest是从第二个param开始的剩下的所有params的合集
+            maxVal = Math.max(maxVal, n);
+        }
+        return maxVal;
+    }
+    console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000. 这里first=1, rest=[10,100,...]
+    
+  	// 也可以写成
+	function max1(first = -Infiintiy, ...rest) {
+		// first=1, rest是剩下的[10, 100, 2, 3, 1000, 4, 5, 6]
+		return Math.max(first, ...rest); // 注意这里要加上first, 因为rest里没有第一个param
+	}
+	console.log(max1(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
+	```
+	
+	- <span class="orange">注意first在这里并不是max的第一个param叫first</span>, 只是对于max传进去的params,第一个param会赋值给first. 并且如果max没有params, e.g: max(), 那么first defaults to -Infinity作为最后返回的maxVal
+	- rest是从第二个param开始的剩下所有params的合集. 如果max()没有params, rest = [], 即空arry;
+	
+	Ex2. Spread operator for function calls
+	
+	```javascript
+	const arry = [1, 10, 100, 2, 3, 1000, 4, 5, 6];
+	Math.max(...arry); // spread用于真正tirgger function的时候
+	
+	// 也可以
+	Math.max.apply(Math, arry)
+	```
+	
+	Ex3. timed() will log the start/end time of running f. 注意区别下面rest和spread的用法.
+	
+	```javascript
+	function timed(f) {
+		// 此时的arguments只有[func: benchmark]. arguments[0].name = benchmark
+		console.log(arguments); 
+		    
+		// rest in function definition
+		return function(...args) {
+		    console.log(`Entering function ${f.name}`); // Entering function benchmark
+		    console.log(args); // [100]. args本身是array, rest operator相当于把pass进的params都condense到了一个args里. ...args相当于把args unpack了
+		    
+		    let startTime = Date.now();
+		    try {
+		        // spread in function call
+		        return f(...args); // Spread the args back out, run benchmark(100)
+		    }
+		    finally {
+		        console.log(`Exiting ${f.name} after ${Date.now()-startTime}ms`);
+		    }
+		};
+	}
+	function benchmark(n) {
+	    let sum = 0;
+	    for(let i = 1; i <= n; i++) sum += i; 
+	    return sum;
+	}
+	// Now invoke the timed version of that test function 
+	timed(benchmark)(100);
+	```
+	<span class="yellowBG">注意timed(f)(100)的意思</span>:
+	
+	- <span class="orange">timed(f)是一个closure</span>, function return一个function
+	- timed(f) returns a function, and the returned function gets immediately called with parameter 100
+	- that's why <span class="orange">in the first console.log, arguments only contains [func:benchmark], no access to 100</span>
+	- returned function has access to "f", so inside can use f(...args)
+	- with returned function gets called, 100 is passed in, which is <span class="orange">args=[100]</span>
+	
+	Ex4. <span class="orange">类似的closure (function returns function)</span>
+	
+	```javascript
+	function add(x){
+	    return function(y){
+	        return x + y;
+	    };
+	}
+	/**
+	 * addTwo returns a function with x=2
+	 * addTwo(4) means the returned function with y=4
+	 */
+	const addTwo = add(2); 
+	addTwo(4) === 6; // true
+	
+	/**
+	 * add(3) returns a function with x=3
+	 * add(3)(4) means returned function with y=4
+	 */
+	add(3)(4) === 7; // true
+	```
+- Argument Types
+	
+	Ex1. <span class="orange">注意下面try/catch对结果的影响</span>. 
+	
+	throw并不意味着只是跳出当前function, 剩下的function还可以继续. 如果没有try/catch, 一旦throw, 所有下面的function就都不会继续了.
+	
+	```javascript
+	const sum = (arry) => {
+	    let total = 0;
+	    /** 
+	     * 1. 如果没有这个try/catch, 会停在第二个function, 且第二个function没有return, 一throw error就一切结束了
+	     * 2. 有了这个try/catch, 三个function都会run, 虽然throw, 但是只是当前的try结束了,
+	     * 	注意不是跳出整个function, 只是跳出当前的try block.
+	     * 3. 区别有没有try/catch: 
+ 	     *  - 如果有try/catch, 会跳出try/catch继续下面的function, 这里是return total. 
+ 	     *  - 如果没有try/catch, 一旦throw就完全结束, 就算下面还有别的function也不会进行了
+ 	     */
+ 	     
+	    try { 
+	        for(let num of arry) {
+	            if(typeof num !== "number") {
+	                /**
+	                 * throw没有return, 不是return  throw!!
+	                 * 1. throw new Error(...), log是Uncaught Error: ...
+	                 * 2. throw new TypeError(...), log是Uncaught TypeError: ...
+	                 * 3. 也可以直接throw + str, log是Uncaught 3 is not a number.
+	                 */
+	                throw new TypeError(`${num} is not a number.`); // 也可以throw new Error(...)
+	                // throw `${num} is not a number.`;
+	            }
+	            total += num;
+	        }
+	    } catch (e) {
+	        // sum(1, 2, 3): TypeError: arry is not iterabel
+	        // sum([1,2, "3"]): Error: 3 is not a number
+	        console.log(e);
+	    }
+	    return total;
+	}
+	console.log(sum([1,2,3])); // 6
+	console.log(sum(1, 2, 3)); // 0, 在for(let num of a)处: Uncaught TypeError: arry is not iterable
+	console.log(sum([1,2, "3"])); //3, 在throw处: Uncaught TypeError: 3 is not a number.
+	```
+
+#### <a name="func-val" id="func-val">8.4 Functions as Values</a>
+
+- Function as parameter values
+
+	Ex1.
+	
+	```javascript
+	function add(x, y) { return x+y; }
+	function operate1(operator, operand1, operand2) {
+	    return operator(operand1, operand2);
+	    
+		// 也可以用call or apply
+		return operator.call(this, operand1, operand2);
+		return operator.apply(this, [operand1, operand2]);
+	}
+	// 注意这里add没有引号!! 不是string, 不是operate("add", ...args). 
+	// add是func name, 前面定义过了
+	console.log(operate1(add, 1, 2)); // 3
+	```
+	
+	Ex2.
+	
+	```javascript
+	// 注意obj.method的两种写法
+	const operators = {
+	    add(x, y) { return x+y; },
+	    minus: (x, y) => x-y
+	};
+	function operate2(operator, operand1, operand2) {
+        try {
+            const func = operators[operator];
+            if(typeof func !== "function") {
+                throw new Error(`${operator} not exists`);
+            }
+            return func(operand1, operand2);
+        } catch(e) {
+            console.log(e);
+        }
+    }
+	// 区别于之前operate1(add, 1, 2)中add没有引号,不是string. 
+	// 这里operate2("add",..)的add是string, 是operators的key
+	// 因为这里没有对add的直接定义
+	console.log(operate2("add", operate2("minus", 3, 1), 4)); // 6
+	console.log(operate2("add", "hello", " world")); // hello world
+	console.log(operate2("multiply", 2, 3)); // Uncaught Error: multiply not exists
+	```
+	
+	- Ex1中operate1(<span class="orange">add</span>, ...rest)的<span class="orange">add没有引号</span>, 不是string, 前面定义过了, 是function name.
+	- 区别于Ex2的operate2(<span class="orange">"add"</span>, ...rest)的<span class="orange">add有引号</span>, 是operators的key, 是string, 前面没有对add的定义.
+	- 注意Ex2中的operators.method的两种写法
+	- 注意Ex中如果obj的key是variable, 不能用operators.operator, 得用<span class="orange">operators[operator]</span>
+	- 注意Ex2种try/catch, <span class="orange">一旦throw error但是没有try/catch就整个application结束了</span>. 这里有try/catch, 所以会log error，并继续下面的
+
+- Function as Object: <span class="orange">Functions are Objects</span>, can set properties to it.
+
+	Ex3. 
+	
+	```javascript
+	uniqueInt.count = 0;
+	function uniqueInt() {
+	    console.log(this); // window obj
+	    // 不能用this.count++, function declaration里的this是window! 区别于obj.method的this是obj
+	    return uniqueInt.count++;
+	}
+	console.log(uniqueInt()); // 0, 注意不是1, a++是返回的值先不变, 返回完了才a+1
+	console.log(uniqueInt()); // 1
+	```
+	
+	- 注意上面uniqueInt()中不能用this.count. <span class="orange">function declaration里的this是window! 区别于obj.method的this是obj</span>
+	- a++返回的值是原本的a, 返回完了才a+1
+	- 但是这种uniqueInt.count的写法有一个问题: buggy or malicious code could reset the counter or set it to a noninteger.
+	
+	Ex4.
+	
+	```javascript
+	function factorial(n) {
+		// 只测typeof n === "number"是不够的
+		if(!Number.isInteger(n) || n <= 0) return NaN;
+		// 也可以写成 if(n in factorial), 因为是key
+		if(factorial[n] !== undefined) return factorial[n];
+		// 这里不是n*factorial[n-1]!! 得是factorial(n-1), 再次invoke function
+		factorial[n] = n * factorial(n-1);
+		// 不能return factorial[n] = n * factorial(n-1)
+		// 要写成两步, return的时候不能有等号
+		return factorial[n];
+    }
+    factorial[1] = 1; // initiate cache, base case;
+    console.log(factorial(4)); // 24
+    console.log(factorial[3]); // 6 前面算4的时候cache了factorial[2]和factorial[3]
+	```
+	
+	- factorial既是function, 也有factorial[n]作为cache
+	- 注意上例只测`typeof n === "number"`是不够的，要用`Number.isInteger(n)`
+
+#### <a name="closure" id="closure">8.6 Closure</a>
+
+A **closure** is the combination of a function bundled together (enclosed) with references to its surrounding state (the lexical environment). In other words, a closure gives you <u>access to an outer function's scope from an inner function</u>.
+
+A **closure** is a function that <u>references variables in the outer scope from its inner scope</u>. The closure preserves the outer scope inside its inner scope.
+
+In JavaScript, closures are created every time a function is created, at function creation time. Technically, <u>all JavaScript functions are clousres</u>, but because most functions are <u>invoked from the same scope</u> that they were defined in, it normally doesn’t really matter that there is a closure involved. Closures become interesting when they are <u>invoked from a different scope than the one they were defined in</u>, 比如下面Ex1.2中的checkScope2第二个()执行function f的时候, f is invoked from a different scope.
+
+Ex1.1
+
+```javascript
+let scope = "global scope";
+function checkScope1() {
+	let scope = "local scope";
+	function f() {
+	    return scope;
+	}
+	// 必须return f(). 如果没有return,下面的log是undefined
+	return f(); // 这里是直接执行了f, 区别于下面return f;
+}
+console.log(checkScope1()); // local scope
+```
+
+- 勿忘checkScope1中必须<span class="red">return</span> f(). function如果没有return, 它返回的就是undefined, 导致之后的log是undefined
+
+Ex1.2
+
+```javascript
+let scope = "global scope";
+function checkScope2() {
+    let scope = "local scope";
+    function f() {
+        return scope;
+    }
+    return f;
+}
+console.log(checkScope2()()); // local scope. 勿忘第二个()才是执行return的f
+```
+
+- 区别于Ex1.1, 这里checkScope2()<span class="orange">()</span>有两个(). Ex1.1中checkScope1()返回的是已经执行了的f, 这里checkScope2()返回的还是function f
+- 虽然checkScope2 executed的时候, 和checkScope2同级的scope是"global scope", 但是**Functions are executed using the scope they were defined in**, NOT where they are invoked.
+
+Ex2.1.1 <span class="orange">如果要keep `count` as a private state</span>, 更好的写法是用<span class="orange">IIFE + closure (return function)</span>
+	
+```javascript
+const uniqueIntClosure = (function() {
+    let count = 0;
+    return function() {
+        return count++;
+    }
+})();
+console.log(uniqueIntClosure()); // 0 注意这里不用uniqueIntClosure()(). uniqueIntClosure已经是return的function了,一个()就够了 
+console.log(uniqueIntClosure()); // 1
+```
+	
+- 注意上面不用uniqueIntClosure()<span class="orange">()</span>. uniqueIntClosure<span class="orange">已经是return的function了,一个()就够了</span>
+
+Ex2.1.2 类似的还有Singleton, instance只init了一次
+
+```javascript
+const Singleton = (function() {
+	let instance;
+	function createInstance() {
+		console.log(`-- in createInstance --`);
+		return { a: 1 };
+	}
+	function getInstance() {
+		console.log(`-- in getInstance --`);
+		if(instance === undefined) {
+			instance = createInstance();
+		}
+		return instance;
+	}
+	return {
+		getInstance
+	}
+})();
+console.log(Singleton.getInstance()); // 会trigger createInstance
+console.log(Singleton.getInstance()); // 不会再trigger createInstance了
+```
+
+Ex2.2 区别uniqueIntClosure和下面的uniqueIntClass
+	
+```javascript
+// 其实这个应该写成class(function)
+// function uniqueIntClass() { ... }
+const uniqueIntClass = function() {
+    let n = 0;
+    return function() {
+        return n++;
+    }
+    // return n++; // 这两种return都一样 只是return function的话 下面call的时候需要两个()()
+};
+console.log(uniqueIntClass()()); // 0
+console.log(uniqueIntClass()()); // 0 是新的obj, n互不影响
+```
+	
+- 区别于Ex2.1的uniqueIntClosure, <span class="orange">uniqueIntClass没有IIFE, 是一个class/function</span>. <span class="orange">每次call得到的是一个新的object</span>, n互相不干扰.
+
+类似上面Ex2.1中uniqueIntClosure的count, 但是it need not be exclusive to a single closure: it can be shared bt more nested functions. 下面Ex3.1中的n就是shared bt count和reset, which are defined within the same outer function counter1.
+
+Ex3.1
+
+```javascript
+function counter1() {
+    let n = 0;
+    return {
+        count() { return n++; },
+        reset() { n = 0; }
+    };
+}
+const c1 = counter1(), c2 = counter1(); // 和new counter1()一样, 都是返回一个obj
+console.log(c1.count()); // 0. 注意不是counter1.count(), 是counter1().count()
+console.log(c1.count()); // 1
+c1.reset();
+console.log(c1.count()); // 0
+console.log(c1.count()); // 1
+
+console.log(c2.count()); // 0, c1和c2互不干扰, has its own scope
+```
+
+- 这里counter1和上面的uniqueIntClass一样, 返回的是一个object, 所以call的时候一个()就够了
+- 和uniqueIntClass一样, 区别于uniqueIntClosure, 这里没有IIFE, 所以类似class, c1和c2是两个互不相干的obj
+- counter1是一个closure, 这种用法实际上是一个<span class="orange">class</span>.
+
+Ex3.2 区别于上例的n是private, 无法通过c1.n access n. 这里通过count的getter/setter expose了count, 所以可以直接d.count. 但是n依然是private.
+
+```javascript
+function counter2(n = 0) { // n is private, if not passed in, default will be 0
+    return {
+        get count() { return n++; },
+        set count(val) { 
+            if(val > n) {
+                n = val; 
+            } else {
+                throw new Error ("count can only be set to a larger val");
+            }
+        }
+    }
+}
+const d1 = counter2(3);
+console.log(d1.count); // 3. 注意这里不是d.count(), 因为count是accessor prop, 不是function!!
+console.log(d1.count); // 4
+console.log(d1.count); // 5
+try {
+    d1.count = 4; // 注意不是d1.set(1)!!! count是个prop, 直接赋值就会trigger set
+} catch(e) {
+    console.log(e); // Error: count can only be set to a larger val
+}
+d1.count = 10;
+console.log(d1.count); // 10
+```
+
+- accessor properties: <span class="orange">getter/setter can only be added to object</span>, not function. 所以下面是return { get, set } 
+- 注意上面是trigger setter时是直接d1.count = 4, 不是d1.set(10)
+- 上面的get count和set count是<u>two closures defined in the same scope</u> and share access tot he same private variable.
+
+```javascript
+console.log(d1 instanceof  counter2); // false
+console.log(d1 instanceof Object); // true
+```
+
+- <span class="orange">constructor function不需要return</span>. 之前counter2 return的两个function导致instanceof不work了
+- 得用下面的方法写getter/setter
+
+```javascript
+// constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
+function counterConstructor(n) {
+    this._n = n;
+}
+Object.defineProperties(counterConstructor.prototype, {
+    count: {
+        get: function() {
+            return this._n++;
+        },
+        set: function(val) {
+            this._n = val;
+        }
+    }
+});
+const d2 = new counterConstructor(5);
+console.log(d2 instanceof counterConstructor); // true
+console.log(d2.count); // 5
+console.log(d2.count); // 6
+d2.count = 10;
+console.log(d2.count); // 10
+```
+
+- constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
+
+但是也要注意<b>Closure可能带来的Performance  issue</b>: 
+
+It is unwise to unnecessarily create functions within other functions if closures are not needed for a particular task, as it will <u>negatively affect script performance both in terms of processing speed and memory consumption</u>.
+
+For instance, when creating a new object/class, <u>methods should normally be associated to the object's prototype</u> rather than defined into the object constructor. The reason is that whenever the constructor is called, the methods would get reassigned (that is, for every object creation).
+
+Ex4.1 `getName`和`getMessage`是两个closure. 下面不应该把这两个closures写在constructor里
+
+```javascript
+function MyObject(name, message) {
+  this.name = name.toString();
+  this.message = message.toString();
+  this.getName = function() {
+    return this.name;
+  };
+
+  this.getMessage = function() {
+    return this.message;
+  };
+}
+```
+
+Ex4.2 下面的写法也不对, 不应该改本身的`MyObject.prototype`
+
+```javascript
+function MyObject(name, message) {
+  this.name = name.toString();
+  this.message = message.toString();
+}
+MyObject.prototype = {
+  getName: function() {
+    return this.name;
+  },
+  getMessage: function() {
+    return this.message;
+  }
+};
+```
+
+Ex4.3 应该写成下面这样
+
+```javascript
+function MyObject(name, message) {
+  this.name = name.toString();
+  this.message = message.toString();
+}
+MyObject.prototype.getName = function() {
+  return this.name;
+};
+MyObject.prototype.getMessage = function() {
+  return this.message;
+};
+```
+
+<b>Closure Scope Chain</b>: Every closure has three scopes (它解释了下面how variables are resolved when it's inside <u>closures in loops</u>)
+
+- Local Scope (Own scope)
+- Outer Functions Scope
+- Global Scope
+
+<span class="bold border">Creating closures in loops: A common mistake</span>
+
+Prior to the introduction of the let keyword in ECMAScript 2015, a common problem with closures occurred when you created them inside a loop.
+
+Ex5.1
+
+```javascript
+let funcs = [];
+for(var i=0; i<10; ++i) {
+    funcs[i] = () => i; // 所有loop share的同一个i
+}
+console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一个i, 此时i=10
+```
+
+- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]只是一个function, 没有执行
+- This code creates 10 closures and stores them in an array. The closures are all defined within the same invocation of the function, so they <span class="orange">share access to the variable i</span>. 
+- <b>Closure Scope Chain</b>： `funcs[5] = function() { return i; }`: `funcs[5]()`执行的时候, <span class="orange">local scope没有i的定义, 所以向上找outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, 所以找到for loop, 此时i已经是10了
+- 如果改成`funcs[i] = (i) => i; ` 即只pass进i也不对. funcs[5]其实就是`function(i) { return i; }`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">i此时是undefined</span>, log是undefefined. <span class="orange">除非同时改成</span>`funcs[5](5)`.
+
+Ex5.2 how to fix
+
+- fix 5.2.1: 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
+- fix 5.2.2: use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
+
+	```javascript
+	function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
+		return () => v;
+		/**
+		 * 等同于
+		 * return function() {
+		 *    return v;
+		 * }
+		 */
+	}
+	let funcs = [];
+	for(var i=0; i<10; ++i) {
+		funcs[i] = constFunc(i); 
+	}
+	console.log(funcs[5]()); // 5. 勿忘多出来的()!! funcs[5]即constFunc(5)返回的是一个function
+	```
+	
+	- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5)返回的是一个function, 没有执行
+	- 不能写成`function constFunc(v) { return v; }`, 这样的话funcs[i]=constFunc(i)就直接执行return i了
+	- <b>Closure Scope Chain</b>: `funcs[5] = () => v`, 此时在<span class="orange">local scope</span>里v没有定义, 所以向上找<span class="orange">outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, <span class="orange">区别于4.1, 这里的outer scope是</span>`function constFunc(5)`, <span class="orange">即v=5</span>
+	- 和5.1一样, 这里也不能改成`function constFunc(v) { return (v) => v; }`, 因为`funcs[5]()`执行的时候, 没有传进v, log是undefefined, 除非同时改成`funcs[5](5)`.
+- 这里<span class="orange">没有办法用类似6.2.3的IIFE</span>. 因为这里不存在callback, 当时就执行了
+
+Ex6.1 Show help text once focusing on the input box. 
+
+但是No matter what field you focus on, the message "your name" will always be displayed.
+
+```html
+<p>Email: <input type="text" id="email" name="email"></p>
+<p>Name: <input type="text" id="name" name="name"></p>
+<p id ="help">Help msg goes here.</p> 
+```
+
+```javascript
+const help = document.getElementById("help");
+const json = [{
+	id: "email",
+	help: "your email"
+	}, {
+	id: "name",
+	help: "your name"
+}];
+
+for(var i=0, size=json.length; i<size; ++i) {
+    var elem = json[i];
+    document.getElementById(elem.id).onfocus = () => {
+        help.innerHTML = elem.help;
+    }
+}
+```
+
+- 注意<span class="red">`elem.innerHTML`</span>和<span class="red">`elem.onfocus`</span>的用法
+- The functions assigned to onfocus are closures, they share the same variable `elem`. The value of `elem.help` is determined when the onfocus callbacks are executed, and at that time, elem is the last obj in json.
+- <b>Closure Scope Chain</b>: 当onfocus callback的时候只有`() => { helper.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>, 即for loop的elem, 此时elem = the last obj in json, 所以help text是name的help.
+
+Ex6.2 how to fix
+
+- fix 6.2.1: 用`let` / `const` 做for loop
+- fix 6.2.2: use more closures, 和5.2.2一样. <u>Creates a new lexical environment</u> for each callback, in which text refers to the corresponding string from the json array.
+
+	```javascript
+	function helpCallback(text) {
+	    return function() {
+	        help.innerHTML = text;
+	    }
+	}
+	for(var i=0, size=json.length; i<size; ++i) {
+	    var elem = json[i];
+	    document.getElementById(elem.id).onfocus = helpCallback(elem.help);
+	}
+	```
+	
+	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`function() { help.innerHTML = text; }`. 此时在<span class="orange">local scope</span>里没有text的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`function helpCallback(text)`, 即定义时传进来的当时item的help.
+
+- fix 6.2.3: <span class="orange">using IIFE</span>: <u>Immediate event listener attachment with the current value</u> of item (preserved until iteration).
+
+	```javascript
+	for(var i=0; i<json.length; ++i) {
+		(() => {
+		    var elem = json[i];
+		    document.getElementById(elem.id).onfocus = () => {
+		        help.innerHTML = elem.help;
+		    };
+		})();
+
+		// 用传统的(function() {})()
+		// (function() {
+		//     var elem = json[i];
+		//     document.getElementById(elem.id).onfocus = () => {
+		//     help.innerHTML = elem.help;
+		//     };
+		// })();
+	}
+	```
+	
+- fix 6.2.4: using `forEach`. 这个和6.2.2类似, 都是closure scope chain
+
+	```javascript
+	json.forEach((elem) => {
+	    document.getElementById(elem.id).onfocus = () => {
+	        help.innerHTML = elem.help;
+	    }
+	});
+	```
+	
+	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`() => { help.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`json.forEach`的`(elem)`, 即当时的item.
+
+Ex7. `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
+
+```javascript
+function range(start,end) {
+    // ..TODO..
+}
+
+range(3,3);    // [3]
+range(3,8);    // [3,4,5,6,7,8]
+range(3,0);    // []
+
+var start3 = range(3);
+var start4 = range(4);
+
+start3(3);     // [3]
+start3(8);     // [3,4,5,6,7,8]
+start3(0);     // []
+
+start4(6);     // [4,5,6]
+```
+
+Book solution:
+
+```javascript
+function range(start, end) {
+    start = Number(start) || 0;
+
+    if (end === undefined) {
+        return function getEnd(end) {
+            return getRange(start, end);
+        };
+    } else {
+        end = Number(end) || 0;
+        return getRange(start, end);
+    }
+
+    function getRange(start, end) {
+        var ret = [];
+        for (let i = start; i <= end; i++) {
+            ret.push(i);
+        }
+        return ret;
+    }
+}
+```
+
+#### <a name="module-systems" id="module-systems">8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
+> YDKJS > Scope & Closures > ch8
+
+All solve the same problem: how do files share code? They differ by era and environment.
+
+| Format | Environment | Loading | Syntax | Status |
+|---|---|---|---|---|
+| IIFE closure | Browser | Manual `<script>` order | `(function(){})()` | Legacy pattern |
+| CommonJS (CJS) | Node.js | Sync `require()` | `module.exports` / `require` | Dominant in Node |
+| AMD | Browser | Async, needs RequireJS | `define([deps], fn)` | Obsolete |
+| UMD | Both | Wrapper shim around CJS+AMD | Boilerplate | Legacy libs only |
+| ESM | Both | Static, async-capable | `import` / `export` | Modern standard |
+
+**Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.5](#compile-vs-runtime-pattern). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
+
+**CJS (Node.js)**
+```javascript
+// math.js
+module.exports = { square: x => x * x };
+
+// app.js
+const { square } = require("./math");
+```
+
+**AMD (browser, legacy)**
+```javascript
+define(["./math"], function(math) {
+    console.log(math.square(3));
+});
+```
+
+**UMD (compatibility shim — generated by bundlers, rarely written by hand)**
+```javascript
+(function(root, factory) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(); // CJS
+    else if (typeof define === 'function' && define.amd) define([], factory);    // AMD
+    else root.myLib = factory();                                                  // global
+}(this, function() { return { square: x => x * x }; }));
+```
+
+**ESM (modern standard)**
+```javascript
+// math.js
+export const square = x => x * x;
+
+// app.js
+import { square } from "./math.js";
+```
+
+ESM singleton — file scope replaces IIFE, `count` is private to the module. ES modules are evaluated **once** regardless of how many files import them.
+```javascript
+// counter.js
+let count = 0;
+export function increment() { return count++; }
+export function reset()     { count = 0; }
+```
+
+---
 
 #### <a name="create-obj" id="create-obj">6.2 Creating Objects</a>
 
@@ -1077,97 +1571,6 @@ let o3 = Object.create(Object.prototype);
 
 ```let p = Object.create({x: 1, y: 2});``` p inherits properties both from ```{x: 1, y: 2}``` and `Object.prototype`.
 
-#### <a name="obj-method" id="obj-method">6.9 Object Methods</a>
-
-```Object.create()```, ```Object.keys()```, etc, they are all static functions defined on the <b>Object constructor</b>.
-
-Here, we introduce some universal object methods that are defined on <b>Object.prototype</b>: 
-
-- ```obj.toString()```: 如果不override, output永远是"[object Object]"
-- ```obj.valueOf()```: will be called when convert to Number is needed (eg: 比较大小的时候 >, <). eg: 下面的Number(point)和point < 4
-
-	```javascript
-	let o = {x: 1};
-	o.valueOf(); // {x: 1}
-	Number(o); // NaN
-	```
-
-- ```obj.toJSON()```: will be invoked when ```JSON.stringify()``` is called
-
-
-```javascript
-// override original Object.prototype.method
-let point = {
-    x: 3, 
-    y: 4,
-    toString() { // 注意this的用法
-        return `(${this.x}, ${this.y})`;
-    },
-    valueOf() { 
-    	return Math.hypot(this.x, this.y);
-    },
-    toJSON() {
-    	return this.toString();
-    }
-};
-console.log(point.toString()); // (3, 4)
-console.log(JSON.stringify(point)); // "(3, 4)"
-console.log(Number(point)); // 5, valueOf is called
-console.log(point < 4); // false, 因为convert to Number以后point=5
-```
-
-#### <a name="extending-obj" id="extending-obj">6.7 Extending Objects</a>
-
-Extend object的方法有如下几种
-
-- 最原始的copy it over. 注意这里用的不是for/in, 而是<b>for/of + Object.keys</b>, 避免了inherited properties
-
-	```javascript
-  // copy source into target
-	let target = {x: 1}; // target后面被赋值, 必须用let, 不能const
-  const source = {x: 2, y: 3};
-	Object.keys(source).forEach((key) => {
-      target[key] = source[key];
-  });
-	target; // {x: 2, y: 3}
-	```
-- ```Object.assign(targetObj, sourceObj1, sourceObj2,...)```, 这里后面sourceObjs会override前面obj的properties. <span class="orange">Object.assign会trigger targetObj的setter</span>.
-
-	```javascript
-	// 如果想用defaults补齐o中没有default val的properties, 这个做法会override o中本身有的property的val
-	Object.assign(o, defaults)
-	
-	//这个做法解决了上面的问题, 复制了defaults给{}
-	Object.assign({}, defaults, o); 
-	```
-- 自己写一个merge function, escape已有的properties
-
-	```javascript
-	// 注意spread operator
-	function merge(target, ...sources) {
-      // 注意sources是个array, 区别于arguments要Array.from(arguments)
-      sources.forEach((source) => {
-          target = {
-              ...target,
-              ...source
-          };
-      });
-      return target; // 勿忘, 否则console没有输出
-  }
-  // {"x":2,"y":3,"z":4}
-  console.log(`mergedObj = ${JSON.stringify(merge({x: 1}, {x: 2, y: 2}, {y: 3, z: 4}))}`); 
-	```
-- Use spread operator, see [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread).
-
-
-	```javascript
-	// source的properties会overwrite target的
-	target = {
-      ...target,
-      ...source
-  }; 
-	```
-	
 #### <a name="extended-obj-literal-syntax" id="extended-obj-literal-syntax">6.10 Extended Object Literal Syntax (更多的object literal的定义方法)</a>
 
 An <b>Object Literal</b> is a comma-separated list of colon-separated name:value pairs, enclosed within curly braces, 即(key, value) pairs. eg:
@@ -1666,6 +2069,510 @@ myFunc(1);
 // otherArgs.length = 0
 // [1] <-- arguments
 // arguments.length = 1
+```
+
+#### <a name="destructuring-assignment" id="destructuring-assignment">3.10.3 Destructuring Assignment</a>
+
+[MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#object_destructuring)
+
+The <span class="bold">destructuring assignment</span> syntax is a JavaScript expression that makes it possible to unpack values from <span class="bold">arrays</span>, or properties from <span class="bold">objects</span>, into distinct variables.
+
+##### <span class="white-on-black">Array Destructuring</span>
+
+##### Swapping variables
+```javascript
+let [x, y] = [1, 2];
+[x, y] = [x+1, y+1];
+[x, y] = [y, x]; // swap
+console.log(`[x, y] = ${[x, y]}`);  // [x, y] = 3,2. toString()了
+console.log([x, y]); // [3, 2]
+```
+
+```javascript
+const arr = [1,2,3];
+// 1. swap 注意这里的arry[2], arry[1]是reference, 
+// 2. [arry[2], arry[1]] = [2, 3]. 右边的值已经取出来了, 虽然arry[2]先变成了arry[1], 但是当arry[1]=arry[2]时的arry[2]依然是原来的arry[2]
+[arr[2], arr[1]] = [arr[1], arr[2]];
+console.log(arr); // [1,3,2]
+```
+
+##### Default values
+
+```javascript
+// Default values
+let [c=2, d=5] = [1];
+console.log(`c = ${c}, d = ${d}`); // c = 1, d = 5
+```
+
+##### Parsing an array returned from a function
+
+```javascript
+// Parsing an array returned from a function
+function f() { return [1, 2, 3]; }
+let [f1, f2] = f();
+console.log(`f1 = ${f1}, f2 = ${f2}`); // f1 = 1, f2 = 2
+
+// Ignoring some returned values
+let [f3, , f4] = f(); //arry[1] is ignored
+console.log(`f3 = ${f3}, f4 = ${f4}`); // f3 = 1, f4 = 3
+```
+
+```javascript
+const [firstElem, secondElem] = [1,2,3,4,5];
+// is equivalent to:
+// const firstElem = arry[0];
+// const secondElem = arry[1];
+console.log(firstElem, secondElem); //1, 2
+```
+
+##### Using rest/spread operator to group the rest into an array
+
+```javascript
+// with ..., spread/rest will group the rest into an array
+let [a, ...rest] = [10, 20, 30];
+console.log(`a = ${a}, rest = ${rest}`); //a = 10, b = 20,30. b is Array[20, 30]
+console.log(rest); // [20, 30]
+```
+
+```javascript
+// destructuring on iterable object, anything can be used with for...of loop
+let [start, ...restOfStr] = "hello";
+console.log(start); // "h"
+// 注意这里是arry of charactors, 不是剩余的string
+console.log(restOfStr); // ["e", "l", "l", "o"] 
+```
+
+##### <span class="white-on-black">Object Destructuring</span>
+
+Object destructuring左手边是obj的key, 返回的是obj.key, 即val
+
+```javascript
+const user = {
+    id: 123,
+    is_verified: true
+};
+const {id, is_verified} = user;
+console.log(`user id = ${id}, isVerified = ${is_verified}`); // user id = 123, isVerified = true
+```
+
+##### Assigning to new variable names
+
+区别于array destructuring的default value, `let [a=1, b=2] = [4];`中用的等号, 这里是冒号
+
+```javascript
+const {id: id_renamed} = user;
+// assign id to id_renamed = 123
+console.log(`assign id to id_renamed = ${id_renamed}`);
+console.log(id); // Uncaught ReferenceError: tes is not defined
+```
+
+##### Default values
+
+区别于上面的assign new var用的是冒号, 这里default val和arry restructuring一样, 都是等号
+
+```javascript
+// 区别于array destructuring. 这里左手边必须是obj的key
+// 剩余一样 注意用等号: aa=1, 不是冒号
+const {aa = 1, bb = 2} = {aa: 3};
+console.log(`aa = ${aa}, bb = ${bb}`); // aa = 3, bb = 2
+```
+
+```javascript
+const { 
+  main: { 
+    content: { 
+      title = "defaultTitle" 
+    } = {} 
+  } = {}
+} = obj || {}; // deconstruct with default fallback
+console.log(title); // defaultTitle
+```
+
+##### Assignment without declaration + Using rest/spread operator to group the rest into an object
+
+注意{...} = {...}外面的括号是必须的
+
+```javascript
+let b;
+// The parentheses ( ... ) around the assignment statement are required.
+// 因为{ a, b, ...rest } is considered a block not an object literal
+// 要么就写成 const {a, b} = obj
+({ a, b, ...rest } = { a: 10, b: 20, c: 30, d: 40 });
+console.log(`a = ${a}, b = ${b}`); // a = 10, b = 20
+
+// spread will group the rest into an object
+console.log(rest); // {c: 30, d: 40}
+```
+
+##### Unpacking fields from objects passed as a function parameter
+
+```javascript
+//注意下面getFirstName是怎么得到fName的
+const user1 = {
+    id: 42,
+    name: "jdoe",
+    fullName: {
+        fName: "john",
+        lName: "doe"
+    }
+};
+function getId({id}) {
+    return `userId = ${id}`;
+}
+// 注意这里得不到fullName, 只有name和fullName中的fName
+function getFirstName({ name, fullName: {fName}}) {
+	try {
+	    console.log(fullName); // Uncaught ReferenceError: fullName is not defined
+	} catch(e) {}
+	return `${name} = ${fName}`;
+}
+// 注意这里为了同时得到fullName和fullName中的fName, fullName要单独写出来
+function getFullNameWithFName({ name, fullName, fullName: { fName }}) {
+    console.log(`fullName = ${JSON.stringify(fullName)}`); // {fName: "john", lName: "doe"}
+    return `${name} = ${fName}`;
+}
+//这里assign lName给last
+function getLastName({name, fullName: {lName: last}}) { 
+    return `${name} = ${last}`;
+}
+console.log(getId(user1)); // userId = 42
+console.log(getFirstName(user1)); // jdoe = john
+console.log(getFullNameWithFName(user1)); // jdoe = john
+console.log(getLastName(user1)); // jdoe = doe
+```
+
+##### Nested object and array destructuring
+
+```javascript
+const metadata = {
+    title: "metadata",
+    translations: [
+        {
+            locale: "en",
+            title: "en_title_metadata",
+            rel: {
+                a: "en_a",
+                b: "en_b"
+            }
+        },
+        {
+            locale: "es",
+            title: "es_titile_metadata",
+            rel: {
+                a: "es_a",
+                b: "es_b"
+            }
+        }
+    ],
+    url: "/en-US/metadata"
+};
+// 注意这里的写法读取的是translations[0].title
+let { 
+  title, 
+  translations: [{title: translatedTitle}] = []
+} = metadata;
+console.log(`title = ${title}, translated = ${translatedTitle}`); // title = metadata, translated = en_title_metadata
+
+// 1. 这里不能再用 {title: translatedTitle} 否则会报错 let/const不能同一个variable(translatedTitle) declare两次
+// 2. 注意这里读取的是translations[1].title
+let { translations: [, { title: translatedTitleEs }]} = metadata;
+console.log(`es translated = ${translatedTitleEs}`); // es translated = es_titile_metadata
+
+// For-of iteration and destructuring
+// 1. 注意这里是怎么对translations循环的 
+// 2. 注意rel_b的assign
+for (let { title, rel: { a, b: rel_b } } of metadata.translations) {
+    console.log(`title = ${title}, rel.a = ${a}, rel.b = ${rel_b}`);
+}
+// title = en_title_metadata, rel.a = en_a, rel.b = en_b
+// title = es_titile_metadata, rel.a = es_a, rel.b = es_b
+```
+
+##### Combined Array and Object Destructuring
+
+```javascript
+const props = [
+    { id: 1, name: "fizz"},
+    { id: 2, name: "bizz"},
+    { id: 3, name: "gizz"}
+];
+const [, , { name }] = props;
+console.log(`props[2].name = ${name}`); //props[2].name = gizz
+```
+
+##### The prototype chain is looked up when the object is deconstructed 
+
+When deconstructing an object, if a property is not accessed in itself, it will continue to look up along the prototype chain.
+
+```javascript
+let obj = {
+    anotherId: 123
+};
+obj.__proto__.prop = "456";
+const { anotherId, prop } = obj; // 注意这里不能再用{ id, prop }中的id了,因为前面已经declare过了
+console.log(`obj.id = ${anotherId}, obj.prop = ${prop}`); // obj.id = 123, obj.prop = 456
+```
+
+##### <span class="white-on-black">Destruct Function Arguments into Parameters</span>
+
+Ex1. Destructure args as array
+
+```javascript
+function vectorAdd1(v1, v2) {
+    return [v1[0]+v2[0], v1[1]+v2[1]];
+}
+// compare with destructured args
+function vectorAdd2([x1, y1], [x2, y2]) {
+    return [x1+x2, y1+y2];
+}
+console.log(vectorAdd2([1,2], [3,4])); // [4,6]
+```
+
+Ex2. Destructure args as object
+
+```javascript
+// 注意这里z的default val
+function vectorMultiply({ x, y, z=0 }, scalar) {
+    return {
+        x: x * scalar,
+        y: y * scalar,
+        z: z * scalar
+    };
+}
+console.log(vectorMultiply({ x: 1, y: 2}, 3)); // {x: 3, y: 6, z: 0}
+
+function vectorMultiply2({ x, y, z=0, ...props}, scalar) {
+    return {x: x*scalar, y: y*scalar, z: z*scalar, ...props};
+}
+// 除了x,y,z的props会原封不动的return: 这里的w:-1
+console.log(vectorMultiply2({ x: 1, y: 2, w: -1}, 3)); // { x: 3, y: 6, z: 0, w: -1 }
+```
+
+Ex3. Rename
+
+```javascript
+// 注意这里的rename, 左边的key是不变的, 右边的是rename
+function vectorAdd3({ x: x1, y: y1 }, { x: x2, y: y2 }) {
+    return {
+        x: x1 + x2,
+        y: y1 + y2
+    };
+}
+console.log(vectorAdd3({x: 1, y: 2}, {x: 3, y: 4})); // {x: 4, y: 6}
+```
+
+Ex4. 把from copy进to, 在to的insertAt插入, 插入的是from从fromIndex开始向后数numToCopy个
+
+```javascript
+function arryCopy({ from, to=from, fromIndex=0, numToCopy=from.length, insertAt=0 }) {
+    let valuesToCopy = from.splice(fromIndex, fromIndex + numToCopy);
+    to.splice(insertAt, 0, ...valuesToCopy);
+    return to;
+}
+let a = [1,2,3,4], b=[5,6,7,8];
+// 注意splice从index=2开始插入 所以(1,2,3)是插在7之前!!
+console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1,2,3),7,8]
+```
+
+- arryCopy的params是一个obj, key是from, to, fromIndex, numToCopy, insertAt. 对于obj每个key的defaultVal用等号赋值
+- 注意上例没有pass进fromIndex, 区别于func(a, b, c), 如果call的时候是func(1,2)则b=2, c=undefined, 不可能跳过b, 除非func(1, , 2). 但是obj可以随意跳过某个key
+
+#### <a name="object-entires" id="object-entires">3.10.3 Object.entries()</a>
+
+[MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
+
+```Object.entries(obj)```返回的是array of [key, val]  pairs. 注意[key, val]是array的形式, 不是object.
+
+并且注意```Object.entries```返回的<span class="red">没有inherited properties</span>.
+
+```javascript
+const obj1 = {
+    a: "aaa",
+    b: 42
+};
+// 注意entries returns [["a", "aaa"], ["b", 42]] 
+for(let [key, val] of Object.entries(obj1)) {
+    console.log(`key = ${key}, val = ${val}`);
+}
+// key = a, val = aaa
+// key = b, val = 42
+```
+
+同样适用于array
+
+```javascript
+let letters = [..."abc"];
+for(let [index, val] of letters.entries()) {
+	console.log(`index = ${index}, letter = ${val}`);
+}
+// index = 0, letter = a
+// index = 1, letter = b
+// index = 2, letter = c
+```
+
+#### <a name="for-of" id="for-of">5.4.4 for/of</a>
+
+The `for/of` loop works with <span class="bold">iterable</span> objects. <span class="red">Arrays, strings, sets, and maps</span> are iterable: they represent a sequence or set of elements that you can loop or iterate through using a for/of loop.
+
+- ```for/of``` <span class="red">不能用于object</span>
+  - <b>Objects</b> are <b>not</b> (by default) iterable. Attempting to use ```for/of``` on a regular object throws a <span class="red">TypeError</span> at runtime.
+- ```for/in``` 可以loop thru object, 但是包括enumerable <u>inherited</u> props. 所以一般用Object.keys(obj) + for/of
+- ```for/in``` with array will loop through <b>index</b> 
+  - ```for(const index in str) { str[index] }```
+- ```forEach```<u>只能</u>用于array
+
+```javascript
+let arry = [1,2,3], sum = 0;
+for (let num of arry) {
+	// (let i=0,size=arry.length; i<size; ++i)
+	sum += num;
+}
+```
+
+- ```for/of``` with strings
+
+```javascript
+let getFreq = (str) => {
+    const freq = {};
+    
+    for(let char of str) { //不能用str.forEach, forEach只能用于array
+        if(!freq[char]) { //注意不是str[char]了, 区别于for/in才是index
+            freq[char] = 0;
+        }
+        freq[char]++;
+    }
+
+    Object.keys(freq).forEach((key) => console.log(key, freq[key]));
+};
+
+getFreq("mississippi");
+// "m: 1"
+// "i: 4"
+// "s: 4"
+// "p: 2"
+```
+
+#### <a name="for-in" id="for-in">5.4.5 for/in</a>
+
+While a ```for/of``` loop requires an <b>iterable</b> object after the of, a ```for/in``` loop works with any object after the in. 
+
+但是```for/in```会loop through <span class="red">enumerable <u>inherited</u> properties</span>. For this reason, many programmers prefer to use a ```for/of``` loop with ```Object.keys()``` instead of a ```for/in``` loop.
+
+Loop through Object的方法:
+
+<u>相较于for/in, 更常用for/of + Object.keys/values/entries</u>, 避免inherited properties
+
+- ```Object.keys(obj)```, ```Object.values(obj)```, ```Object.entries(obj)``` returns an array of a given object's <span class="red bold">own</span> <b>enumerable</b> key, value, [key, val] pair, <span class="red bold">no inherited</span> ones, 区别于```for/in```.
+
+	```javascript
+	let obj = {x: 1, y: 2};
+	console.log(Object.keys(obj).join('')) // "xy"
+	
+  console.log(Object.keys(obj).reduce((acc, cur) => acc + obj[cur], 0)); // 这里是obj[cur], cur是key
+	
+	Object.entries(obj).forEach(([key, val]) => console.log(key, val)) // 勿忘括号([key, val])
+	// "x 1"
+	// "y 2"
+	``` 
+	
+-  ```for(let key in obj)``` will loop enumerates properties <span class="red">in the prototype chain</span> as well. 可以用```for/in``` test if property exists (both its own + inherited).
+
+	```javascript
+	let o = { x: 1 };
+	"x" in o // => true: o has an own property "x"
+	"y" in o // => false: o doesn"t have a property "y" 
+	"toString" in o // => true: o inherits a toString property
+	```
+
+#### <a name="extending-obj" id="extending-obj">6.7 Extending Objects</a>
+
+Extend object的方法有如下几种
+
+- 最原始的copy it over. 注意这里用的不是for/in, 而是<b>for/of + Object.keys</b>, 避免了inherited properties
+
+	```javascript
+  // copy source into target
+	let target = {x: 1}; // target后面被赋值, 必须用let, 不能const
+  const source = {x: 2, y: 3};
+	Object.keys(source).forEach((key) => {
+      target[key] = source[key];
+  });
+	target; // {x: 2, y: 3}
+	```
+- ```Object.assign(targetObj, sourceObj1, sourceObj2,...)```, 这里后面sourceObjs会override前面obj的properties. <span class="orange">Object.assign会trigger targetObj的setter</span>.
+
+	```javascript
+	// 如果想用defaults补齐o中没有default val的properties, 这个做法会override o中本身有的property的val
+	Object.assign(o, defaults)
+	
+	//这个做法解决了上面的问题, 复制了defaults给{}
+	Object.assign({}, defaults, o); 
+	```
+- 自己写一个merge function, escape已有的properties
+
+	```javascript
+	// 注意spread operator
+	function merge(target, ...sources) {
+      // 注意sources是个array, 区别于arguments要Array.from(arguments)
+      sources.forEach((source) => {
+          target = {
+              ...target,
+              ...source
+          };
+      });
+      return target; // 勿忘, 否则console没有输出
+  }
+  // {"x":2,"y":3,"z":4}
+  console.log(`mergedObj = ${JSON.stringify(merge({x: 1}, {x: 2, y: 2}, {y: 3, z: 4}))}`); 
+	```
+- Use spread operator, see [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread).
+
+
+	```javascript
+	// source的properties会overwrite target的
+	target = {
+      ...target,
+      ...source
+  }; 
+	```
+	
+#### <a name="obj-method" id="obj-method">6.9 Object Methods</a>
+
+```Object.create()```, ```Object.keys()```, etc, they are all static functions defined on the <b>Object constructor</b>.
+
+Here, we introduce some universal object methods that are defined on <b>Object.prototype</b>: 
+
+- ```obj.toString()```: 如果不override, output永远是"[object Object]"
+- ```obj.valueOf()```: will be called when convert to Number is needed (eg: 比较大小的时候 >, <). eg: 下面的Number(point)和point < 4
+
+	```javascript
+	let o = {x: 1};
+	o.valueOf(); // {x: 1}
+	Number(o); // NaN
+	```
+
+- ```obj.toJSON()```: will be invoked when ```JSON.stringify()``` is called
+
+
+```javascript
+// override original Object.prototype.method
+let point = {
+    x: 3, 
+    y: 4,
+    toString() { // 注意this的用法
+        return `(${this.x}, ${this.y})`;
+    },
+    valueOf() { 
+    	return Math.hypot(this.x, this.y);
+    },
+    toJSON() {
+    	return this.toString();
+    }
+};
+console.log(point.toString()); // (3, 4)
+console.log(JSON.stringify(point)); // "(3, 4)"
+console.log(Number(point)); // 5, valueOf is called
+console.log(point < 4); // false, 因为convert to Number以后point=5
 ```
 
 #### <a name="create-arry" id="create-arry">7.1 Creating Arrays (`Array.of`, `Array.from`)</a>
@@ -3804,1386 +4711,6 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 	- m.entries()不是array, 要用arry.forEach()要先变成array
 	- 区别于m.forEach是先val后key, m.entries()的forEach返回的是[key, val]不是val/key
 
-#### <a name="func-def" id="func-def">8.1 Defining Functions</a>
-
-四种方法define function: function declaration, function expression, arrow function, nested function.
-
-- Function Declaration
-	- `function sum(...args) { ... "this" is window obj ...}`
-	-  will be hoisted to the top of block, before var hoisting. <b>Functions are first-class citizens</b>.
-	-  <span class="yellowBG">function declaration里的`this`是global window</span>
-- Function Expression
-	- `const sum = function(...args) {}`
-	- function expression can <span class="orange">include names, which can be used in recursive</span>. 注意下例中<span class="orange">factorial is only available within function f</span>.
-
-	
-		```javascript
-		const f = function factorial(x) {
-			if (x <= 1) return 1;
-			return x * factorial(x-1);
-		};
-		```
-
-	- Immediatly Invoking Function Expression (IIFE)
-
-		```javascript
-		const addCount = (function() {
-			let count = 1; // count是private, 只有通过addCount()才能access
-			return function() {
-				return count + 1;
-			}
-	    })();
-	    console.log(addCount()); // 2
-	    console.log(addCount()); // 3	
-	    ```
-	    
-- Arrow Function
-	- arrow function实际上类似没有function keyword也没有function name的function expression
-	- `const sum = (x, y) => x+y;`
-	- arrow function<span class="orange">没有`arguments`</span>
-	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于obj.method (Ex1), 也无法通过apply/call/bind改变scope (Ex2).
-		- <span class="yellowBG">Arrow functions establish/inherit "this" based on the scope where the arrow function is defined</span>: <span class="orange">进入arrow function之前, where "this" is bind to</span>.
-			- 如果obj.method是arrow function, arrow function里的this继承的是和obj同scope的this, 通常是window (Ex1). 
-			- 如果obj.method是普通function, 但是里面有setTimeout(() => {..this..})用了arrow function, 因为arrow function的this会inherit进入setTimout之前的this, 此时是obj (Ex3).
-			
-			Ex1. <i>注意下面calculator.add和calculator.minus, 无论是shorthand还是传统写法, `this`都是calculator</i>
-			
-			```javascript
-			let calculator = { // An object literal 
-				operand1: 1,
-				operand2: 1,
-				add() { // with method shorthand syntax
-				    console.log(`calculator.add, this = ${this}`); // calculator itself
-				    this.result = this.operand1 + this.operand2; 
-				},
-				minus: function() { // regular function
-				    console.log(`calculator.minus, this = ${this}`); // calculator itself, not window obj!!!
-				    this.result = this.operand1 - this.operand2;
-				},
-				arrowThis: () => { // arrow function "this" in obj.method
-				    console.log(`calculator.arrowThis, this = ${this}`); // window object
-				    console.log(this.operand1); // undefined
-				}
-			};
-			calculator.add();
-			console.log(calculator.result); // 2
-			calculator.minus();
-			console.log(calculator.result); // 0
-			calculator.arrowThis();
-			```
-		- <span class="orange">Not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
-			
-			Ex2. 
-			
-			```javascript
-			let obj = { num: 10 };
-			window.num = 100;
-			const add = function(a, b) { 
-			    console.log(`add.this = ${this}`);
-			    return this.num+a+b; 
-			};
- 			// 如果直接call add, 此时add里log的this是window
-    		add(1, 2); // 103
-    		
-			// With Arrow functions, addArrow function is essentially created on the window (global) scope, 
-			// it will assume this is the window.
-			const addArrow = (a, b) => {
-			    console.log(`addArrow.this = ${this}`);
-			    return this.num + a + b;
-			}
-			/**
-			 * add.this = obj
-			 * result = obj.num + 1 + 2 = 13
-			 */
-			console.log(add.call(obj, 1, 2)); // 13
-			/**
-			 * addArrow.this = window obj, call没有bind成功
-			 * result = window.num + 1 + 2 = 103
-			 */
-			console.log(addArrow.call(obj, 1, 2)); // 103
-			```
-			
-		-  the greatest benefit of using Arrow functions is with DOM-level methods (<span class="orange">setTimeout, setInterval, addEventListener</span>) that usually required some kind of closure, call, apply or bind to ensure the function executed in the proper scope.
-			
-			注意<span class="orange">`setTimeout(func, delay)`的func</span>, by default if there is no set on `this` in the call or with `bind`, <span class="orange">func是executes on the window scope, 即func的this是window obj</span>.
-		
-			Ex3. 
-			
-			```javascript
-			let obj = {
-				count: 10,
-				doSomethingLater: function() {
-				    // setTimeout(func, delay)的func是executes on the window scope
-				    setTimeout(function() {
-				        console.log(`setTimeout.this = ${this}`); // window obj
-				        console.log(this.count); // undefined
-				    }, 300)
-				},
-				doSomethingLaterArrow: function() {
-				    // 进入setTimeout之前, "this" is bind to "obj"
-				    setTimeout(() => {
-				        /** 
-				         * 区别于doSomthingLater.setTimeout的function会产生this的scope是window
-				         * 这里因为arrow function本身没有this,
-				         * doSomethingLaterArrow.setTimeout的arrow function的this会inherit进入setTimout之前的this, 即obj
-				         */
-				        console.log(`setTimeout.arrowThis = ${this}`); // obj itself
-				        console.log(this.count); // 10
-				    }, 300)
-				}
-			};
-			obj.doSomethingLater();
-			obj.doSomethingLaterArrow();  
-			```
-- Nested Functions: 可以function里套function declaration
-
-	```javascript
-	function squareAndSum(a, b) {
-		function square(x) { return x*x; }
-		return square(a) + square(b);
-	}
-	```
-
-#### <a name="func-invoke" id="func-invoke">8.2 Invoking Functions</a>
-
-Functions can be invoked in 5 ways: as function, as obj.method, as constructor, indireclty thru `apply`/`call`, implicit function invocation: `getter`/`setter`, `toString`, etc.
-
-- Function Invocation: `func(...args)`
-	- `func(...args)`
-	- inside func(){...this...}, `this` is window obj (non-strict) or `undefined` (strict). <span class="orange">注意下面把this放到function里</span>
-	
-		```javascript
-		"use strict"; // 勿忘双引号
-		/**
-		 * 如果是strict, this=undefined, isStrict = !undefined = true
-		 * 如果不是strict, this=window obj, isStrict = ![window obj] = false
-		 */
-		// 按道理, function() {.. this...} 里的this是window
-		// 不要写成 isStrict = !this. 要把this放到function里
-		const isStrict = (function() { return !this; })(); // IIFE
-		console.log(`is strict mode = ${isStrict}`);
-		```
-	- **Recursive** calls bahave like a <span class="orange">stack</span>, first in, last out. A calls B calls C: when C returns, it will back to B then A.
-- Method Invocation
-	- `obj.method(...args)`
-	- inside obj.method(){...this...}, `this` is obj.
-	
-	<span class="orange">Ex</span>. `this` in obj.method and nested function
-
-	```javascript
-	let calculator = {
-        operand1: 1,
-        operand2: 2,
-        add() {
-            console.log(`calculator.add.this = ${this}`); // calculator
-            this.result = this.operand1 + this.operand2;
-        },
-        scopeTest() {
-            console.log(`calculator.scopeTest.this = ${this}`); // calculator
-            console.log(this === calculator); // true
-            const self = this;
-            nestedFunc();
-
-            function nestedFunc() {
-                console.log(`calculator.scopeTest.nestedFunc.this = ${this}`); // window obj
-                console.log(`calculator.scopeTest.nestedFunc, self = ${self}`); // calculator
-                console.log(this === calculator); // false
-            }
-
-            const nestedFuncArrow = () => {
-                console.log(`calculator.scopeTest.nestedFuncArrow.this = ${this}`); // calculator
-            }
-            nestedFuncArrow();
-
-            nestedFunc.bind(this)(); // inside nestedFunc.this will be calculator
-        }
-    };
-    calculator.add();
-    console.log(calculator.result); // 3
-
-    calculator.scopeTest();
-	```
-	- 注意区别两种nested function: <span class="orange">function declaration(nestedFunc)</span>和<span class="orange">arrow function(nestedFuncArrow)</span>
-		- 如果nested function是declaration(calculator.scopeTest中的nestedFunc): `this`是window obj/undefined
-		- 但是如果nested function是arrow function(nestedFuncArrow), `this`依然是calcultor, 因为arrow function的this取决于where it is defined
-	- 解决nested function (declaration)的`this`的方法
-		- 进入nested function之前`self = this;` 用`self`
-		- 换成arrow function, 但是注意nestedFuncArrow要用在定义之后, 因为区别于nestedFunc是function declaration, `const nestedFuncArrow = ...`没有hoist
-		- 用bind, 勿忘bind(this)<span class="red">()</span>, 多出来的()是执行
-	- 注意上面对比`this === calculator`, `===`对比的是<span class="orange">location, 两个objs是永远不可能相等的</span>
-- Constructor Invocation: `const obj = new Object();`
-- Indireclty thru `call`/`apply`
-- Implicit function invocation: <span class="orange">`getter`/`setter` (accessor properties)</span>, `toString()`, `valueOf()`, etc
-	
-	```javascript
-	let p = {
-        x: 2,
-        y: 4,
-        get result() { // result就是一个accessor prop, 可以通过p.result trigger getter
-            return this.x + this.y;
-        },
-        set result(val) { // p.result = val will trigger setter
-            let ratio = val / this.result;
-            this.x *= ratio;
-            this.y *= ratio;
-        }
-    };
-    console.log(p.result); // 6, get result() is triggered
-    p.result = 3; // set result(3) is triggered
-    console.log(`p.x = ${p.x}, p.y = ${p.y}`); // p.x=1, p.y=2
-	```
-
-#### <a name="func-args-params" id="func-args-params">8.3 Function Arguments and Parameters</a>
-
-- Optional Parameters and Defaults
-
-	Ex1. 注意下面两种default的写法
-	
-	```javascript
-	const pushToArray1 = function(num, arry) {
-		arry = arry || []; // default to []
-		arry.push(num);
-		return arry;
-	};
-	const pushToArray2 = function(num, arry = []) { // default to []
-		arry.push(num);
-		return arry;
-	}
-	```
-		
-	Ex2. 注意下面height的default val用的是前一个param的val
-		
-	```javascript
-	const rect = (width, height=width*2) => ({ width, height });
-	rect(1); // { width: 1, height: 2 } 
-	rect(1, 3); // { width: 1, height: 3 }. 注意这里pass进height了,  height就不取width*2了
-	```
-- **Rest** Parameters in function **Definition** and **Spread** Operator in function **Invocation**
-
-	Ex1. Rest parameter in function defintion
-	
-	```javascript
-	function max(first = -Infinity, ...rest) {
-        let maxVal = first;
-        for(let n of rest) { // rest是从第二个param开始的剩下的所有params的合集
-            maxVal = Math.max(maxVal, n);
-        }
-        return maxVal;
-    }
-    console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000. 这里first=1, rest=[10,100,...]
-    
-  	// 也可以写成
-	function max1(first = -Infiintiy, ...rest) {
-		// first=1, rest是剩下的[10, 100, 2, 3, 1000, 4, 5, 6]
-		return Math.max(first, ...rest); // 注意这里要加上first, 因为rest里没有第一个param
-	}
-	console.log(max1(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
-	```
-	
-	- <span class="orange">注意first在这里并不是max的第一个param叫first</span>, 只是对于max传进去的params,第一个param会赋值给first. 并且如果max没有params, e.g: max(), 那么first defaults to -Infinity作为最后返回的maxVal
-	- rest是从第二个param开始的剩下所有params的合集. 如果max()没有params, rest = [], 即空arry;
-	
-	Ex2. Spread operator for function calls
-	
-	```javascript
-	const arry = [1, 10, 100, 2, 3, 1000, 4, 5, 6];
-	Math.max(...arry); // spread用于真正tirgger function的时候
-	
-	// 也可以
-	Math.max.apply(Math, arry)
-	```
-	
-	Ex3. timed() will log the start/end time of running f. 注意区别下面rest和spread的用法.
-	
-	```javascript
-	function timed(f) {
-		// 此时的arguments只有[func: benchmark]. arguments[0].name = benchmark
-		console.log(arguments); 
-		    
-		// rest in function definition
-		return function(...args) {
-		    console.log(`Entering function ${f.name}`); // Entering function benchmark
-		    console.log(args); // [100]. args本身是array, rest operator相当于把pass进的params都condense到了一个args里. ...args相当于把args unpack了
-		    
-		    let startTime = Date.now();
-		    try {
-		        // spread in function call
-		        return f(...args); // Spread the args back out, run benchmark(100)
-		    }
-		    finally {
-		        console.log(`Exiting ${f.name} after ${Date.now()-startTime}ms`);
-		    }
-		};
-	}
-	function benchmark(n) {
-	    let sum = 0;
-	    for(let i = 1; i <= n; i++) sum += i; 
-	    return sum;
-	}
-	// Now invoke the timed version of that test function 
-	timed(benchmark)(100);
-	```
-	<span class="yellowBG">注意timed(f)(100)的意思</span>:
-	
-	- <span class="orange">timed(f)是一个closure</span>, function return一个function
-	- timed(f) returns a function, and the returned function gets immediately called with parameter 100
-	- that's why <span class="orange">in the first console.log, arguments only contains [func:benchmark], no access to 100</span>
-	- returned function has access to "f", so inside can use f(...args)
-	- with returned function gets called, 100 is passed in, which is <span class="orange">args=[100]</span>
-	
-	Ex4. <span class="orange">类似的closure (function returns function)</span>
-	
-	```javascript
-	function add(x){
-	    return function(y){
-	        return x + y;
-	    };
-	}
-	/**
-	 * addTwo returns a function with x=2
-	 * addTwo(4) means the returned function with y=4
-	 */
-	const addTwo = add(2); 
-	addTwo(4) === 6; // true
-	
-	/**
-	 * add(3) returns a function with x=3
-	 * add(3)(4) means returned function with y=4
-	 */
-	add(3)(4) === 7; // true
-	```
-- Argument Types
-	
-	Ex1. <span class="orange">注意下面try/catch对结果的影响</span>. 
-	
-	throw并不意味着只是跳出当前function, 剩下的function还可以继续. 如果没有try/catch, 一旦throw, 所有下面的function就都不会继续了.
-	
-	```javascript
-	const sum = (arry) => {
-	    let total = 0;
-	    /** 
-	     * 1. 如果没有这个try/catch, 会停在第二个function, 且第二个function没有return, 一throw error就一切结束了
-	     * 2. 有了这个try/catch, 三个function都会run, 虽然throw, 但是只是当前的try结束了,
-	     * 	注意不是跳出整个function, 只是跳出当前的try block.
-	     * 3. 区别有没有try/catch: 
- 	     *  - 如果有try/catch, 会跳出try/catch继续下面的function, 这里是return total. 
- 	     *  - 如果没有try/catch, 一旦throw就完全结束, 就算下面还有别的function也不会进行了
- 	     */
- 	     
-	    try { 
-	        for(let num of arry) {
-	            if(typeof num !== "number") {
-	                /**
-	                 * throw没有return, 不是return  throw!!
-	                 * 1. throw new Error(...), log是Uncaught Error: ...
-	                 * 2. throw new TypeError(...), log是Uncaught TypeError: ...
-	                 * 3. 也可以直接throw + str, log是Uncaught 3 is not a number.
-	                 */
-	                throw new TypeError(`${num} is not a number.`); // 也可以throw new Error(...)
-	                // throw `${num} is not a number.`;
-	            }
-	            total += num;
-	        }
-	    } catch (e) {
-	        // sum(1, 2, 3): TypeError: arry is not iterabel
-	        // sum([1,2, "3"]): Error: 3 is not a number
-	        console.log(e);
-	    }
-	    return total;
-	}
-	console.log(sum([1,2,3])); // 6
-	console.log(sum(1, 2, 3)); // 0, 在for(let num of a)处: Uncaught TypeError: arry is not iterable
-	console.log(sum([1,2, "3"])); //3, 在throw处: Uncaught TypeError: 3 is not a number.
-	```
-
-#### <a name="func-val" id="func-val">8.4 Functions as Values</a>
-
-- Function as parameter values
-
-	Ex1.
-	
-	```javascript
-	function add(x, y) { return x+y; }
-	function operate1(operator, operand1, operand2) {
-	    return operator(operand1, operand2);
-	    
-		// 也可以用call or apply
-		return operator.call(this, operand1, operand2);
-		return operator.apply(this, [operand1, operand2]);
-	}
-	// 注意这里add没有引号!! 不是string, 不是operate("add", ...args). 
-	// add是func name, 前面定义过了
-	console.log(operate1(add, 1, 2)); // 3
-	```
-	
-	Ex2.
-	
-	```javascript
-	// 注意obj.method的两种写法
-	const operators = {
-	    add(x, y) { return x+y; },
-	    minus: (x, y) => x-y
-	};
-	function operate2(operator, operand1, operand2) {
-        try {
-            const func = operators[operator];
-            if(typeof func !== "function") {
-                throw new Error(`${operator} not exists`);
-            }
-            return func(operand1, operand2);
-        } catch(e) {
-            console.log(e);
-        }
-    }
-	// 区别于之前operate1(add, 1, 2)中add没有引号,不是string. 
-	// 这里operate2("add",..)的add是string, 是operators的key
-	// 因为这里没有对add的直接定义
-	console.log(operate2("add", operate2("minus", 3, 1), 4)); // 6
-	console.log(operate2("add", "hello", " world")); // hello world
-	console.log(operate2("multiply", 2, 3)); // Uncaught Error: multiply not exists
-	```
-	
-	- Ex1中operate1(<span class="orange">add</span>, ...rest)的<span class="orange">add没有引号</span>, 不是string, 前面定义过了, 是function name.
-	- 区别于Ex2的operate2(<span class="orange">"add"</span>, ...rest)的<span class="orange">add有引号</span>, 是operators的key, 是string, 前面没有对add的定义.
-	- 注意Ex2中的operators.method的两种写法
-	- 注意Ex中如果obj的key是variable, 不能用operators.operator, 得用<span class="orange">operators[operator]</span>
-	- 注意Ex2种try/catch, <span class="orange">一旦throw error但是没有try/catch就整个application结束了</span>. 这里有try/catch, 所以会log error，并继续下面的
-
-- Function as Object: <span class="orange">Functions are Objects</span>, can set properties to it.
-
-	Ex3. 
-	
-	```javascript
-	uniqueInt.count = 0;
-	function uniqueInt() {
-	    console.log(this); // window obj
-	    // 不能用this.count++, function declaration里的this是window! 区别于obj.method的this是obj
-	    return uniqueInt.count++;
-	}
-	console.log(uniqueInt()); // 0, 注意不是1, a++是返回的值先不变, 返回完了才a+1
-	console.log(uniqueInt()); // 1
-	```
-	
-	- 注意上面uniqueInt()中不能用this.count. <span class="orange">function declaration里的this是window! 区别于obj.method的this是obj</span>
-	- a++返回的值是原本的a, 返回完了才a+1
-	- 但是这种uniqueInt.count的写法有一个问题: buggy or malicious code could reset the counter or set it to a noninteger.
-	
-	Ex4.
-	
-	```javascript
-	function factorial(n) {
-		// 只测typeof n === "number"是不够的
-		if(!Number.isInteger(n) || n <= 0) return NaN;
-		// 也可以写成 if(n in factorial), 因为是key
-		if(factorial[n] !== undefined) return factorial[n];
-		// 这里不是n*factorial[n-1]!! 得是factorial(n-1), 再次invoke function
-		factorial[n] = n * factorial(n-1);
-		// 不能return factorial[n] = n * factorial(n-1)
-		// 要写成两步, return的时候不能有等号
-		return factorial[n];
-    }
-    factorial[1] = 1; // initiate cache, base case;
-    console.log(factorial(4)); // 24
-    console.log(factorial[3]); // 6 前面算4的时候cache了factorial[2]和factorial[3]
-	```
-	
-	- factorial既是function, 也有factorial[n]作为cache
-	- 注意上例只测`typeof n === "number"`是不够的，要用`Number.isInteger(n)`
-
-#### <a name="closure" id="closure">8.6 Closure</a>
-
-A **closure** is the combination of a function bundled together (enclosed) with references to its surrounding state (the lexical environment). In other words, a closure gives you <u>access to an outer function's scope from an inner function</u>.
-
-A **closure** is a function that <u>references variables in the outer scope from its inner scope</u>. The closure preserves the outer scope inside its inner scope.
-
-In JavaScript, closures are created every time a function is created, at function creation time. Technically, <u>all JavaScript functions are clousres</u>, but because most functions are <u>invoked from the same scope</u> that they were defined in, it normally doesn’t really matter that there is a closure involved. Closures become interesting when they are <u>invoked from a different scope than the one they were defined in</u>, 比如下面Ex1.2中的checkScope2第二个()执行function f的时候, f is invoked from a different scope.
-
-Ex1.1
-
-```javascript
-let scope = "global scope";
-function checkScope1() {
-	let scope = "local scope";
-	function f() {
-	    return scope;
-	}
-	// 必须return f(). 如果没有return,下面的log是undefined
-	return f(); // 这里是直接执行了f, 区别于下面return f;
-}
-console.log(checkScope1()); // local scope
-```
-
-- 勿忘checkScope1中必须<span class="red">return</span> f(). function如果没有return, 它返回的就是undefined, 导致之后的log是undefined
-
-Ex1.2
-
-```javascript
-let scope = "global scope";
-function checkScope2() {
-    let scope = "local scope";
-    function f() {
-        return scope;
-    }
-    return f;
-}
-console.log(checkScope2()()); // local scope. 勿忘第二个()才是执行return的f
-```
-
-- 区别于Ex1.1, 这里checkScope2()<span class="orange">()</span>有两个(). Ex1.1中checkScope1()返回的是已经执行了的f, 这里checkScope2()返回的还是function f
-- 虽然checkScope2 executed的时候, 和checkScope2同级的scope是"global scope", 但是**Functions are executed using the scope they were defined in**, NOT where they are invoked.
-
-Ex2.1.1 <span class="orange">如果要keep `count` as a private state</span>, 更好的写法是用<span class="orange">IIFE + closure (return function)</span>
-	
-```javascript
-const uniqueIntClosure = (function() {
-    let count = 0;
-    return function() {
-        return count++;
-    }
-})();
-console.log(uniqueIntClosure()); // 0 注意这里不用uniqueIntClosure()(). uniqueIntClosure已经是return的function了,一个()就够了 
-console.log(uniqueIntClosure()); // 1
-```
-	
-- 注意上面不用uniqueIntClosure()<span class="orange">()</span>. uniqueIntClosure<span class="orange">已经是return的function了,一个()就够了</span>
-
-Ex2.1.2 类似的还有Singleton, instance只init了一次
-
-```javascript
-const Singleton = (function() {
-	let instance;
-	function createInstance() {
-		console.log(`-- in createInstance --`);
-		return { a: 1 };
-	}
-	function getInstance() {
-		console.log(`-- in getInstance --`);
-		if(instance === undefined) {
-			instance = createInstance();
-		}
-		return instance;
-	}
-	return {
-		getInstance
-	}
-})();
-console.log(Singleton.getInstance()); // 会trigger createInstance
-console.log(Singleton.getInstance()); // 不会再trigger createInstance了
-```
-
-Ex2.2 区别uniqueIntClosure和下面的uniqueIntClass
-	
-```javascript
-// 其实这个应该写成class(function)
-// function uniqueIntClass() { ... }
-const uniqueIntClass = function() {
-    let n = 0;
-    return function() {
-        return n++;
-    }
-    // return n++; // 这两种return都一样 只是return function的话 下面call的时候需要两个()()
-};
-console.log(uniqueIntClass()()); // 0
-console.log(uniqueIntClass()()); // 0 是新的obj, n互不影响
-```
-	
-- 区别于Ex2.1的uniqueIntClosure, <span class="orange">uniqueIntClass没有IIFE, 是一个class/function</span>. <span class="orange">每次call得到的是一个新的object</span>, n互相不干扰.
-
-类似上面Ex2.1中uniqueIntClosure的count, 但是it need not be exclusive to a single closure: it can be shared bt more nested functions. 下面Ex3.1中的n就是shared bt count和reset, which are defined within the same outer function counter1.
-
-Ex3.1
-
-```javascript
-function counter1() {
-    let n = 0;
-    return {
-        count() { return n++; },
-        reset() { n = 0; }
-    };
-}
-const c1 = counter1(), c2 = counter1(); // 和new counter1()一样, 都是返回一个obj
-console.log(c1.count()); // 0. 注意不是counter1.count(), 是counter1().count()
-console.log(c1.count()); // 1
-c1.reset();
-console.log(c1.count()); // 0
-console.log(c1.count()); // 1
-
-console.log(c2.count()); // 0, c1和c2互不干扰, has its own scope
-```
-
-- 这里counter1和上面的uniqueIntClass一样, 返回的是一个object, 所以call的时候一个()就够了
-- 和uniqueIntClass一样, 区别于uniqueIntClosure, 这里没有IIFE, 所以类似class, c1和c2是两个互不相干的obj
-- counter1是一个closure, 这种用法实际上是一个<span class="orange">class</span>.
-
-Ex3.2 区别于上例的n是private, 无法通过c1.n access n. 这里通过count的getter/setter expose了count, 所以可以直接d.count. 但是n依然是private.
-
-```javascript
-function counter2(n = 0) { // n is private, if not passed in, default will be 0
-    return {
-        get count() { return n++; },
-        set count(val) { 
-            if(val > n) {
-                n = val; 
-            } else {
-                throw new Error ("count can only be set to a larger val");
-            }
-        }
-    }
-}
-const d1 = counter2(3);
-console.log(d1.count); // 3. 注意这里不是d.count(), 因为count是accessor prop, 不是function!!
-console.log(d1.count); // 4
-console.log(d1.count); // 5
-try {
-    d1.count = 4; // 注意不是d1.set(1)!!! count是个prop, 直接赋值就会trigger set
-} catch(e) {
-    console.log(e); // Error: count can only be set to a larger val
-}
-d1.count = 10;
-console.log(d1.count); // 10
-```
-
-- accessor properties: <span class="orange">getter/setter can only be added to object</span>, not function. 所以下面是return { get, set } 
-- 注意上面是trigger setter时是直接d1.count = 4, 不是d1.set(10)
-- 上面的get count和set count是<u>two closures defined in the same scope</u> and share access tot he same private variable.
-
-```javascript
-console.log(d1 instanceof  counter2); // false
-console.log(d1 instanceof Object); // true
-```
-
-- <span class="orange">constructor function不需要return</span>. 之前counter2 return的两个function导致instanceof不work了
-- 得用下面的方法写getter/setter
-
-```javascript
-// constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
-function counterConstructor(n) {
-    this._n = n;
-}
-Object.defineProperties(counterConstructor.prototype, {
-    count: {
-        get: function() {
-            return this._n++;
-        },
-        set: function(val) {
-            this._n = val;
-        }
-    }
-});
-const d2 = new counterConstructor(5);
-console.log(d2 instanceof counterConstructor); // true
-console.log(d2.count); // 5
-console.log(d2.count); // 6
-d2.count = 10;
-console.log(d2.count); // 10
-```
-
-- constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
-
-但是也要注意<b>Closure可能带来的Performance  issue</b>: 
-
-It is unwise to unnecessarily create functions within other functions if closures are not needed for a particular task, as it will <u>negatively affect script performance both in terms of processing speed and memory consumption</u>.
-
-For instance, when creating a new object/class, <u>methods should normally be associated to the object's prototype</u> rather than defined into the object constructor. The reason is that whenever the constructor is called, the methods would get reassigned (that is, for every object creation).
-
-Ex4.1 `getName`和`getMessage`是两个closure. 下面不应该把这两个closures写在constructor里
-
-```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-  this.getName = function() {
-    return this.name;
-  };
-
-  this.getMessage = function() {
-    return this.message;
-  };
-}
-```
-
-Ex4.2 下面的写法也不对, 不应该改本身的`MyObject.prototype`
-
-```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-}
-MyObject.prototype = {
-  getName: function() {
-    return this.name;
-  },
-  getMessage: function() {
-    return this.message;
-  }
-};
-```
-
-Ex4.3 应该写成下面这样
-
-```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-}
-MyObject.prototype.getName = function() {
-  return this.name;
-};
-MyObject.prototype.getMessage = function() {
-  return this.message;
-};
-```
-
-<b>Closure Scope Chain</b>: Every closure has three scopes (它解释了下面how variables are resolved when it's inside <u>closures in loops</u>)
-
-- Local Scope (Own scope)
-- Outer Functions Scope
-- Global Scope
-
-<span class="bold border">Creating closures in loops: A common mistake</span>
-
-Prior to the introduction of the let keyword in ECMAScript 2015, a common problem with closures occurred when you created them inside a loop.
-
-Ex5.1
-
-```javascript
-let funcs = [];
-for(var i=0; i<10; ++i) {
-    funcs[i] = () => i; // 所有loop share的同一个i
-}
-console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一个i, 此时i=10
-```
-
-- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]只是一个function, 没有执行
-- This code creates 10 closures and stores them in an array. The closures are all defined within the same invocation of the function, so they <span class="orange">share access to the variable i</span>. 
-- <b>Closure Scope Chain</b>： `funcs[5] = function() { return i; }`: `funcs[5]()`执行的时候, <span class="orange">local scope没有i的定义, 所以向上找outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, 所以找到for loop, 此时i已经是10了
-- 如果改成`funcs[i] = (i) => i; ` 即只pass进i也不对. funcs[5]其实就是`function(i) { return i; }`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">i此时是undefined</span>, log是undefefined. <span class="orange">除非同时改成</span>`funcs[5](5)`.
-
-Ex5.2 how to fix
-
-- fix 5.2.1: 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
-- fix 5.2.2: use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
-
-	```javascript
-	function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
-		return () => v;
-		/**
-		 * 等同于
-		 * return function() {
-		 *    return v;
-		 * }
-		 */
-	}
-	let funcs = [];
-	for(var i=0; i<10; ++i) {
-		funcs[i] = constFunc(i); 
-	}
-	console.log(funcs[5]()); // 5. 勿忘多出来的()!! funcs[5]即constFunc(5)返回的是一个function
-	```
-	
-	- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5)返回的是一个function, 没有执行
-	- 不能写成`function constFunc(v) { return v; }`, 这样的话funcs[i]=constFunc(i)就直接执行return i了
-	- <b>Closure Scope Chain</b>: `funcs[5] = () => v`, 此时在<span class="orange">local scope</span>里v没有定义, 所以向上找<span class="orange">outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, <span class="orange">区别于4.1, 这里的outer scope是</span>`function constFunc(5)`, <span class="orange">即v=5</span>
-	- 和5.1一样, 这里也不能改成`function constFunc(v) { return (v) => v; }`, 因为`funcs[5]()`执行的时候, 没有传进v, log是undefefined, 除非同时改成`funcs[5](5)`.
-- 这里<span class="orange">没有办法用类似6.2.3的IIFE</span>. 因为这里不存在callback, 当时就执行了
-
-Ex6.1 Show help text once focusing on the input box. 
-
-但是No matter what field you focus on, the message "your name" will always be displayed.
-
-```html
-<p>Email: <input type="text" id="email" name="email"></p>
-<p>Name: <input type="text" id="name" name="name"></p>
-<p id ="help">Help msg goes here.</p> 
-```
-
-```javascript
-const help = document.getElementById("help");
-const json = [{
-	id: "email",
-	help: "your email"
-	}, {
-	id: "name",
-	help: "your name"
-}];
-
-for(var i=0, size=json.length; i<size; ++i) {
-    var elem = json[i];
-    document.getElementById(elem.id).onfocus = () => {
-        help.innerHTML = elem.help;
-    }
-}
-```
-
-- 注意<span class="red">`elem.innerHTML`</span>和<span class="red">`elem.onfocus`</span>的用法
-- The functions assigned to onfocus are closures, they share the same variable `elem`. The value of `elem.help` is determined when the onfocus callbacks are executed, and at that time, elem is the last obj in json.
-- <b>Closure Scope Chain</b>: 当onfocus callback的时候只有`() => { helper.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>, 即for loop的elem, 此时elem = the last obj in json, 所以help text是name的help.
-
-Ex6.2 how to fix
-
-- fix 6.2.1: 用`let` / `const` 做for loop
-- fix 6.2.2: use more closures, 和5.2.2一样. <u>Creates a new lexical environment</u> for each callback, in which text refers to the corresponding string from the json array.
-
-	```javascript
-	function helpCallback(text) {
-	    return function() {
-	        help.innerHTML = text;
-	    }
-	}
-	for(var i=0, size=json.length; i<size; ++i) {
-	    var elem = json[i];
-	    document.getElementById(elem.id).onfocus = helpCallback(elem.help);
-	}
-	```
-	
-	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`function() { help.innerHTML = text; }`. 此时在<span class="orange">local scope</span>里没有text的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`function helpCallback(text)`, 即定义时传进来的当时item的help.
-
-- fix 6.2.3: <span class="orange">using IIFE</span>: <u>Immediate event listener attachment with the current value</u> of item (preserved until iteration).
-
-	```javascript
-	for(var i=0; i<json.length; ++i) {
-		(() => {
-		    var elem = json[i];
-		    document.getElementById(elem.id).onfocus = () => {
-		        help.innerHTML = elem.help;
-		    };
-		})();
-
-		// 用传统的(function() {})()
-		// (function() {
-		//     var elem = json[i];
-		//     document.getElementById(elem.id).onfocus = () => {
-		//     help.innerHTML = elem.help;
-		//     };
-		// })();
-	}
-	```
-	
-- fix 6.2.4: using `forEach`. 这个和6.2.2类似, 都是closure scope chain
-
-	```javascript
-	json.forEach((elem) => {
-	    document.getElementById(elem.id).onfocus = () => {
-	        help.innerHTML = elem.help;
-	    }
-	});
-	```
-	
-	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`() => { help.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`json.forEach`的`(elem)`, 即当时的item.
-
-Ex7. `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
-
-```javascript
-function range(start,end) {
-    // ..TODO..
-}
-
-range(3,3);    // [3]
-range(3,8);    // [3,4,5,6,7,8]
-range(3,0);    // []
-
-var start3 = range(3);
-var start4 = range(4);
-
-start3(3);     // [3]
-start3(8);     // [3,4,5,6,7,8]
-start3(0);     // []
-
-start4(6);     // [4,5,6]
-```
-
-Book solution:
-
-```javascript
-function range(start, end) {
-    start = Number(start) || 0;
-
-    if (end === undefined) {
-        return function getEnd(end) {
-            return getRange(start, end);
-        };
-    } else {
-        end = Number(end) || 0;
-        return getRange(start, end);
-    }
-
-    function getRange(start, end) {
-        var ret = [];
-        for (let i = start; i <= end; i++) {
-            ret.push(i);
-        }
-        return ret;
-    }
-}
-```
-
-#### <a name="module-systems" id="module-systems">8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
-> YDKJS > Scope & Closures > ch8
-
-All solve the same problem: how do files share code? They differ by era and environment.
-
-| Format | Environment | Loading | Syntax | Status |
-|---|---|---|---|---|
-| IIFE closure | Browser | Manual `<script>` order | `(function(){})()` | Legacy pattern |
-| CommonJS (CJS) | Node.js | Sync `require()` | `module.exports` / `require` | Dominant in Node |
-| AMD | Browser | Async, needs RequireJS | `define([deps], fn)` | Obsolete |
-| UMD | Both | Wrapper shim around CJS+AMD | Boilerplate | Legacy libs only |
-| ESM | Both | Static, async-capable | `import` / `export` | Modern standard |
-
-**Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.5](#compile-vs-runtime-pattern). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
-
-**CJS (Node.js)**
-```javascript
-// math.js
-module.exports = { square: x => x * x };
-
-// app.js
-const { square } = require("./math");
-```
-
-**AMD (browser, legacy)**
-```javascript
-define(["./math"], function(math) {
-    console.log(math.square(3));
-});
-```
-
-**UMD (compatibility shim — generated by bundlers, rarely written by hand)**
-```javascript
-(function(root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory(); // CJS
-    else if (typeof define === 'function' && define.amd) define([], factory);    // AMD
-    else root.myLib = factory();                                                  // global
-}(this, function() { return { square: x => x * x }; }));
-```
-
-**ESM (modern standard)**
-```javascript
-// math.js
-export const square = x => x * x;
-
-// app.js
-import { square } from "./math.js";
-```
-
-ESM singleton — file scope replaces IIFE, `count` is private to the module. ES modules are evaluated **once** regardless of how many files import them.
-```javascript
-// counter.js
-let count = 0;
-export function increment() { return count++; }
-export function reset()     { count = 0; }
-```
-
----
-
-#### <a name="func-prop-method-constructor" id="func-prop-method-constructor">8.7 Function Properties, Methods, and Constructor</a>
-##### <a name="func-prop" id="func-prop">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
-
-<span class="white-on-black">Function.length</span>
-
-- Read-only
-- <span class="orange">Returns</span> the number of parameters it <u>declares</u> in its parameter list. This number <u>excludes the rest parameter</u> and only includes parameters <u>before the first one with a default value</u>. 
-
-区别于`arguments.length` is local to a function and provides the number of arguments <u>actually</u> passed to the function.
-
-```javascript
-console.log(Function.length); // 1
-
-function func1() {}
-console.log(func1.length); // 0
-function func2(a, b) {}
-console.log(func2.length); // 2
-
-// only includes parameters before the first one with a default value
-console.log((function(a=3){}).length); // 0
-console.log((function(a){}).length); // 1
-console.log((function(a=3, b){}).length); // 0
-console.log((function(a, b=1){}).length); // 1
-
-// rest parameter is not counted
-console.log((function(a, ...args) {}).length); // 1
-```
-
-<span class="white-on-black">Function.name</span>
-
-- Read-only
-- <span class="orange">Returns</span> the function's name as specified when it was created, or it may be either anonymous or '' (an empty string) for functions created anonymously.
-
-```javascript
-console.log(Function.name); // Function
-
-// function的两种定义方式
-const func2 = function() {}; // 右边是anonymous
-console.log(func2.name); // func2
-console.log((function func3() {}).name); // func3
-
-const obj = {
-    func4() {}
-};
-console.log(obj.func4.name) // func4
-
-// anonymous
-console.log((function(){}).name); // "", empty string
-```
-
-Use `obj.constructor.name` to check the "class" of an object 
-
-```javascript    
-// class
-function Foo() {} // class Foo {}
-const f = new Foo();
-console.log(f.constructor.name); // Foo
-```
-
-Be careful when using `Function.name` and source code transformations, such as those carried out by JavaScript compressors (<u>minifiers</u>). These tools are often used as part of a JavaScript build pipeline to reduce the size of a program prior to deploying it to production. <u>Such transformations often change a function's name at build-time</u>. Above might change to the following after minifying
-
-```javascript
-function a() {}
-let b = new a();
-console.log(b.constructor.name); // a, 注意不是Foo了
-```
-
-<span class="white-on-black">Function.prototype</span>
-
-All functions, except arrow functions, have a `prototype` property that refers to an object known as the prototype object. <u>Every function
-has a <b>different</b> prototype object</u>. 即使看上去一样也不相等.
-
-##### <a name="func-apply-call-bind" id="func-apply-call-bind">8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods</a>
-
-`apply()`和`call()`基本一样, 除了`apply` accepts <u>an array of arguments</u>, `call` accepts <u>an argument list</u>.
-
-<span class="white-on-black">Function.prototype.apply()</span>
-
-```javascript
-func.apply(thisArg, argsArray)
-```
-
-- `argsArray ` is optional, can be an array or an array-like object.
-
-基本本身要求pass进是list of arguments(一个一个的)的都可以用apply + argsArray, 同时也可以用spread operator: `...argsArray`
-
-Ex1. `Math.max`, `Math.min`
-
-```javascript
-let arry1 = [4,3,6,1];
-console.log(Math.max.apply(null, arry1)); // 6
-
-// 等同于spread operator
-console.log(Math.max(...arry1)); // 6
-```
-
-Ex2. `push`
-
-```javascript
-let arry2 = [5,7];
-arry1.push.apply(arry1, arry2); // 这里thisArg必须是arry1, 不能是null
-console.log(arry1); // [4, 3, 6, 1, 5, 7]
-
-arry1 = [4,3,6,1]
-// 等同于spread operator
-arry1.push(...arry2);
-console.log(arry1); // [4, 3, 6, 1, 5, 7]
-
-// 区别于concat会create a new array and return
-arry1 = [4,3,6,1];
-console.log(arry1.concat(arry2)); // [4, 3, 6, 1, 5, 7], arry1不变
-```
-
-- 注意`arry1.push.apply`的时候thisArg必须是arry1, 不是null, 区别于`Math.max.apply`
-- `concat`不会改变原arry, 会create a new array and return
-
-
-<span class="white-on-black">Function.prototype.call()</span>
-
-```javascript
-func.call(thisArg, arg1, ..., argN)
-```
-
-- `arg1, ..., argN` is optional.
-
-`call()`的用法
-
-- `Array.prototype.slice.call(arguments)` 等同于 `Array.from(arguments)`
-- Using call() to chain constructors for an object
-
-	Ex1.
-	
-	```javascript
-	function Product(name, price) {
-	    this.name = name;
-	    this.price = price;
-	}
-	function Toy(name, price) {
-	    Product.call(this, name, price);
-	    this.category = "toy";
-	}
-	function Food(name, price) {
-	    Product.call(this, name, price);
-	    this.category = "food";
-	}
-	const fun = new Toy("robot", 40);
-	const cheese = new Food("feta", 5);
-	console.log(fun.name, fun.price, fun.category); // robot 40 toy
-	console.log(cheese.name, cheese.price, cheese.category); // feta 5 food
-	```
-	
-- Using call() to invoke an anonymous function
-
-	Ex2. 
-	
-	```javascript
-	const animals = [
-	    { species: "Lion", name: "King"},
-	    { species: "Whale", name: "Fail"}
-	];
-	for(var i=0, size=animals.length; i<size; ++i) {
-	    (function(i) { // 不传入i也可以 会向上到for loop找到i
-	        this.print = function() {
-	            console.log(`#${i} ${this.species}: ${this.name}`);
-	        };
-	        this.print();
-	    }).call(animals[i], i); // 如果用bind要bind(animals[i], i)()才会执行
-	}
-	// #0 Lion: King
-	// #1 Whale: Fail
-	```
-	
-	- 区别call和bind, bind勿忘执行的<span class="orange">()</span>
-
-<span class="white-on-black">Function.prototype.bind()</span>
-
-```javascript
-func.bind(thisArg, arg1, ..., argN)
-```
-
-- `arg1, ..., argN` is optional.
-- <span class="orange">Returns</span> <u>a new function</u>.
-
-<div class="border">
-Unlike the call() and apply() methods, the bind() method <u>doesn’t immediately execute the function</u>. It just returns a new version of the function whose this sets to thisArg argument. bind必须要加func.bind(ctx, arguments)<span class="orange">()</span>才执行.
-</div>
-
-`bind()`的用法
-
-- Creating a bound function, no matter how it is called, is called with a particular this value.
-	
-	Ex1.1
-	
-	```javascript
-	this.x = 9;
-	const module = {
-	    x: 81,
-	    getX() {
-	        return this.x;
-	    }
-	};
-	console.log(module.getX()); // 81
-	
-	const retrieveX = module.getX;
-	console.log(retrieveX()); // 9, the function gets invoked at the global scope, returns window.x
-	
-	const boundGetX = retrieveX.bind(module);
-	console.log(boundGetX()); // 81
-	```
-	- module.getX()返回的是module.x, 不是this.x
-	- 注意retrieveX只是extract the method from object, but is invoked at the global scope: this是window, 不再是module了
-
-	Ex1.2
-	
-	```javascript
-	function f(y) {
-	    return this.x + y;
-	}
-	let o = { x: 1 };
-	let g = f.bind(o);
-	console.log(g(2)); // o.x+2=3 其实就是f.bind(o)(2)
-	
-	let p = { x: 10, g };
-	console.log(p.g(2)); // 还是o.x+2=3, g is still bound to o, not p
-	```
-	
-	- g一直bound to o, 即使作为p.g
-
-	Ex1.3
-	
-	```javascript
-	const monica = {
-	    name: "Monica Geller",
-	    total: 400,
-	    deductFee(fee) {
-	       this.total -= fee;
-	       return `${this.name} remaining balance is ${this.total}`; 
-	    }
-	  }
-	console.log(monica.deductFee(10)); // Monica Geller remaining balance is 390
-	
-	const rachel = { name: "Rachel Green", total: 1500 };
-	/**
-	 * 1. 注意deductFee处没有括号 是一个function
-	 * 2. bind后面没有括号 rachelDeductor依然是一个funciton
-	 * 3. 可以bind时就传进了fee, 也可以rd = monica.deductFee.bind(rachel); rd(200);
-	 */
-	const rachelDeductorBind = monica.deductFee.bind(rachel, 200); 
-	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1300
-	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1100
-	
-	// 也可以这么写
-	console.log(monica.deductFee.bind(rachel)(200)); // Rachel Green remaining balance is 1300
-	
-	/**
-	 * 也可以用apply和call
-	 * 1. apply和call都是直接出结果, 只有bind需要()代表执行
-	 * 2. apply的args必须用[]传进去, 即使只有一个arg
-	 */
-	console.log(monica.deductFee.apply(rachel, [200])); // Rachel Green remaining balance is 900
-	console.log(monica.deductFee.call(rachel, 200)); // Rachel Green remaining balance is 700
-	```
-
-- Create partially applied functions: <b>Currying</b>: make a function with pre-specified initial arguments
-
-	Ex1.
-	
-	```javascript
-	let sum = (x, y) => x+y;
-	let sumOne = sum.bind(null, 1); // bind the first argument to 1
-	console.log(sumOne(2)); // 1+2=3, x is bound to 1,and we pass 2 for y
-	console.log(sumOne.name); // bound sum
-		
-	function f2(y, z) {
-	    return this.x + y + z;
-	}
-	let g2 = f2.bind({ x: 1 }, 2); // bind this and y
-	console.log(g2(3)); // 1+2+3=6
-	```
-	
-	- 取决于本身的function需不需要this, 注意上面两种bind, sumOne的thisArg是null, g2的thisArg是一个object.
-	- 注意上面`sumOne.name`, 对于bind的function, 它的func.name是bound + 本身func.name
-
-- `bind` with `setTImeout()`
-
-	By default within `setTimeout()`, the `this` keyword <span class="orange">will be set to the window</span> (or global) object in non-strict mode and `undefined` in strict mode. When working with class methods that require `this` to refer to class instances, you may explicitly bind `this` to the callback function, in order to maintain the instance.
-	
-	Ex1. 
-	
-	```javascript
-	let person = {
-        name: "John Doe",
-        getName() {
-            console.log(this.name);
-        }
-    };
-    setTimeout(person.getName, 1000); // undefined
-    ```
-    
-    上面`setTimeout(person.getName, 1000)`和下面是等价的, 所以this不是person
-    
-    ```javascript
-    const f = person.getName;
-    setTimeout(f, 1000);
-    ```
-    
-    To fix:
-    
-    ```javascript
-    // 法一
-    setTimeout(person.getName.bind(person), 1000); // John Doe. 这里bind不用执行, setTimeout就是需要一个function
-    
-    // 法二 This works because it gets the person from the outer scope and then calls the method getName().
-    setTimeout(function() {
-        person.getName(); // John Doe
-    }, 1000); 
-	```
-	
-	- `setTimeout(func, delay, arg1, ..., argN)`: 注意pass进的func就是function, bind不需要执行
-	- 法二work的原因是closure scope: it gets the person from the outer scope
-
-	Ex2. 
-	
-	```javascript
-	function RandomCount(min, max) { // [min, max)
-        this.count = Math.floor(Math.random() * (max - min)) + min;
-    }
-    RandomCount.prototype.delayPrint = function() {
-        setTimeout(this.print.bind(this), 1000);
-    };
-    RandomCount.prototype.print = function() {
-        console.log(`random number generated: ${this.count}`);
-    };
-    const num = new RandomCount(1,10);
-    num.delayPrint(); // after 1sec, random number generated: 3
-	```
-	
-##### <a name="higher-order-func" id="higher-order-func">8.8.2 Higher-Order Functions</a>
-
-<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments or by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument or returns the function as output.
-
-- Built-in Higher-Order Functions 
-	- `Array.prototype.map`
-	
-		```javascript
-		arry.map(callbackFn)
-		```
-		
-		Ex.
-		
-		```javascript
-		const arryHigherOrder = [1, 2, 3];
-		const mapped = arryHigherOrder.map((item) => item * 2);
-		console.log(mapped); // [2, 4, 6]
-		```
-		
-	- `Array.prototype.filter`
-
-		```javascript
-		arry.filter(callbackFn)
-		```
-		
-		Ex. 
-		
-		```javascript
-		const filtered = arryHigherOrder.filter((item) => item%2 === 0);
-		console.log(filtered); // [2]
-		```
-		
-	- `Array.prototype.reduce`
-
-		```javascript
-		arry.reduce(callbackFn, initialVal)
-		```
-		
-		Ex.
-		
-		```javascript
-		const sumup = arryHigherOrder.reduce((acc, cur) => acc + cur);
-		console.log(sumup); // 6
-		
-		// 等同于写成callback
-		const sumFn = (x, y) => x + y;
-		console.log(arryHigherOrder.reduce(sumFn)); // 6
-		```
-		
-- Our own Higher-order Functions
-
-	Ex. 先算fn2, 然后用fn2的结果算fn1
-	
-	```javascript
-	function compose(fn1, fn2) {
-		// 这里...args是传进来的2, 3
-		return function(...args) { // return的是一个function, 直到(2,3)才执行
-		    return fn1(fn2(...args));
-		    // 等价于
-			// return fn1.call(null, fn2.apply(null, args));
-		};
-	}
-	const fn1 = (x) => x * x;
-	const fn2 = (x, y) => x + y;
-	console.log(compose(fn1, fn2)(2, 3)); // (2+3)*(2+3)=25   
-	```
-	
-	- 注意compose return的是一个function, 并没有执行. 直到(2,3)才执行
-	- compose里`...args`是执行时传进来的2,3
-	- 注意fn2用apply的原因是`...args`是array, fn1用call的原因是fn2的结果是一个数
-
 #### <a name="class-constructor" id="class-constructor">9.2 Classes and Constructors</a>
 
 - Constructor-Less Class (<u>所有regular function都可以看作一种class</u>)
@@ -6086,9 +5613,517 @@ console.log("abc".startsWith("ab")); // true
 
 
  
-#### <a name="arry-methods" id="arry-methods">7.8 Array Methods</a>
-##### <a name="arry-sort" id="arry-sort">7.8.6 Array Sorting Methods (`sort`, `reverse`)</a>
+#### <a name="func-prop-method-constructor" id="func-prop-method-constructor">8.7 Function Properties, Methods, and Constructor</a>
+##### <a name="func-prop" id="func-prop">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
 
+<span class="white-on-black">Function.length</span>
+
+- Read-only
+- <span class="orange">Returns</span> the number of parameters it <u>declares</u> in its parameter list. This number <u>excludes the rest parameter</u> and only includes parameters <u>before the first one with a default value</u>. 
+
+区别于`arguments.length` is local to a function and provides the number of arguments <u>actually</u> passed to the function.
+
+```javascript
+console.log(Function.length); // 1
+
+function func1() {}
+console.log(func1.length); // 0
+function func2(a, b) {}
+console.log(func2.length); // 2
+
+// only includes parameters before the first one with a default value
+console.log((function(a=3){}).length); // 0
+console.log((function(a){}).length); // 1
+console.log((function(a=3, b){}).length); // 0
+console.log((function(a, b=1){}).length); // 1
+
+// rest parameter is not counted
+console.log((function(a, ...args) {}).length); // 1
+```
+
+<span class="white-on-black">Function.name</span>
+
+- Read-only
+- <span class="orange">Returns</span> the function's name as specified when it was created, or it may be either anonymous or '' (an empty string) for functions created anonymously.
+
+```javascript
+console.log(Function.name); // Function
+
+// function的两种定义方式
+const func2 = function() {}; // 右边是anonymous
+console.log(func2.name); // func2
+console.log((function func3() {}).name); // func3
+
+const obj = {
+    func4() {}
+};
+console.log(obj.func4.name) // func4
+
+// anonymous
+console.log((function(){}).name); // "", empty string
+```
+
+Use `obj.constructor.name` to check the "class" of an object 
+
+```javascript    
+// class
+function Foo() {} // class Foo {}
+const f = new Foo();
+console.log(f.constructor.name); // Foo
+```
+
+Be careful when using `Function.name` and source code transformations, such as those carried out by JavaScript compressors (<u>minifiers</u>). These tools are often used as part of a JavaScript build pipeline to reduce the size of a program prior to deploying it to production. <u>Such transformations often change a function's name at build-time</u>. Above might change to the following after minifying
+
+```javascript
+function a() {}
+let b = new a();
+console.log(b.constructor.name); // a, 注意不是Foo了
+```
+
+<span class="white-on-black">Function.prototype</span>
+
+All functions, except arrow functions, have a `prototype` property that refers to an object known as the prototype object. <u>Every function
+has a <b>different</b> prototype object</u>. 即使看上去一样也不相等.
+
+##### <a name="func-apply-call-bind" id="func-apply-call-bind">8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods</a>
+
+`apply()`和`call()`基本一样, 除了`apply` accepts <u>an array of arguments</u>, `call` accepts <u>an argument list</u>.
+
+<span class="white-on-black">Function.prototype.apply()</span>
+
+```javascript
+func.apply(thisArg, argsArray)
+```
+
+- `argsArray ` is optional, can be an array or an array-like object.
+
+基本本身要求pass进是list of arguments(一个一个的)的都可以用apply + argsArray, 同时也可以用spread operator: `...argsArray`
+
+Ex1. `Math.max`, `Math.min`
+
+```javascript
+let arry1 = [4,3,6,1];
+console.log(Math.max.apply(null, arry1)); // 6
+
+// 等同于spread operator
+console.log(Math.max(...arry1)); // 6
+```
+
+Ex2. `push`
+
+```javascript
+let arry2 = [5,7];
+arry1.push.apply(arry1, arry2); // 这里thisArg必须是arry1, 不能是null
+console.log(arry1); // [4, 3, 6, 1, 5, 7]
+
+arry1 = [4,3,6,1]
+// 等同于spread operator
+arry1.push(...arry2);
+console.log(arry1); // [4, 3, 6, 1, 5, 7]
+
+// 区别于concat会create a new array and return
+arry1 = [4,3,6,1];
+console.log(arry1.concat(arry2)); // [4, 3, 6, 1, 5, 7], arry1不变
+```
+
+- 注意`arry1.push.apply`的时候thisArg必须是arry1, 不是null, 区别于`Math.max.apply`
+- `concat`不会改变原arry, 会create a new array and return
+
+
+<span class="white-on-black">Function.prototype.call()</span>
+
+```javascript
+func.call(thisArg, arg1, ..., argN)
+```
+
+- `arg1, ..., argN` is optional.
+
+`call()`的用法
+
+- `Array.prototype.slice.call(arguments)` 等同于 `Array.from(arguments)`
+- Using call() to chain constructors for an object
+
+	Ex1.
+	
+	```javascript
+	function Product(name, price) {
+	    this.name = name;
+	    this.price = price;
+	}
+	function Toy(name, price) {
+	    Product.call(this, name, price);
+	    this.category = "toy";
+	}
+	function Food(name, price) {
+	    Product.call(this, name, price);
+	    this.category = "food";
+	}
+	const fun = new Toy("robot", 40);
+	const cheese = new Food("feta", 5);
+	console.log(fun.name, fun.price, fun.category); // robot 40 toy
+	console.log(cheese.name, cheese.price, cheese.category); // feta 5 food
+	```
+	
+- Using call() to invoke an anonymous function
+
+	Ex2. 
+	
+	```javascript
+	const animals = [
+	    { species: "Lion", name: "King"},
+	    { species: "Whale", name: "Fail"}
+	];
+	for(var i=0, size=animals.length; i<size; ++i) {
+	    (function(i) { // 不传入i也可以 会向上到for loop找到i
+	        this.print = function() {
+	            console.log(`#${i} ${this.species}: ${this.name}`);
+	        };
+	        this.print();
+	    }).call(animals[i], i); // 如果用bind要bind(animals[i], i)()才会执行
+	}
+	// #0 Lion: King
+	// #1 Whale: Fail
+	```
+	
+	- 区别call和bind, bind勿忘执行的<span class="orange">()</span>
+
+<span class="white-on-black">Function.prototype.bind()</span>
+
+```javascript
+func.bind(thisArg, arg1, ..., argN)
+```
+
+- `arg1, ..., argN` is optional.
+- <span class="orange">Returns</span> <u>a new function</u>.
+
+<div class="border">
+Unlike the call() and apply() methods, the bind() method <u>doesn’t immediately execute the function</u>. It just returns a new version of the function whose this sets to thisArg argument. bind必须要加func.bind(ctx, arguments)<span class="orange">()</span>才执行.
+</div>
+
+`bind()`的用法
+
+- Creating a bound function, no matter how it is called, is called with a particular this value.
+	
+	Ex1.1
+	
+	```javascript
+	this.x = 9;
+	const module = {
+	    x: 81,
+	    getX() {
+	        return this.x;
+	    }
+	};
+	console.log(module.getX()); // 81
+	
+	const retrieveX = module.getX;
+	console.log(retrieveX()); // 9, the function gets invoked at the global scope, returns window.x
+	
+	const boundGetX = retrieveX.bind(module);
+	console.log(boundGetX()); // 81
+	```
+	- module.getX()返回的是module.x, 不是this.x
+	- 注意retrieveX只是extract the method from object, but is invoked at the global scope: this是window, 不再是module了
+
+	Ex1.2
+	
+	```javascript
+	function f(y) {
+	    return this.x + y;
+	}
+	let o = { x: 1 };
+	let g = f.bind(o);
+	console.log(g(2)); // o.x+2=3 其实就是f.bind(o)(2)
+	
+	let p = { x: 10, g };
+	console.log(p.g(2)); // 还是o.x+2=3, g is still bound to o, not p
+	```
+	
+	- g一直bound to o, 即使作为p.g
+
+	Ex1.3
+	
+	```javascript
+	const monica = {
+	    name: "Monica Geller",
+	    total: 400,
+	    deductFee(fee) {
+	       this.total -= fee;
+	       return `${this.name} remaining balance is ${this.total}`; 
+	    }
+	  }
+	console.log(monica.deductFee(10)); // Monica Geller remaining balance is 390
+	
+	const rachel = { name: "Rachel Green", total: 1500 };
+	/**
+	 * 1. 注意deductFee处没有括号 是一个function
+	 * 2. bind后面没有括号 rachelDeductor依然是一个funciton
+	 * 3. 可以bind时就传进了fee, 也可以rd = monica.deductFee.bind(rachel); rd(200);
+	 */
+	const rachelDeductorBind = monica.deductFee.bind(rachel, 200); 
+	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1300
+	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1100
+	
+	// 也可以这么写
+	console.log(monica.deductFee.bind(rachel)(200)); // Rachel Green remaining balance is 1300
+	
+	/**
+	 * 也可以用apply和call
+	 * 1. apply和call都是直接出结果, 只有bind需要()代表执行
+	 * 2. apply的args必须用[]传进去, 即使只有一个arg
+	 */
+	console.log(monica.deductFee.apply(rachel, [200])); // Rachel Green remaining balance is 900
+	console.log(monica.deductFee.call(rachel, 200)); // Rachel Green remaining balance is 700
+	```
+
+- Create partially applied functions: <b>Currying</b>: make a function with pre-specified initial arguments
+
+	Ex1.
+	
+	```javascript
+	let sum = (x, y) => x+y;
+	let sumOne = sum.bind(null, 1); // bind the first argument to 1
+	console.log(sumOne(2)); // 1+2=3, x is bound to 1,and we pass 2 for y
+	console.log(sumOne.name); // bound sum
+		
+	function f2(y, z) {
+	    return this.x + y + z;
+	}
+	let g2 = f2.bind({ x: 1 }, 2); // bind this and y
+	console.log(g2(3)); // 1+2+3=6
+	```
+	
+	- 取决于本身的function需不需要this, 注意上面两种bind, sumOne的thisArg是null, g2的thisArg是一个object.
+	- 注意上面`sumOne.name`, 对于bind的function, 它的func.name是bound + 本身func.name
+
+- `bind` with `setTImeout()`
+
+	By default within `setTimeout()`, the `this` keyword <span class="orange">will be set to the window</span> (or global) object in non-strict mode and `undefined` in strict mode. When working with class methods that require `this` to refer to class instances, you may explicitly bind `this` to the callback function, in order to maintain the instance.
+	
+	Ex1. 
+	
+	```javascript
+	let person = {
+        name: "John Doe",
+        getName() {
+            console.log(this.name);
+        }
+    };
+    setTimeout(person.getName, 1000); // undefined
+    ```
+    
+    上面`setTimeout(person.getName, 1000)`和下面是等价的, 所以this不是person
+    
+    ```javascript
+    const f = person.getName;
+    setTimeout(f, 1000);
+    ```
+    
+    To fix:
+    
+    ```javascript
+    // 法一
+    setTimeout(person.getName.bind(person), 1000); // John Doe. 这里bind不用执行, setTimeout就是需要一个function
+    
+    // 法二 This works because it gets the person from the outer scope and then calls the method getName().
+    setTimeout(function() {
+        person.getName(); // John Doe
+    }, 1000); 
+	```
+	
+	- `setTimeout(func, delay, arg1, ..., argN)`: 注意pass进的func就是function, bind不需要执行
+	- 法二work的原因是closure scope: it gets the person from the outer scope
+
+	Ex2. 
+	
+	```javascript
+	function RandomCount(min, max) { // [min, max)
+        this.count = Math.floor(Math.random() * (max - min)) + min;
+    }
+    RandomCount.prototype.delayPrint = function() {
+        setTimeout(this.print.bind(this), 1000);
+    };
+    RandomCount.prototype.print = function() {
+        console.log(`random number generated: ${this.count}`);
+    };
+    const num = new RandomCount(1,10);
+    num.delayPrint(); // after 1sec, random number generated: 3
+	```
+	
+##### <a name="higher-order-func" id="higher-order-func">8.8.2 Higher-Order Functions</a>
+
+<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments or by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument or returns the function as output.
+
+- Built-in Higher-Order Functions 
+	- `Array.prototype.map`
+	
+		```javascript
+		arry.map(callbackFn)
+		```
+		
+		Ex.
+		
+		```javascript
+		const arryHigherOrder = [1, 2, 3];
+		const mapped = arryHigherOrder.map((item) => item * 2);
+		console.log(mapped); // [2, 4, 6]
+		```
+		
+	- `Array.prototype.filter`
+
+		```javascript
+		arry.filter(callbackFn)
+		```
+		
+		Ex. 
+		
+		```javascript
+		const filtered = arryHigherOrder.filter((item) => item%2 === 0);
+		console.log(filtered); // [2]
+		```
+		
+	- `Array.prototype.reduce`
+
+		```javascript
+		arry.reduce(callbackFn, initialVal)
+		```
+		
+		Ex.
+		
+		```javascript
+		const sumup = arryHigherOrder.reduce((acc, cur) => acc + cur);
+		console.log(sumup); // 6
+		
+		// 等同于写成callback
+		const sumFn = (x, y) => x + y;
+		console.log(arryHigherOrder.reduce(sumFn)); // 6
+		```
+		
+- Our own Higher-order Functions
+
+	Ex. 先算fn2, 然后用fn2的结果算fn1
+	
+	```javascript
+	function compose(fn1, fn2) {
+		// 这里...args是传进来的2, 3
+		return function(...args) { // return的是一个function, 直到(2,3)才执行
+		    return fn1(fn2(...args));
+		    // 等价于
+			// return fn1.call(null, fn2.apply(null, args));
+		};
+	}
+	const fn1 = (x) => x * x;
+	const fn2 = (x, y) => x + y;
+	console.log(compose(fn1, fn2)(2, 3)); // (2+3)*(2+3)=25   
+	```
+	
+	- 注意compose return的是一个function, 并没有执行. 直到(2,3)才执行
+	- compose里`...args`是执行时传进来的2,3
+	- 注意fn2用apply的原因是`...args`是array, fn1用call的原因是fn2的结果是一个数
+
+#### <a name="typeof-instanceof" id="typeof-instanceof">4.13.3 The `typeof` and `instanceof` Operator</a>
+
+<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
+
+All <span class="orange bold">non-primitive</span> objects are instances of <b>Object</b>.
+
+<span class="white-on-black">typeof</span>
+
+The <b>`typeof`</b> operator is used for getting the <b>type of primitive values</b> mainly.
+
+`typeof` returns `undefined`, `number`, `string`, `boolean`, `symbol`, `object`, `function`. 和primitive types比, <span class="orange">没有`null`, 多了`function`</span>.
+
+Ex1.
+
+```javascript
+typeof 1; // number
+
+let foo = 1;
+typeof foo; // number
+
+typeof NaN; // number
+
+typeof null; // object
+
+typeof false; // boolean
+
+```
+
+Ex2. Anything that is created using the `new` operator is of type `object`, including `String`, `Boolean`, and `Number` :
+
+```javascript
+// 注意区别下面三种情况. 一旦用new了, 就是object了
+typeof Boolean(0) === "boolean"; // true; 注意这里是true, 
+typeof new Boolean(0) === "boolean"; // false
+typeof new Boolean(0) === "object"; // true
+```
+
+<span class="white-on-black">instanceof</span>
+
+The <b>`instanceof`</b> operator tests whether the prototype property of a constructor <b>appears anywhere in the prototype chain</b> of an object. 就是看这个object的prototype chain上有没有这个constructor.
+
+Ex3. 
+
+- 注意`typeof`和`instanceof`的区别
+- foo的prototype chain上先有String, 再有Object
+
+```javascript
+let foo = new String("foo");
+console.log(typeof foo); // object
+console.log(foo instanceof String); // true
+console.log(foo instanceof Object); // true
+```
+
+Ex4. **Explicit coercion** — calling `Number()` intentionally converts a string to a number.
+
+```javascript
+const dayStart = "07:30";  // string
+
+function toHr(time) {
+  const [hr, min] = time.split(":").map(str => Number(str));
+  //                                              Number("07") → 7, Number("30") → 30
+  return hr + min / 60;
+}
+
+toHr(dayStart); // 7.5
+
+// Coercing a parameter — caller might pass "30" (string) or 30 (number)
+const dur = Number(durationMinutes) / 60;
+
+"30" / 60;  // 0.5 — implicit coercion, / forces numeric context
+```
+
+Contrast: **implicit coercion** — JS converts automatically without you asking. See: `x < y; // true!! string compare, no number coerce` in [§11.1.1](#set).
+
+#### <a name="assignment-with-operation" id="assignment-with-operation">4.11.1 Assignment with Operation</a>
+
+注意L1, the expression <span class="red">a is evaluated once</span>. 但是L2, it is <span class="red">evaluated twice</span>.
+
+```javascript
+a op= b
+a = a op b
+```
+
+注意区别下面两个Ex. 虽然assignment operator has right-to-left associativity, 但是Javascript会先evaluate一次, 把i先代入, 然后再从右往左计算. 
+
+所以Ex1中, data[i++] evaluate了两次. 区别于Ex2, data[i++]只evaluate了一次.
+
+```javascript
+// Ex1
+let data1 = [1,2,3,4,5], i1=1;
+data1[i1++] = data1[i1++]*10; // data[1++] = data[2++]*10
+console.log(data1); // [1, 30, 3, 4, 5]
+console.log(i1); // 3
+
+// Ex2
+let data2 = [1,2,3,4,5], i2=1;
+data2[i2++] *= 10; // data[1++] *= 10
+console.log(data2);// [1, 20, 3, 4, 5]
+console.log(i2); // 2
+
+let a=1, b=a++;
+console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1
+```
 
 ### <a name="async-await" id="async-await">async/await</a>
 

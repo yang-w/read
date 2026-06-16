@@ -123,6 +123,20 @@ factorial(7);
 // 5040
 ```
 
+// functions are objects, so you can attach properties to them directly. factorial[n]
+  is just storing a cache on the function itself, same as any object.
+function factorial(n) {                                                                
+// 只测typeof n === "number"是不够的                                                       
+if(!Number.isInteger(n) || n <= 0) return NaN;                                             
+// 也可以写成 if(n in factorial), 因为是key                                                
+if(factorial[n] !== undefined) return factorial[n];                                        
+// 这里不是n*factorial[n-1]!! 得是factorial(n-1), 再次invoke function                      
+factorial[n] = n * factorial(n-1);                                                         
+// 不能return factorial[n] = n * factorial(n-1)                                            
+// 要写成两步, return的时候不能有等号                                                      
+return factorial[n];                                                                       
+}   
+
 Because `hideTheCache(..)` is a **function expression**, its name identifier is scoped to the function expression itself — not to the outer/global scope. Multiple such expressions can use the same name without collision.
 
 ### Invoking Function Expressions Immediately
