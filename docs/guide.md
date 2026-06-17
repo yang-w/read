@@ -1,10 +1,12 @@
 <link href="css/style.css" rel="stylesheet"></link>
+
 * [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#ydkjs-ch1)
 	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
 	* [1.6 Build Pipeline](#build-pipeline)
 * [3.10 Lexical Scope, Global vs Local](#global-local)
 * [3.10.1 `var` + Hoisting](#hoist)
 * [3.10.2 `let`/`const` + TDZ](#let-const)
+* [3.10.3 `catch` Block Scope](#catch-scope)
 * [8.1 Defining Functions](#func-def)
 * [8.2 Invoking Functions](#func-invoke)
 * [8.3 Function Arguments and Parameters](#func-args-params)
@@ -15,8 +17,8 @@
 * [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#extended-obj-literal-syntax)
 	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#extended-obj-literal-syntax-shorthand-prop-method)
 	* [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread)
-* [3.10.3 Destructuring Assignment](#destructuring-assignment)
-* [3.10.3 `Object.entries()`](#object-entires)
+* [3.10.4 Destructuring Assignment](#destructuring-assignment)
+* [3.10.5 `Object.entries()`](#object-entires)
 * [5.4.4 for/of](#for-of)
 * [5.4.5 for/in](#for-in)
 * [6.7 Extending Objects](#extending-obj)
@@ -581,6 +583,36 @@ function blockScoped() {
 }
 ```
 
+#### <a name="catch-scope" id="catch-scope">3.10.3 `catch` Block Scope</a>
+> YDKJS > Scope & Closures > [ch6](../YDKJS/scope-closures/ch6.md)
+
+```js
+try {
+    doesntExist();
+}
+catch (err) {
+    console.log(err); // ReferenceError: 'doesntExist' is not defined
+    let onlyHere = true;
+    var outerVariable = true;
+}
+console.log(outerVariable);  // true
+console.log(err); // ReferenceError: 'err' is not defined
+```
+- `err` is block-scoped to the `catch` block
+- `let` inside `catch` is also block-scoped to `catch`
+- `var` inside `catch` still attaches to the outer function/global scope
+
+ES2019: the `catch(err)` declaration is now optional.
+
+```js
+try {
+    doOptionOne();
+}
+catch {   // catch-declaration omitted
+    doOptionTwoInstead();
+}
+```
+
 #### <a name="func-def" id="func-def">8.1 Defining Functions</a>
 
 四种方法define function: function declaration, function expression, arrow function, nested function.
@@ -589,137 +621,164 @@ function blockScoped() {
 	- `function sum(...args) { ... "this" is window obj ...}`
 	-  will be hoisted to the top of block, before var hoisting. <b>Functions are first-class citizens</b>.
 	-  <span class="yellowBG">function declaration里的`this`是global window</span>
+
+  ```javascript
+  function sortNameByLength(arry) {
+    if(arry?.length) {
+      const map = {}; // const works, as long as map is not reassigned
+      arry.map(name => {
+        if (map[name.length] === undefined) {
+          map[name.length] = [];
+        }
+        map[name.length].push(name);
+      });
+      let sorted = []; // can't use const, since sorted is reassigned sorted=[...]
+      /**
+       * integer-like keys: numeric ascending order;
+       * non-integer keys: order not guaranteed
+       */
+      for (let length in map) { 
+        sorted = [
+          ...sorted,
+          ...map[length].sort() // 勿忘spread
+        ]
+      }
+      return sorted;
+    }
+    return [];
+  }
+  console.log(sortNameByLength(["Sally", "Suzy", "Frank", "John", "Jennifer", "Scott"]));
+  // [ "John", "Suzy", "Frank", "Sally", "Scott", "Jennifer" ]
+  ```
+  - 注意map可以是const即使有map.name=foo. 但是<span class="orange">sorted必须是let, 因为后面有sorted=..</span>, 如果只是sorted.push就不影响
+  - for...in只在key是int的时候能保证ascending order循环, 其他情况下order不保证 
 - Function Expression
 	- `const sum = function(...args) {}`
 	- function expression can <span class="orange">include names, which can be used in recursive</span>. 注意下例中<span class="orange">factorial is only available within function f</span>.
 
-	
-		```javascript
-		const f = function factorial(x) {
-			if (x <= 1) return 1;
-			return x * factorial(x-1);
-		};
-		```
+  ```javascript
+  const f = function factorial(x) {
+    if (x <= 1) return 1;
+    return x * factorial(x-1);
+  };
+  ```
 
 	- Immediatly Invoking Function Expression (IIFE)
 
-		```javascript
-		const addCount = (function() {
-			let count = 1; // count是private, 只有通过addCount()才能access
-			return function() {
-				return count + 1;
-			}
-	    })();
-	    console.log(addCount()); // 2
-	    console.log(addCount()); // 3	
-	    ```
+    Ex1.
+    ```javascript
+    const addCount = (function() {
+    let count = 1; // count是private, 只有通过addCount()才能access
+    return function() {
+      return count + 1;
+    }
+    })();
+    console.log(addCount()); // 2
+    console.log(addCount()); // 3	
+    ```
+
+    Ex2.
+    ```javascript
+    // Ex2.1 cache is exposed
+    var cache = {}; 
+    function factorial(x) {
+        if (x < 2) return 1;
+        if (!(x in cache)) {
+            cache[x] = x * factorial(x - 1);
+        }
+        return cache[x];
+    }
+    console.log(fab(5)); // 120
+    console.log(fab(4)); // 24
+
+    // Ex2.2 hide cache in the scope
+    const fab = (function() {
+      const cache = {}; // cache run once, can't be access anymore
+      return function factorial(x) {
+        if (x <= 1) return 1;
+        if (cache[x] === undefined) {
+          cache[x] = x * factorial(x-1);
+        }
+        return cache[x];
+      }
+    })();
+    console.log(fab(5));
+    console.log(fab(4));
+    ```
 	    
 - Arrow Function
-	- arrow function实际上类似没有function keyword也没有function name的function expression
 	- `const sum = (x, y) => x+y;`
 	- arrow function<span class="orange">没有`arguments`</span>
-	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于obj.method (Ex1), 也无法通过apply/call/bind改变scope (Ex2).
-		- <span class="yellowBG">Arrow functions establish/inherit "this" based on the scope where the arrow function is defined</span>: <span class="orange">进入arrow function之前, where "this" is bind to</span>.
+	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于calculator.arrowThis(Ex1), 也无法通过apply/call/bind改变scope addArrow.call(obj, 1, 2)(Ex2).
+		- Arrow functions inherit "this" based on the scope where the arrow function is defined: <span class="orange">arrow的this取决于进入arrow function之前, where "this" is bind to</span>.
 			- 如果obj.method是arrow function, arrow function里的this继承的是和obj同scope的this, 通常是window (Ex1). 
 			- 如果obj.method是普通function, 但是里面有setTimeout(() => {..this..})用了arrow function, 因为arrow function的this会inherit进入setTimout之前的this, 此时是obj (Ex3).
 			
-			Ex1. <i>注意下面calculator.add和calculator.minus, 无论是shorthand还是传统写法, `this`都是calculator</i>
+    Ex1.
+    ```javascript
+    let calculator = { // An object literal 
+      operand1: 1,
+      operand2: 1,
+      add() { // with method shorthand syntax
+          console.log(`calculator.add, this = ${this}`); // calculator itself
+          this.result = this.operand1 + this.operand2; 
+      },
+      arrowThis: () => { // arrow function "this" in obj.method
+          console.log(`calculator.arrowThis, this = ${this}`); // window object
+          console.log(this.operand1); // undefined
+      }
+    };
+    calculator.add();
+    console.log(calculator.result); // 2
+    calculator.arrowThis(); // this是window
+    ```
 			
-			```javascript
-			let calculator = { // An object literal 
-				operand1: 1,
-				operand2: 1,
-				add() { // with method shorthand syntax
-				    console.log(`calculator.add, this = ${this}`); // calculator itself
-				    this.result = this.operand1 + this.operand2; 
-				},
-				minus: function() { // regular function
-				    console.log(`calculator.minus, this = ${this}`); // calculator itself, not window obj!!!
-				    this.result = this.operand1 - this.operand2;
-				},
-				arrowThis: () => { // arrow function "this" in obj.method
-				    console.log(`calculator.arrowThis, this = ${this}`); // window object
-				    console.log(this.operand1); // undefined
-				}
-			};
-			calculator.add();
-			console.log(calculator.result); // 2
-			calculator.minus();
-			console.log(calculator.result); // 0
-			calculator.arrowThis();
-			```
-		- <span class="orange">Not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
-			
-			Ex2. 
-			
-			```javascript
-			let obj = { num: 10 };
-			window.num = 100;
-			const add = function(a, b) { 
-			    console.log(`add.this = ${this}`);
-			    return this.num+a+b; 
-			};
- 			// 如果直接call add, 此时add里log的this是window
-    		add(1, 2); // 103
-    		
-			// With Arrow functions, addArrow function is essentially created on the window (global) scope, 
-			// it will assume this is the window.
-			const addArrow = (a, b) => {
-			    console.log(`addArrow.this = ${this}`);
-			    return this.num + a + b;
-			}
-			/**
-			 * add.this = obj
-			 * result = obj.num + 1 + 2 = 13
-			 */
-			console.log(add.call(obj, 1, 2)); // 13
-			/**
-			 * addArrow.this = window obj, call没有bind成功
-			 * result = window.num + 1 + 2 = 103
-			 */
-			console.log(addArrow.call(obj, 1, 2)); // 103
-			```
-			
-		-  the greatest benefit of using Arrow functions is with DOM-level methods (<span class="orange">setTimeout, setInterval, addEventListener</span>) that usually required some kind of closure, call, apply or bind to ensure the function executed in the proper scope.
-			
-			注意<span class="orange">`setTimeout(func, delay)`的func</span>, by default if there is no set on `this` in the call or with `bind`, <span class="orange">func是executes on the window scope, 即func的this是window obj</span>.
-		
-			Ex3. 
-			
-			```javascript
-			let obj = {
-				count: 10,
-				doSomethingLater: function() {
-				    // setTimeout(func, delay)的func是executes on the window scope
-				    setTimeout(function() {
-				        console.log(`setTimeout.this = ${this}`); // window obj
-				        console.log(this.count); // undefined
-				    }, 300)
-				},
-				doSomethingLaterArrow: function() {
-				    // 进入setTimeout之前, "this" is bind to "obj"
-				    setTimeout(() => {
-				        /** 
-				         * 区别于doSomthingLater.setTimeout的function会产生this的scope是window
-				         * 这里因为arrow function本身没有this,
-				         * doSomethingLaterArrow.setTimeout的arrow function的this会inherit进入setTimout之前的this, 即obj
-				         */
-				        console.log(`setTimeout.arrowThis = ${this}`); // obj itself
-				        console.log(this.count); // 10
-				    }, 300)
-				}
-			};
-			obj.doSomethingLater();
-			obj.doSomethingLaterArrow();  
-			```
-- Nested Functions: 可以function里套function declaration
+    Ex2. 
 
-	```javascript
-	function squareAndSum(a, b) {
-		function square(x) { return x*x; }
-		return square(a) + square(b);
-	}
-	```
+    ```javascript
+    let obj = { num: 10 };
+    window.num = 100;
+
+    const add = function(a, b) { 
+        console.log(`add.this = ${this}`);
+        return this.num+a+b; 
+    };
+
+    add(1, 2); // 103, add的this是window.num=100
+    console.log(add.call(obj, 1, 2)); // 13, add的this是obj.num=10
+      
+    const addArrow = (a, b) => {
+        console.log(`addArrow.this = ${this}`);
+        return this.num + a + b;
+    }
+    console.log(addArrow.call(obj, 1, 2)); // 103, addArrow.this是window, call没有bind成功
+    ```
+    - <span class="orange">Arrow function is not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
+			
+    Ex3. 
+    
+    ```javascript
+    let obj = {
+      count: 10,
+      doSomethingLater() {
+          // setTimeout(func, delay)的func是executes on the window scope
+          setTimeout(function() {
+              console.log(`setTimeout.this = ${this}`); // window obj
+              console.log(this.count); // undefined
+          }, 300)
+      },
+      doSomethingLaterArrow() {
+          // 进入setTimeout之前, "this" is bind to "obj"
+          setTimeout(() => {
+              console.log(`setTimeout.arrowThis = ${this}`); // obj itself
+              console.log(this.count); // 10
+          }, 300)
+      }
+    };
+    obj.doSomethingLater();
+    obj.doSomethingLaterArrow();  
+    ```
+    - 注意<span class="orange">`setTimeout(func, delay)`的func</span>, by default if there is no set on `this` in the call or with `bind`, <span class="orange">func是executes on the window scope, 即func的this是window obj</span>.
 
 #### <a name="func-invoke" id="func-invoke">8.2 Invoking Functions</a>
 
@@ -2071,7 +2130,7 @@ myFunc(1);
 // arguments.length = 1
 ```
 
-#### <a name="destructuring-assignment" id="destructuring-assignment">3.10.3 Destructuring Assignment</a>
+#### <a name="destructuring-assignment" id="destructuring-assignment">3.10.4 Destructuring Assignment</a>
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#object_destructuring)
 
@@ -2377,7 +2436,7 @@ console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1
 - arryCopy的params是一个obj, key是from, to, fromIndex, numToCopy, insertAt. 对于obj每个key的defaultVal用等号赋值
 - 注意上例没有pass进fromIndex, 区别于func(a, b, c), 如果call的时候是func(1,2)则b=2, c=undefined, 不可能跳过b, 除非func(1, , 2). 但是obj可以随意跳过某个key
 
-#### <a name="object-entires" id="object-entires">3.10.3 Object.entries()</a>
+#### <a name="object-entires" id="object-entires">3.10.5 Object.entries()</a>
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
 

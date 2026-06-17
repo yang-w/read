@@ -17,7 +17,8 @@
 - [x] [ch4.md — Around the Global Scope](scope-closures/ch4.md)
 - [x] [§3.10.1 `var` + Hoisting](../docs/guide.md#hoist) — [§3.10.2 `let`/`const` + TDZ](../docs/guide.md#let-const)
   - [TDZ](scope-closures/ch5.md#uninitialized-variables-aka-tdz)
-- [ ] [ch6.md — Limiting Scope Exposure](scope-closures/ch6.md)
+- [x] [§3.10.3 `catch` Block Scope](../docs/guide.md#catch-scope)
+- [x] [ch6.md — Limiting Scope Exposure](scope-closures/ch6.md)
 - [ ] [§8.1 Defining Functions](../docs/guide.md#func-def)
 - [ ] [§8.2 Invoking Functions](../docs/guide.md#func-invoke)
 - [ ] [§8.3 Function Arguments and Parameters](../docs/guide.md#func-args-params)
@@ -29,11 +30,11 @@
 - [ ] [apB.md — Practice](scope-closures/apB.md)
 
 ### Book 3: Objects & Classes
-- [ ] [§6.2 Creating Objects](../docs/guide.md#create-obj) — [§6.10 Extended Object Literal Syntax](../docs/guide.md#extended-obj-literal-syntax) — [§3.10.3 Destructuring](../docs/guide.md#destructuring-assignment)
+- [ ] [§6.2 Creating Objects](../docs/guide.md#create-obj) — [§6.10 Extended Object Literal Syntax](../docs/guide.md#extended-obj-literal-syntax) — [§3.10.4 Destructuring](../docs/guide.md#destructuring-assignment)
   - [symbols](objects-classes/ch1.md#symbols-as-property-names)
   - [?.](objects-classes/ch1.md#conditional-property-access)
   - [hasOwnProperty](objects-classes/ch1.md#better-existence-check)
-- [ ] [§3.10.3 Object.entries()](../docs/guide.md#object-entires)
+- [ ] [§3.10.5 Object.entries()](../docs/guide.md#object-entires)
 - [ ] [§5.4.4 for/of](../docs/guide.md#for-of)
 - [ ] [§5.4.5 for/in](../docs/guide.md#for-in)
 - [ ] [§6.7 Extending Objects](../docs/guide.md#extending-obj)
