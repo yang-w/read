@@ -2584,6 +2584,34 @@ Extend object的方法有如下几种
   // {"x":2,"y":3,"z":4}
   console.log(`mergedObj = ${JSON.stringify(merge({x: 1}, {x: 2, y: 2}, {y: 3, z: 4}))}`); 
 	```
+- Deep merge — the above is shallow, so nested objects get overwritten rather than merged. For recursive merge where arrays concatenate and objects recurse:
+
+	```typescript
+	// target: { "name": "Laptops & Netbooks", "about": { "offers": { "itemOffered": [{ "name": "MacBook Pro" }] } } }
+	// source: { "name": "Best Selling Laptops", "about": { "offers": { "itemOffered": [{ "name": "Dell XPS" }] } } }
+	// result: { "name": "Best Selling Laptops", "about": { "offers": { "itemOffered": [{ "name": "MacBook Pro" }, { "name": "Dell XPS" }] } } }
+
+	const isObject = (v: unknown): v is Record<string, unknown> =>
+	  !!v && typeof v === "object" && !Array.isArray(v);
+
+	const deepMerge = (
+	  target: Record<string, unknown>,
+	  source: Record<string, unknown>,
+	): Record<string, unknown> => {
+	  const result = { ...target };
+	  for (const [key, val] of Object.entries(source)) {
+	    const existing = result[key];
+	    if (Array.isArray(existing) && Array.isArray(val)) {
+	      result[key] = [...existing, ...val]; // arrays: concat
+	    } else if (isObject(existing) && isObject(val)) {
+	      result[key] = deepMerge(existing, val); // objects: recurse
+	    } else {
+	      result[key] = val; // primitives: source wins
+	    }
+	  }
+	  return result;
+	};
+	```
 - Use spread operator, see [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread).
 
 
