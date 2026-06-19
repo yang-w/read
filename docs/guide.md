@@ -10,7 +10,6 @@
 * [8.1 Defining Functions](#func-def)
 * [8.2 Invoking Functions](#func-invoke)
 * [8.3 Function Arguments and Parameters](#func-args-params)
-* [8.4 Functions as Values](#func-val)
 * [8.6 Closure](#closure)
 * [8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
 * [6.2 Creating Objects](#create-obj)
@@ -529,7 +528,7 @@ function another() {
 
 **`let`/`const` vs `var` comparison**
 
-Ex. <span class="orange">注意下面这个例子</span>
+Ex.
 ```javascript
 console.log("globalVar: " + globalVar); // undefined, but visible
 console.log("globalLet: " + globalLet); // ReferenceError: a is not defined, *not* visible
@@ -613,6 +612,45 @@ catch {   // catch-declaration omitted
 }
 ```
 
+Ex. <span class="orange">注意下面try/catch, throw对结果的影响</span>. 
+	
+```javascript
+const sum = (arry) => {
+    let total = 0;
+      
+    try { 
+        arry.forEach(num => {
+          if(typeof num !== "number") {
+                /**
+                  * throw没有return, 不是return  throw!!
+                  * 1. throw new Error(...), log是Error: ...
+                  * 2. throw new TypeError(...), log是TypeError: ...
+                  * 3. 也可以直接throw + str, log是Uncaught 3 is not a number.
+                  */
+                throw new TypeError(`${num} is not a number.`); 
+                // 也可以throw new Error(...)
+                // throw `${num} is not a number.`;
+            }
+            total += num;
+          }
+        });
+    } catch (e) {
+        // 没有log的话,在console里就看不到是什么error
+        console.log(e);
+    }
+    return total; // 勿忘return
+}
+console.log(sum([1,2,3])); // 6
+console.log(sum(1, 2, 3)); // TypeError: arry.forEach is not a function, 0
+console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
+```
+- 不能用`isNaN(num)`, 必须用<span class="orange">typeof, 切勿忘双引号"number"</span>
+  - <span class="orange">`isNaN("2")`,`isNaN("")`都是false</span>
+  - `isNaN("a")`是true
+- sum(1, 2, 3) throw后会直接进入catch, 并且下一个sum([1,"2", 3])还可以继续. 如果没有try/catch, 一旦throw, 就crash了
+- sum(1, 2, 3) throw在了arry.forEach, 直接进入catch, 先log(err),然后再return total=0
+- sum([1,"2", 3]) throw在"2"不是num, 直接进入catch, 先log throw的error, 然后再return total, 此时total是1
+
 #### <a name="func-def" id="func-def">8.1 Defining Functions</a>
 
 四种方法define function: function declaration, function expression, arrow function, nested function.
@@ -626,7 +664,7 @@ catch {   // catch-declaration omitted
   function sortNameByLength(arry) {
     if(arry?.length) {
       const map = {}; // const works, as long as map is not reassigned
-      arry.map(name => {
+      arry.forEach(name => {
         if (map[name.length] === undefined) {
           map[name.length] = [];
         }
@@ -670,12 +708,14 @@ catch {   // catch-declaration omitted
     const addCount = (function() {
     let count = 1; // count是private, 只有通过addCount()才能access
     return function() {
+      // count没被改变. 必须 count = count+1; return count;
       return count + 1;
     }
     })();
     console.log(addCount()); // 2
-    console.log(addCount()); // 3	
+    console.log(addCount()); // 还是2, 不是3!
     ```
+    - 注意IIFE里必须改变count, 而不是只return count+1;
 
     Ex2.
     ```javascript
@@ -694,7 +734,8 @@ catch {   // catch-declaration omitted
     // Ex2.2 hide cache in the scope
     const fab = (function() {
       const cache = {}; // cache run once, can't be access anymore
-      return function factorial(x) {
+      return function factorial(x) { // 勿忘return function
+        if(!Number.isInteger(n)) return NaN;
         if (x <= 1) return 1;
         if (cache[x] === undefined) {
           cache[x] = x * factorial(x-1);
@@ -705,33 +746,59 @@ catch {   // catch-declaration omitted
     console.log(fab(5));
     console.log(fab(4));
     ```
+    - 注意上例只测`typeof n === "number"`是不够的，要用`Number.isInteger(n)`
 	    
 - Arrow Function
 	- `const sum = (x, y) => x+y;`
 	- arrow function<span class="orange">没有`arguments`</span>
 	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于calculator.arrowThis(Ex1), 也无法通过apply/call/bind改变scope addArrow.call(obj, 1, 2)(Ex2).
 		- Arrow functions inherit "this" based on the scope where the arrow function is defined: <span class="orange">arrow的this取决于进入arrow function之前, where "this" is bind to</span>.
-			- 如果obj.method是arrow function, arrow function里的this继承的是和obj同scope的this, 通常是window (Ex1). 
-			- 如果obj.method是普通function, 但是里面有setTimeout(() => {..this..})用了arrow function, 因为arrow function的this会inherit进入setTimout之前的this, 此时是obj (Ex3).
 			
     Ex1.
     ```javascript
-    let calculator = { // An object literal 
+    let calculator = {
       operand1: 1,
-      operand2: 1,
-      add() { // with method shorthand syntax
-          console.log(`calculator.add, this = ${this}`); // calculator itself
+      operand2: 2,
+      add() {
+          console.log(`add.this = ${this}`); // calculator itself
           this.result = this.operand1 + this.operand2; 
       },
-      arrowThis: () => { // arrow function "this" in obj.method
-          console.log(`calculator.arrowThis, this = ${this}`); // window object
+      arrowThis: () => {
+          console.log(`arrowThis.this = ${this}`); // this是window
           console.log(this.operand1); // undefined
+      },
+      scopeTest() {
+        console.log(`scopeTest.this = ${this}`); // calculator
+        console.log(this === calculator); // true. 注意在calculator.scopeTest()里可以access calculator
+        const self = this;
+        
+        nestedFunc(); // hoisted
+        function nestedFunc() {
+            console.log(`nestedFunc.this = ${this}`); // window obj
+            console.log(`nestedFunc, self = ${self}`); // calculator
+            console.log(this === calculator); // false
+        }
+
+        // 进入nestedFuncArrow前, this是calculator
+        const nestedFuncArrow = () => {
+            console.log(`nestedFuncArrow.this = ${this}`); // calculator
+        }
+        nestedFuncArrow(); // function expression, 没有hoist
+
+        nestedFunc.bind(this)(); // calcultor. 勿忘bind(this)()最后的()才是执行
       }
     };
     calculator.add();
-    console.log(calculator.result); // 2
+    console.log(calculator.result); // 3
     calculator.arrowThis(); // this是window
+    calculator.scopeTest();
     ```
+    - calculator.arrowThis是arrow function, arrow function里的this继承的是和calculator同scope的this, 通常是window
+    - calculator.scopeTest是普通function, 但是里面nestedFuncArrow的this是calculator, 因为arrow function的this会inherit进入nestedFuncArrow之前的this, 此时是calculator
+    - 解决nested function nestedFunc(declaration)的`this`的方法
+      - 进入nested function之前`self = this;` 用`self`
+      - 换成arrow function, 但是注意nestedFuncArrow要用在定义之后, 因为区别于nestedFunc是function declaration, `const nestedFuncArrow = ...`没有hoist
+      - 用bind, 勿忘bind(this)<span class="red">()</span>, 多出来的()是执行
 			
     Ex2. 
 
@@ -748,10 +815,11 @@ catch {   // catch-declaration omitted
     console.log(add.call(obj, 1, 2)); // 13, add的this是obj.num=10
       
     const addArrow = (a, b) => {
-        console.log(`addArrow.this = ${this}`);
+        console.log(`addArrow.this = ${this}`); // this是window
         return this.num + a + b;
     }
-    console.log(addArrow.call(obj, 1, 2)); // 103, addArrow.this是window, call没有bind成功
+     console.log(addArrow(1, 2)); // 103
+    console.log(addArrow.call(obj, 1, 2)); // 还是103, call在arrow function里没有用
     ```
     - <span class="orange">Arrow function is not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
 			
@@ -790,63 +858,14 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	
 		```javascript
 		"use strict"; // 勿忘双引号
-		/**
-		 * 如果是strict, this=undefined, isStrict = !undefined = true
-		 * 如果不是strict, this=window obj, isStrict = ![window obj] = false
-		 */
-		// 按道理, function() {.. this...} 里的this是window
-		// 不要写成 isStrict = !this. 要把this放到function里
+
+		// return !this 或者 return this !== window
 		const isStrict = (function() { return !this; })(); // IIFE
 		console.log(`is strict mode = ${isStrict}`);
 		```
-	- **Recursive** calls bahave like a <span class="orange">stack</span>, first in, last out. A calls B calls C: when C returns, it will back to B then A.
 - Method Invocation
 	- `obj.method(...args)`
 	- inside obj.method(){...this...}, `this` is obj.
-	
-	<span class="orange">Ex</span>. `this` in obj.method and nested function
-
-	```javascript
-	let calculator = {
-        operand1: 1,
-        operand2: 2,
-        add() {
-            console.log(`calculator.add.this = ${this}`); // calculator
-            this.result = this.operand1 + this.operand2;
-        },
-        scopeTest() {
-            console.log(`calculator.scopeTest.this = ${this}`); // calculator
-            console.log(this === calculator); // true
-            const self = this;
-            nestedFunc();
-
-            function nestedFunc() {
-                console.log(`calculator.scopeTest.nestedFunc.this = ${this}`); // window obj
-                console.log(`calculator.scopeTest.nestedFunc, self = ${self}`); // calculator
-                console.log(this === calculator); // false
-            }
-
-            const nestedFuncArrow = () => {
-                console.log(`calculator.scopeTest.nestedFuncArrow.this = ${this}`); // calculator
-            }
-            nestedFuncArrow();
-
-            nestedFunc.bind(this)(); // inside nestedFunc.this will be calculator
-        }
-    };
-    calculator.add();
-    console.log(calculator.result); // 3
-
-    calculator.scopeTest();
-	```
-	- 注意区别两种nested function: <span class="orange">function declaration(nestedFunc)</span>和<span class="orange">arrow function(nestedFuncArrow)</span>
-		- 如果nested function是declaration(calculator.scopeTest中的nestedFunc): `this`是window obj/undefined
-		- 但是如果nested function是arrow function(nestedFuncArrow), `this`依然是calcultor, 因为arrow function的this取决于where it is defined
-	- 解决nested function (declaration)的`this`的方法
-		- 进入nested function之前`self = this;` 用`self`
-		- 换成arrow function, 但是注意nestedFuncArrow要用在定义之后, 因为区别于nestedFunc是function declaration, `const nestedFuncArrow = ...`没有hoist
-		- 用bind, 勿忘bind(this)<span class="red">()</span>, 多出来的()是执行
-	- 注意上面对比`this === calculator`, `===`对比的是<span class="orange">location, 两个objs是永远不可能相等的</span>
 - Constructor Invocation: `const obj = new Object();`
 - Indireclty thru `call`/`apply`
 - Implicit function invocation: <span class="orange">`getter`/`setter` (accessor properties)</span>, `toString()`, `valueOf()`, etc
@@ -855,19 +874,21 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	let p = {
         x: 2,
         y: 4,
-        get result() { // result就是一个accessor prop, 可以通过p.result trigger getter
+        get result() {
             return this.x + this.y;
-        },
-        set result(val) { // p.result = val will trigger setter
-            let ratio = val / this.result;
-            this.x *= ratio;
-            this.y *= ratio;
+        }, // 勿忘逗号
+        set result(ratio) { // p.result = val will trigger setter
+            this.x = Number((this.x/ratio).toFixed(1));
+            this.y = Number((this.y/ratio).toFixed(1));
         }
     };
-    console.log(p.result); // 6, get result() is triggered
-    p.result = 3; // set result(3) is triggered
-    console.log(`p.x = ${p.x}, p.y = ${p.y}`); // p.x=1, p.y=2
+    console.log(p.result); // 6
+    p.result = 10; // setter is triggered
+    console.log(p.result); // 0.6000000000000001
 	```
+  - object可以之间勿忘逗号: get result() {}<span class="orange">,</span>
+  - `Number.toFixed(n)`return的是string, 必须Number cast, 否则算result的时候是string相加: `(2/10).toFixed(1) + (4/10).toFixed(1); // "0.20.4"`
+  - 6/10结果是0.6000000000000001, floating, 要用`toFixed(n)`变成n位小数, eg: currency saved as cents, then do (priceInCent/100).toFixed(2) => "10.25"
 
 #### <a name="func-args-params" id="func-args-params">8.3 Function Arguments and Parameters</a>
 
@@ -899,16 +920,13 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	Ex1. Rest parameter in function defintion
 	
 	```javascript
-	function max(first = -Infinity, ...rest) {
-        let maxVal = first;
-        for(let n of rest) { // rest是从第二个param开始的剩下的所有params的合集
-            maxVal = Math.max(maxVal, n);
-        }
-        return maxVal;
-    }
-    console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000. 这里first=1, rest=[10,100,...]
+	function max(...args) {
+    return Math.max(...args);
+  }
+  console.log(max()); // -Infinity, by default对于Math.max
+  console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
     
-  	// 也可以写成
+  // 也可以写成
 	function max1(first = -Infiintiy, ...rest) {
 		// first=1, rest是剩下的[10, 100, 2, 3, 1000, 4, 5, 6]
 		return Math.max(first, ...rest); // 注意这里要加上first, 因为rest里没有第一个param
@@ -916,215 +934,9 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	console.log(max1(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
 	```
 	
-	- <span class="orange">注意first在这里并不是max的第一个param叫first</span>, 只是对于max传进去的params,第一个param会赋值给first. 并且如果max没有params, e.g: max(), 那么first defaults to -Infinity作为最后返回的maxVal
+	- <span class="orange">注意first = -Infiintiy里的-Infinity只是default value</span>, 如果max没有params, 那么first defaults to -Infinity
 	- rest是从第二个param开始的剩下所有params的合集. 如果max()没有params, rest = [], 即空arry;
-	
-	Ex2. Spread operator for function calls
-	
-	```javascript
-	const arry = [1, 10, 100, 2, 3, 1000, 4, 5, 6];
-	Math.max(...arry); // spread用于真正tirgger function的时候
-	
-	// 也可以
-	Math.max.apply(Math, arry)
-	```
-	
-	Ex3. timed() will log the start/end time of running f. 注意区别下面rest和spread的用法.
-	
-	```javascript
-	function timed(f) {
-		// 此时的arguments只有[func: benchmark]. arguments[0].name = benchmark
-		console.log(arguments); 
-		    
-		// rest in function definition
-		return function(...args) {
-		    console.log(`Entering function ${f.name}`); // Entering function benchmark
-		    console.log(args); // [100]. args本身是array, rest operator相当于把pass进的params都condense到了一个args里. ...args相当于把args unpack了
-		    
-		    let startTime = Date.now();
-		    try {
-		        // spread in function call
-		        return f(...args); // Spread the args back out, run benchmark(100)
-		    }
-		    finally {
-		        console.log(`Exiting ${f.name} after ${Date.now()-startTime}ms`);
-		    }
-		};
-	}
-	function benchmark(n) {
-	    let sum = 0;
-	    for(let i = 1; i <= n; i++) sum += i; 
-	    return sum;
-	}
-	// Now invoke the timed version of that test function 
-	timed(benchmark)(100);
-	```
-	<span class="yellowBG">注意timed(f)(100)的意思</span>:
-	
-	- <span class="orange">timed(f)是一个closure</span>, function return一个function
-	- timed(f) returns a function, and the returned function gets immediately called with parameter 100
-	- that's why <span class="orange">in the first console.log, arguments only contains [func:benchmark], no access to 100</span>
-	- returned function has access to "f", so inside can use f(...args)
-	- with returned function gets called, 100 is passed in, which is <span class="orange">args=[100]</span>
-	
-	Ex4. <span class="orange">类似的closure (function returns function)</span>
-	
-	```javascript
-	function add(x){
-	    return function(y){
-	        return x + y;
-	    };
-	}
-	/**
-	 * addTwo returns a function with x=2
-	 * addTwo(4) means the returned function with y=4
-	 */
-	const addTwo = add(2); 
-	addTwo(4) === 6; // true
-	
-	/**
-	 * add(3) returns a function with x=3
-	 * add(3)(4) means returned function with y=4
-	 */
-	add(3)(4) === 7; // true
-	```
-- Argument Types
-	
-	Ex1. <span class="orange">注意下面try/catch对结果的影响</span>. 
-	
-	throw并不意味着只是跳出当前function, 剩下的function还可以继续. 如果没有try/catch, 一旦throw, 所有下面的function就都不会继续了.
-	
-	```javascript
-	const sum = (arry) => {
-	    let total = 0;
-	    /** 
-	     * 1. 如果没有这个try/catch, 会停在第二个function, 且第二个function没有return, 一throw error就一切结束了
-	     * 2. 有了这个try/catch, 三个function都会run, 虽然throw, 但是只是当前的try结束了,
-	     * 	注意不是跳出整个function, 只是跳出当前的try block.
-	     * 3. 区别有没有try/catch: 
- 	     *  - 如果有try/catch, 会跳出try/catch继续下面的function, 这里是return total. 
- 	     *  - 如果没有try/catch, 一旦throw就完全结束, 就算下面还有别的function也不会进行了
- 	     */
- 	     
-	    try { 
-	        for(let num of arry) {
-	            if(typeof num !== "number") {
-	                /**
-	                 * throw没有return, 不是return  throw!!
-	                 * 1. throw new Error(...), log是Uncaught Error: ...
-	                 * 2. throw new TypeError(...), log是Uncaught TypeError: ...
-	                 * 3. 也可以直接throw + str, log是Uncaught 3 is not a number.
-	                 */
-	                throw new TypeError(`${num} is not a number.`); // 也可以throw new Error(...)
-	                // throw `${num} is not a number.`;
-	            }
-	            total += num;
-	        }
-	    } catch (e) {
-	        // sum(1, 2, 3): TypeError: arry is not iterabel
-	        // sum([1,2, "3"]): Error: 3 is not a number
-	        console.log(e);
-	    }
-	    return total;
-	}
-	console.log(sum([1,2,3])); // 6
-	console.log(sum(1, 2, 3)); // 0, 在for(let num of a)处: Uncaught TypeError: arry is not iterable
-	console.log(sum([1,2, "3"])); //3, 在throw处: Uncaught TypeError: 3 is not a number.
-	```
-
-#### <a name="func-val" id="func-val">8.4 Functions as Values</a>
-
-- Function as parameter values
-
-	Ex1.
-	
-	```javascript
-	function add(x, y) { return x+y; }
-	function operate1(operator, operand1, operand2) {
-	    return operator(operand1, operand2);
-	    
-		// 也可以用call or apply
-		return operator.call(this, operand1, operand2);
-		return operator.apply(this, [operand1, operand2]);
-	}
-	// 注意这里add没有引号!! 不是string, 不是operate("add", ...args). 
-	// add是func name, 前面定义过了
-	console.log(operate1(add, 1, 2)); // 3
-	```
-	
-	Ex2.
-	
-	```javascript
-	// 注意obj.method的两种写法
-	const operators = {
-	    add(x, y) { return x+y; },
-	    minus: (x, y) => x-y
-	};
-	function operate2(operator, operand1, operand2) {
-        try {
-            const func = operators[operator];
-            if(typeof func !== "function") {
-                throw new Error(`${operator} not exists`);
-            }
-            return func(operand1, operand2);
-        } catch(e) {
-            console.log(e);
-        }
-    }
-	// 区别于之前operate1(add, 1, 2)中add没有引号,不是string. 
-	// 这里operate2("add",..)的add是string, 是operators的key
-	// 因为这里没有对add的直接定义
-	console.log(operate2("add", operate2("minus", 3, 1), 4)); // 6
-	console.log(operate2("add", "hello", " world")); // hello world
-	console.log(operate2("multiply", 2, 3)); // Uncaught Error: multiply not exists
-	```
-	
-	- Ex1中operate1(<span class="orange">add</span>, ...rest)的<span class="orange">add没有引号</span>, 不是string, 前面定义过了, 是function name.
-	- 区别于Ex2的operate2(<span class="orange">"add"</span>, ...rest)的<span class="orange">add有引号</span>, 是operators的key, 是string, 前面没有对add的定义.
-	- 注意Ex2中的operators.method的两种写法
-	- 注意Ex中如果obj的key是variable, 不能用operators.operator, 得用<span class="orange">operators[operator]</span>
-	- 注意Ex2种try/catch, <span class="orange">一旦throw error但是没有try/catch就整个application结束了</span>. 这里有try/catch, 所以会log error，并继续下面的
-
-- Function as Object: <span class="orange">Functions are Objects</span>, can set properties to it.
-
-	Ex3. 
-	
-	```javascript
-	uniqueInt.count = 0;
-	function uniqueInt() {
-	    console.log(this); // window obj
-	    // 不能用this.count++, function declaration里的this是window! 区别于obj.method的this是obj
-	    return uniqueInt.count++;
-	}
-	console.log(uniqueInt()); // 0, 注意不是1, a++是返回的值先不变, 返回完了才a+1
-	console.log(uniqueInt()); // 1
-	```
-	
-	- 注意上面uniqueInt()中不能用this.count. <span class="orange">function declaration里的this是window! 区别于obj.method的this是obj</span>
-	- a++返回的值是原本的a, 返回完了才a+1
-	- 但是这种uniqueInt.count的写法有一个问题: buggy or malicious code could reset the counter or set it to a noninteger.
-	
-	Ex4.
-	
-	```javascript
-	function factorial(n) {
-		// 只测typeof n === "number"是不够的
-		if(!Number.isInteger(n) || n <= 0) return NaN;
-		// 也可以写成 if(n in factorial), 因为是key
-		if(factorial[n] !== undefined) return factorial[n];
-		// 这里不是n*factorial[n-1]!! 得是factorial(n-1), 再次invoke function
-		factorial[n] = n * factorial(n-1);
-		// 不能return factorial[n] = n * factorial(n-1)
-		// 要写成两步, return的时候不能有等号
-		return factorial[n];
-    }
-    factorial[1] = 1; // initiate cache, base case;
-    console.log(factorial(4)); // 24
-    console.log(factorial[3]); // 6 前面算4的时候cache了factorial[2]和factorial[3]
-	```
-	
-	- factorial既是function, 也有factorial[n]作为cache
-	- 注意上例只测`typeof n === "number"`是不够的，要用`Number.isInteger(n)`
+  - 也可以写成`Math.max.apply(null, arry)`
 
 #### <a name="closure" id="closure">8.6 Closure</a>
 
