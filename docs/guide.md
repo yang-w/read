@@ -11,7 +11,8 @@
 * [8.2 Invoking Functions](#func-invoke)
 * [8.3 Function Arguments and Parameters](#func-args-params)
 * [8.6 Closure](#closure)
-* [8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
+* [8.6.1 Closure in Loops](#closure-in-loops)
+* [8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
 * [6.2 Creating Objects](#create-obj)
 * [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#extended-obj-literal-syntax)
 	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#extended-obj-literal-syntax-shorthand-prop-method)
@@ -616,7 +617,7 @@ Ex. <span class="orange">注意下面try/catch, throw对结果的影响</span>.
 	
 ```javascript
 const sum = (arry) => {
-    let total = 0;
+    let total = 0; // technically不能用let sum=0, 否则就shadow outter sum
       
     try { 
         arry.forEach(num => {
@@ -650,6 +651,16 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
 - sum(1, 2, 3) throw后会直接进入catch, 并且下一个sum([1,"2", 3])还可以继续. 如果没有try/catch, 一旦throw, 就crash了
 - sum(1, 2, 3) throw在了arry.forEach, 直接进入catch, 先log(err),然后再return total=0
 - sum([1,"2", 3]) throw在"2"不是num, 直接进入catch, 先log throw的error, 然后再return total, 此时total是1
+- 如果let sum = 0 inside sum function, it shadows the outer sum function. 在function里, any attempt to call sum(...) recursively inside would throw:
+  ```javascript   
+  const sum = (arry) => {
+    let sum = 0;       // shadows outer sum
+    sum([1, 2, 3]);    // TypeError: sum is not a function
+    return sum;
+  };
+  ```
+
+  - Outside the function, the outer sum is unaffected.
 
 #### <a name="func-def" id="func-def">8.1 Defining Functions</a>
 
@@ -706,11 +717,11 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
     Ex1.
     ```javascript
     const addCount = (function() {
-    let count = 1; // count是private, 只有通过addCount()才能access
-    return function() {
-      // count没被改变. 必须 count = count+1; return count;
-      return count + 1;
-    }
+      let count = 1; // count是private, 只有通过addCount()才能access
+      return function() {
+        // count没被改变. 必须 count = count+1; return count;
+        return count + 1;
+      }
     })();
     console.log(addCount()); // 2
     console.log(addCount()); // 还是2, 不是3!
@@ -921,17 +932,17 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	
 	```javascript
 	function max(...args) {
-    return Math.max(...args);
+      return Math.max(...args);
   }
   console.log(max()); // -Infinity, by default对于Math.max
   console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
     
   // 也可以写成
-	function max1(first = -Infiintiy, ...rest) {
+	function max(first = -Infiintiy, ...rest) {
 		// first=1, rest是剩下的[10, 100, 2, 3, 1000, 4, 5, 6]
 		return Math.max(first, ...rest); // 注意这里要加上first, 因为rest里没有第一个param
 	}
-	console.log(max1(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
+	console.log(max(1, 10, 100, 2, 3, 1000, 4, 5, 6)); // 1000
 	```
 	
 	- <span class="orange">注意first = -Infiintiy里的-Infinity只是default value</span>, 如果max没有params, 那么first defaults to -Infinity
@@ -940,159 +951,117 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 
 #### <a name="closure" id="closure">8.6 Closure</a>
 
-A **closure** is the combination of a function bundled together (enclosed) with references to its surrounding state (the lexical environment). In other words, a closure gives you <u>access to an outer function's scope from an inner function</u>.
-
-A **closure** is a function that <u>references variables in the outer scope from its inner scope</u>. The closure preserves the outer scope inside its inner scope.
-
-In JavaScript, closures are created every time a function is created, at function creation time. Technically, <u>all JavaScript functions are clousres</u>, but because most functions are <u>invoked from the same scope</u> that they were defined in, it normally doesn’t really matter that there is a closure involved. Closures become interesting when they are <u>invoked from a different scope than the one they were defined in</u>, 比如下面Ex1.2中的checkScope2第二个()执行function f的时候, f is invoked from a different scope.
+A **closure** is <u>a function</u> that can access variables from its outer scope, even after that outer scope has finished executing. 
+- An IIFE is one way to create a private scope that closures can capture, but closures do not require IIFEs: 比如下面Ex1.2 return a function inside a function.
 
 Ex1.1
 
 ```javascript
-let scope = "global scope";
-function checkScope1() {
-	let scope = "local scope";
-	function f() {
-	    return scope;
-	}
-	// 必须return f(). 如果没有return,下面的log是undefined
-	return f(); // 这里是直接执行了f, 区别于下面return f;
-}
-console.log(checkScope1()); // local scope
-```
+let scope = "global";
+function checkScope() {
+  let scope = "local";
 
-- 勿忘checkScope1中必须<span class="red">return</span> f(). function如果没有return, 它返回的就是undefined, 导致之后的log是undefined
+  return (function check() { // IIFE
+    return scope;
+  })();
+}
+console.log(checkScope()); // local
+```
+- checkScope()返回的是scope. IIFE立刻执行了, scope是checkScope里的scope local
 
 Ex1.2
 
 ```javascript
-let scope = "global scope";
-function checkScope2() {
-    let scope = "local scope";
-    function f() {
-        return scope;
-    }
-    return f;
+let scope = "global";
+function checkScope() {
+  let scope = "local";
+
+  return function check() {
+    return scope;
+  };
 }
-console.log(checkScope2()()); // local scope. 勿忘第二个()才是执行return的f
+console.log(checkScope()()); // local, 勿忘第二个()才是执行的()
 ```
+- 这里checkScope()<span class="orange">()</span>有两个(). 区别于Ex1.1, 这里checkScope()返回的还是function check
+- 虽然checkScope executed的时候, 和checkScope同级的scope是"global", 但是**Functions are executed using the scope they were defined in**, NOT where they are invoked.
 
-- 区别于Ex1.1, 这里checkScope2()<span class="orange">()</span>有两个(). Ex1.1中checkScope1()返回的是已经执行了的f, 这里checkScope2()返回的还是function f
-- 虽然checkScope2 executed的时候, 和checkScope2同级的scope是"global scope", 但是**Functions are executed using the scope they were defined in**, NOT where they are invoked.
+Ex2.1.1 keep count private: IIFE + closure (return function)
 
-Ex2.1.1 <span class="orange">如果要keep `count` as a private state</span>, 更好的写法是用<span class="orange">IIFE + closure (return function)</span>
-	
 ```javascript
-const uniqueIntClosure = (function() {
-    let count = 0;
-    return function() {
-        return count++;
-    }
+const addOne = (function() {
+  let count = 0; // 必须是let 不是const!!
+  return function plusOne() {
+    count++;
+    return count;
+  }
 })();
-console.log(uniqueIntClosure()); // 0 注意这里不用uniqueIntClosure()(). uniqueIntClosure已经是return的function了,一个()就够了 
-console.log(uniqueIntClosure()); // 1
-```
-	
-- 注意上面不用uniqueIntClosure()<span class="orange">()</span>. uniqueIntClosure<span class="orange">已经是return的function了,一个()就够了</span>
-
-Ex2.1.2 类似的还有Singleton, instance只init了一次
-
-```javascript
-const Singleton = (function() {
-	let instance;
-	function createInstance() {
-		console.log(`-- in createInstance --`);
-		return { a: 1 };
-	}
-	function getInstance() {
-		console.log(`-- in getInstance --`);
-		if(instance === undefined) {
-			instance = createInstance();
-		}
-		return instance;
-	}
-	return {
-		getInstance
-	}
-})();
-console.log(Singleton.getInstance()); // 会trigger createInstance
-console.log(Singleton.getInstance()); // 不会再trigger createInstance了
+console.log(addOne()); // 1
+console.log(addOne()); // 2
 ```
 
-Ex2.2 区别uniqueIntClosure和下面的uniqueIntClass
+Ex2.1.2 <span class="orange">区别上面的addOne</span>
 	
 ```javascript
-// 其实这个应该写成class(function)
-// function uniqueIntClass() { ... }
-const uniqueIntClass = function() {
-    let n = 0;
-    return function() {
-        return n++;
-    }
-    // return n++; // 这两种return都一样 只是return function的话 下面call的时候需要两个()()
+const addNO = function() { // 不是IIFE
+  let count = 0;
+  return function() { // closure
+    count++;
+    return count; // 如果直接return count++是0, 可以return ++count是1
+  };
 };
-console.log(uniqueIntClass()()); // 0
-console.log(uniqueIntClass()()); // 0 是新的obj, n互不影响
+console.log(addNo()); // 1
+console.log(addNo()); // 1, 还是1!!
 ```
-	
-- 区别于Ex2.1的uniqueIntClosure, <span class="orange">uniqueIntClass没有IIFE, 是一个class/function</span>. <span class="orange">每次call得到的是一个新的object</span>, n互相不干扰.
+- 区别于Ex2.1.1的addOne, addNo没有IIFE, 是一个class/function. <span class="orange">每次call得到的是一个新的count</span>, 互相不干扰.
 
-类似上面Ex2.1中uniqueIntClosure的count, 但是it need not be exclusive to a single closure: it can be shared bt more nested functions. 下面Ex3.1中的n就是shared bt count和reset, which are defined within the same outer function counter1.
-
-Ex3.1
+Ex2.1.3
 
 ```javascript
-function counter1() {
-    let n = 0;
-    return {
-        count() { return n++; },
-        reset() { n = 0; }
-    };
+function counter() { // 不是IIFE
+  let count = 0;
+  return {
+    add() { // closure
+      return ++count;
+    },
+  };
 }
-const c1 = counter1(), c2 = counter1(); // 和new counter1()一样, 都是返回一个obj
-console.log(c1.count()); // 0. 注意不是counter1.count(), 是counter1().count()
-console.log(c1.count()); // 1
-c1.reset();
-console.log(c1.count()); // 0
-console.log(c1.count()); // 1
-
-console.log(c2.count()); // 0, c1和c2互不干扰, has its own scope
+const c1 = counter(), c2 = counter();
+console.log(c1.add()); // 1
+console.log(c1.add()); // 2
+console.log(c2.add()); // 1, c1和c2互不干扰, has its own count
 ```
+- counter和上面2.1.2addNO一样, 都是function, c1和c2互不干扰. 区别于2.1.1addOne是IIFE
+- counter和上面addNO一样, return的是closure, 都可以access outer scope
 
-- 这里counter1和上面的uniqueIntClass一样, 返回的是一个object, 所以call的时候一个()就够了
-- 和uniqueIntClass一样, 区别于uniqueIntClosure, 这里没有IIFE, 所以类似class, c1和c2是两个互不相干的obj
-- counter1是一个closure, 这种用法实际上是一个<span class="orange">class</span>.
-
-Ex3.2 区别于上例的n是private, 无法通过c1.n access n. 这里通过count的getter/setter expose了count, 所以可以直接d.count. 但是n依然是private.
+Ex2.1.4 access count
 
 ```javascript
-function counter2(n = 0) { // n is private, if not passed in, default will be 0
-    return {
-        get count() { return n++; },
-        set count(val) { 
-            if(val > n) {
-                n = val; 
-            } else {
-                throw new Error ("count can only be set to a larger val");
-            }
+function counter2(n = 0) {
+  return {
+    get count() {
+      return n; // scope chain to param n
+    },
+    set count(val) {
+      try {
+        if (val > n) { n = val; }
+        else {
+          throw new Error(`${val} should be larger than n`);
         }
+      } catch (err) {
+        console.log(err);
+      }
     }
+  }
 }
-const d1 = counter2(3);
-console.log(d1.count); // 3. 注意这里不是d.count(), 因为count是accessor prop, 不是function!!
-console.log(d1.count); // 4
-console.log(d1.count); // 5
-try {
-    d1.count = 4; // 注意不是d1.set(1)!!! count是个prop, 直接赋值就会trigger set
-} catch(e) {
-    console.log(e); // Error: count can only be set to a larger val
-}
-d1.count = 10;
-console.log(d1.count); // 10
-```
 
+const d1 = counter2(3);
+console.log(d1.count); // 3
+d1.count = 5;
+console.log(d1.count); // 5
+d1.count = 2; // Error: 2 should be larger than n
+```
+- 注意这里没有this.n, d1.count返回n是通过scope chain爬到counter2的params
 - accessor properties: <span class="orange">getter/setter can only be added to object</span>, not function. 所以下面是return { get, set } 
-- 注意上面是trigger setter时是直接d1.count = 4, 不是d1.set(10)
 - 上面的get count和set count是<u>two closures defined in the same scope</u> and share access tot he same private variable.
 
 ```javascript
@@ -1100,102 +1069,65 @@ console.log(d1 instanceof  counter2); // false
 console.log(d1 instanceof Object); // true
 ```
 
-- <span class="orange">constructor function不需要return</span>. 之前counter2 return的两个function导致instanceof不work了
-- 得用下面的方法写getter/setter
+- 注意`d1 instanceof counter2; // false`. 因为counter2 return的是一个plain object
+- 区别于下面的class
 
 ```javascript
-// constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
-function counterConstructor(n) {
-    this._n = n;
-}
-Object.defineProperties(counterConstructor.prototype, {
-    count: {
-        get: function() {
-            return this._n++;
-        },
-        set: function(val) {
-            this._n = val;
-        }
-    }
-});
-const d2 = new counterConstructor(5);
-console.log(d2 instanceof counterConstructor); // true
-console.log(d2.count); // 5
-console.log(d2.count); // 6
-d2.count = 10;
-console.log(d2.count); // 10
-```
-
-- constructor一般不用return, write all necessary stuff into this, and it automatically becomes the result.
-
-但是也要注意<b>Closure可能带来的Performance  issue</b>: 
-
-It is unwise to unnecessarily create functions within other functions if closures are not needed for a particular task, as it will <u>negatively affect script performance both in terms of processing speed and memory consumption</u>.
-
-For instance, when creating a new object/class, <u>methods should normally be associated to the object's prototype</u> rather than defined into the object constructor. The reason is that whenever the constructor is called, the methods would get reassigned (that is, for every object creation).
-
-Ex4.1 `getName`和`getMessage`是两个closure. 下面不应该把这两个closures写在constructor里
-
-```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-  this.getName = function() {
-    return this.name;
-  };
-
-  this.getMessage = function() {
-    return this.message;
-  };
-}
-```
-
-Ex4.2 下面的写法也不对, 不应该改本身的`MyObject.prototype`
-
-```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-}
-MyObject.prototype = {
-  getName: function() {
-    return this.name;
-  },
-  getMessage: function() {
-    return this.message;
+class Counter {
+  constructor(n) {
+    this.n = n;
   }
-};
+  // dummy getter and setter. we can use d2.n directly
+  get count() {
+    return this.n;
+  }
+  set count(val) {
+    this.n = val;
+  }
+}
+const d2 = new Counter(10);
+console.log(d2.count); // 10
+d2.count = 20;
+console.log(d2.count); // 20
+console.log(d2 instanceof Counter); // true
 ```
 
-Ex4.3 应该写成下面这样
+Ex2.1.5 Singleton, instance只init了一次, return object { function }
 
 ```javascript
-function MyObject(name, message) {
-  this.name = name.toString();
-  this.message = message.toString();
-}
-MyObject.prototype.getName = function() {
-  return this.name;
-};
-MyObject.prototype.getMessage = function() {
-  return this.message;
-};
+const Singleton = (function() {
+	let instance; // 要用let 不是const
+	function createInstance() {
+		console.log(`-- in createInstance --`);
+		instance = { a: 1 };
+	}
+	function getInstance() {
+		if(instance === undefined) {
+			createInstance();
+		}
+		return instance;
+	}
+
+	return { // return一个object
+		getInstance
+	};
+})();
+console.log(Singleton.getInstance()); // 会trigger createInstance
+console.log(Singleton.getInstance()); // 不再trigger createInstance了
 ```
+- 区别于2.1.1, 这里不是return getInstance, 而是return一个object { getInstance }, 所以可以用function名Singleton.getInstance()
+
+### <a name="closure-in-loops">8.6.1 Closure in Loops</a>
 
 <b>Closure Scope Chain</b>: Every closure has three scopes (它解释了下面how variables are resolved when it's inside <u>closures in loops</u>)
-
 - Local Scope (Own scope)
 - Outer Functions Scope
 - Global Scope
 
-<span class="bold border">Creating closures in loops: A common mistake</span>
-
-Prior to the introduction of the let keyword in ECMAScript 2015, a common problem with closures occurred when you created them inside a loop.
-
-Ex5.1
+Ex1.1 common mistake of closure in loops
 
 ```javascript
-let funcs = [];
+const funcs = [];
 for(var i=0; i<10; ++i) {
     funcs[i] = () => i; // 所有loop share的同一个i
 }
@@ -1203,24 +1135,24 @@ console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一
 ```
 
 - 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]只是一个function, 没有执行
-- This code creates 10 closures and stores them in an array. The closures are all defined within the same invocation of the function, so they <span class="orange">share access to the variable i</span>. 
-- <b>Closure Scope Chain</b>： `funcs[5] = function() { return i; }`: `funcs[5]()`执行的时候, <span class="orange">local scope没有i的定义, 所以向上找outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, 所以找到for loop, 此时i已经是10了
-- 如果改成`funcs[i] = (i) => i; ` 即只pass进i也不对. funcs[5]其实就是`function(i) { return i; }`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">i此时是undefined</span>, log是undefefined. <span class="orange">除非同时改成</span>`funcs[5](5)`.
+- 在loop的时候只是create了10个closures但并没有执行, 每一个都是`()=>i`, the same i. 此时i(outer scope)已经是10了.
+  - 这里是closure是因为closure的定义: closure是一个function, 可以access outer scope var.
+- 如果改成`funcs[i] = (i) => i; `也不对. funcs[5]其实就是`(i) => i`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">scope chain先找local scope, i此时是param i: undefined</span> <span class="orange">除非同时改成</span>`funcs[5](5)`.
 
-Ex5.2 how to fix
-
-- fix 5.2.1: 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
-- fix 5.2.2: use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
+<span class="orange">How to fix</span>
+- 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
+```javascript
+const funcs = [];
+for(let i = 0; i<10; ++i) {
+  funcs[i] = () => i;
+}
+console.log(funcs[5]()); // 5
+```
+- Use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
 
 	```javascript
 	function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
 		return () => v;
-		/**
-		 * 等同于
-		 * return function() {
-		 *    return v;
-		 * }
-		 */
 	}
 	let funcs = [];
 	for(var i=0; i<10; ++i) {
@@ -1365,7 +1297,7 @@ function range(start, end) {
 }
 ```
 
-#### <a name="module-systems" id="module-systems">8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
+#### <a name="module-systems" id="module-systems">8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
 > YDKJS > Scope & Closures > ch8
 
 All solve the same problem: how do files share code? They differ by era and environment.

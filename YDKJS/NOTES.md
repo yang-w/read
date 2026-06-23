@@ -24,8 +24,9 @@
 - [x] [§8.3 Function Arguments and Parameters](../docs/guide.md#func-args-params)
 - [x] ~~[§8.4 Functions as Values](../docs/guide.md#func-val)~~
 - [ ] [§8.6 Closure](../docs/guide.md#closure)
-  - [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
-- [ ] [§8.6.1 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
+- [ ] [§8.6.1 Closure in Loops](../docs/guide.md#closure-in-loops)
+  - [ ] [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
+- [ ] [§8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
   - [ch8.md — The Module Pattern](scope-closures/ch8.md)
 - [ ] [apB.md — Practice](scope-closures/apB.md)
 
