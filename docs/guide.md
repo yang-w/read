@@ -1002,15 +1002,15 @@ console.log(addOne()); // 2
 Ex2.1.2 <span class="orange">区别上面的addOne</span>
 	
 ```javascript
-const addNO = function() { // 不是IIFE
+const addNo = function() { // 不是IIFE
   let count = 0;
   return function() { // closure
     count++;
     return count; // 如果直接return count++是0, 可以return ++count是1
   };
 };
-console.log(addNo()); // 1
-console.log(addNo()); // 1, 还是1!!
+console.log(addNo()()); // 1
+console.log(addNo()()); // 1, 还是1!!
 ```
 - 区别于Ex2.1.1的addOne, addNo没有IIFE, 是一个class/function. <span class="orange">每次call得到的是一个新的count</span>, 互相不干扰.
 
@@ -1030,8 +1030,9 @@ console.log(c1.add()); // 1
 console.log(c1.add()); // 2
 console.log(c2.add()); // 1, c1和c2互不干扰, has its own count
 ```
-- counter和上面2.1.2addNO一样, 都是function, c1和c2互不干扰. 区别于2.1.1addOne是IIFE
-- counter和上面addNO一样, return的是closure, 都可以access outer scope
+- counter和上面2.1.2addNO一样, <span class="orange">但是区别于2.1.1addOne是IIFE</span>
+  - 都是function, c1和c2互不干扰
+  - return的都是closure, 都可以access outer scope
 
 Ex2.1.4 access count
 
@@ -1115,7 +1116,8 @@ const Singleton = (function() {
 console.log(Singleton.getInstance()); // 会trigger createInstance
 console.log(Singleton.getInstance()); // 不再trigger createInstance了
 ```
-- 区别于2.1.1, 这里不是return getInstance, 而是return一个object { getInstance }, 所以可以用function名Singleton.getInstance()
+- 不是const a = Singleton()!! <span class="orange">Singleton不是一个function</span>, 它return的是一个object
+  - 区别于2.1.1, <span class="orange">这里不是return getInstance, 而是return一个object { getInstance }</span>, 所以可以用function名Singleton.getInstance()
 
 ### <a name="closure-in-loops">8.6.1 Closure in Loops</a>
 
@@ -1135,9 +1137,9 @@ console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一
 ```
 
 - 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]只是一个function, 没有执行
-- 在loop的时候只是create了10个closures但并没有执行, 每一个都是`()=>i`, the same i. 此时i(outer scope)已经是10了.
+- 在loop的时候只是create了10个closures<span class="red">但并没有执行</span>, 每一个都是`()=>i`, the same i. 此时i(outer scope)已经是10了.
   - 这里是closure是因为closure的定义: closure是一个function, 可以access outer scope var.
-- 如果改成`funcs[i] = (i) => i; `也不对. funcs[5]其实就是`(i) => i`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">scope chain先找local scope, i此时是param i: undefined</span> <span class="orange">除非同时改成</span>`funcs[5](5)`.
+- 如果改成`funcs[i] = (i) => i; // undefined`也不对. funcs[5]其实就是`(i) => i`, `funcs[5]()`执行的时候, 没有传进i, <span class="red">scope chain先找local scope -> param i, which is undefined</span> <span class="orange">除非同时改成</span>`funcs[5](5)`.
 
 <span class="orange">How to fix</span>
 - 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
@@ -1150,35 +1152,39 @@ console.log(funcs[5]()); // 5
 ```
 - Use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
 
-	```javascript
-	function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
-		return () => v;
-	}
-	let funcs = [];
-	for(var i=0; i<10; ++i) {
-		funcs[i] = constFunc(i); 
-	}
-	console.log(funcs[5]()); // 5. 勿忘多出来的()!! funcs[5]即constFunc(5)返回的是一个function
-	```
+```javascript
+function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
+  return () => v;
+}
+let funcs = [];
+for(var i=0; i<10; ++i) {
+  funcs[i] = constFunc(i); // 必须传进i,否则undefined
+}
+console.log(funcs[5]()); // 勿忘多出来的()!! funcs[5]即constFunc(5)返回的是一个function
+```
 	
-	- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5)返回的是一个function, 没有执行
-	- 不能写成`function constFunc(v) { return v; }`, 这样的话funcs[i]=constFunc(i)就直接执行return i了
-	- <b>Closure Scope Chain</b>: `funcs[5] = () => v`, 此时在<span class="orange">local scope</span>里v没有定义, 所以向上找<span class="orange">outer scope</span>. <b>Functions are excuted using the scope they were defined in</b>, <span class="orange">区别于4.1, 这里的outer scope是</span>`function constFunc(5)`, <span class="orange">即v=5</span>
-	- 和5.1一样, 这里也不能改成`function constFunc(v) { return (v) => v; }`, 因为`funcs[5]()`执行的时候, 没有传进v, log是undefefined, 除非同时改成`funcs[5](5)`.
-- 这里<span class="orange">没有办法用类似6.2.3的IIFE</span>. 因为这里不存在callback, 当时就执行了
+- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5)返回的是一个function, 没有执行
+- `function constFunc(v) { return v; }`也对, 只是最后就是console.log(funcs[5]), <span class="orange">没有多余的()</span>. 因为funcs[5]=counstFunc(5), 不是return function, 而是已经return v了
+- <b>Closure Scope Chain</b>: funcs[5]在loop的时候就已经定义了= constFunc(5), 所以funcs[5]<span class="red">()</span>执行的时候会向上找<span class="orange">outer scope-> param constFunc(5)的5</span>
 
-Ex6.1 Show help text once focusing on the input box. 
+Ex1.2 Show help text once focusing on the input box. 
 
 但是No matter what field you focus on, the message "your name" will always be displayed.
 
 ```html
-<p>Email: <input type="text" id="email" name="email"></p>
-<p>Name: <input type="text" id="name" name="name"></p>
-<p id ="help">Help msg goes here.</p> 
+<label for="email">Email:</label>
+<input id="email" type="text" placeholder="Email here.." />
+
+<label for="name">Name:</label>
+<input id="name" type="text" placeholder="Name here..." />
+
+<p id="help"></p>
 ```
+- 注意lable for的用法
 
 ```javascript
-const help = document.getElementById("help");
+// 这么写不好, 只需看懂为什么不对. 而且一般用addEventListener("focus", ...)
+const help = document.querySelector("#help");
 const json = [{
 	id: "email",
 	help: "your email"
@@ -1194,62 +1200,48 @@ for(var i=0, size=json.length; i<size; ++i) {
     }
 }
 ```
-
-- 注意<span class="red">`elem.innerHTML`</span>和<span class="red">`elem.onfocus`</span>的用法
-- The functions assigned to onfocus are closures, they share the same variable `elem`. The value of `elem.help` is determined when the onfocus callbacks are executed, and at that time, elem is the last obj in json.
 - <b>Closure Scope Chain</b>: 当onfocus callback的时候只有`() => { helper.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>, 即for loop的elem, 此时elem = the last obj in json, 所以help text是name的help.
 
-Ex6.2 how to fix
+How to fix
 
-- fix 6.2.1: 用`let` / `const` 做for loop
-- fix 6.2.2: use more closures, 和5.2.2一样. <u>Creates a new lexical environment</u> for each callback, in which text refers to the corresponding string from the json array.
+- 用`let` / `const` 做for loop
+- 用forEach
 
-	```javascript
-	function helpCallback(text) {
-	    return function() {
-	        help.innerHTML = text;
-	    }
-	}
-	for(var i=0, size=json.length; i<size; ++i) {
-	    var elem = json[i];
-	    document.getElementById(elem.id).onfocus = helpCallback(elem.help);
-	}
-	```
-	
-	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`function() { help.innerHTML = text; }`. 此时在<span class="orange">local scope</span>里没有text的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`function helpCallback(text)`, 即定义时传进来的当时item的help.
+```javascript
+const json = {
+  email: "your email",
+  name: "your name",
+};
 
-- fix 6.2.3: <span class="orange">using IIFE</span>: <u>Immediate event listener attachment with the current value</u> of item (preserved until iteration).
+// document.addEventListener("DOMContentLoaded", ...): fires when HTML is parsed and DOM is ready — images/stylesheets may still be loading
+// window.addEventListener("load", ...) fires when everything is loaded — DOM + images + stylesheets + iframes
 
-	```javascript
-	for(var i=0; i<json.length; ++i) {
-		(() => {
-		    var elem = json[i];
-		    document.getElementById(elem.id).onfocus = () => {
-		        help.innerHTML = elem.help;
-		    };
-		})();
+// need DOMContentLoaded if script is in <head>
+// 如果在end of body就不用了
+// document.addEventListener("DOMContentLoaded", () => {
+document.querySelectorAll("input").forEach(elem => {
+  elem.addEventListener("focus", () => handleFocus(elem.id));
+  elem.addEventListener("blur", handleBlur);
+});
 
-		// 用传统的(function() {})()
-		// (function() {
-		//     var elem = json[i];
-		//     document.getElementById(elem.id).onfocus = () => {
-		//     help.innerHTML = elem.help;
-		//     };
-		// })();
-	}
-	```
-	
-- fix 6.2.4: using `forEach`. 这个和6.2.2类似, 都是closure scope chain
+const help = document.querySelector("#help");
+function handleFocus(id) {
+  help.innerHTML = json[id];
+}
+function handleBlur() {
+  help.innerHTML = "";
+}
 
-	```javascript
-	json.forEach((elem) => {
-	    document.getElementById(elem.id).onfocus = () => {
-	        help.innerHTML = elem.help;
-	    }
-	});
-	```
-	
-	- <b>Closure Scope Chain</b>: onfocus callback的时候只有`() => { help.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>. 这里的outer scope是`json.forEach`的`(elem)`, 即当时的item.
+// if elem.addEventListener("focus", handleFocusEvt)
+// evt is the FocusEvent object, evt.target.id gives the element's id
+function handleFocusEvt(evt) {
+  help.innerHTML = json[evt.target.id];
+}
+// });
+
+```
+- 注意d<span class="red">ocument.addEventListener("DOMContentLoaded", ...)</span> vs <span class="red">window.addEventListener("load", ...)</span>
+- `elem.addEventListener("focus", handleFocusEvt)`那handleFocusEvt(evt) vs `elem.addEventListener("focus", () => handleFocus(elem.id))`, 我们控制什么pass进handleFocus
 
 Ex7. `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
 
