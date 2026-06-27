@@ -1275,7 +1275,7 @@ start3(8);     // [3,4,5,6,7,8]
 start3(0);     // []
 ```
 
-Book solution:
+Solution:
 
 ```javascript
 function range(start, end) {
@@ -1299,6 +1299,43 @@ function range(start, end) {
     }
 }
 ```
+
+Ex1.4 Define a toggle(..)
+
+```javascript
+function toggle(/* .. */) {
+    // ..
+}
+
+var hello = toggle("hello");
+var onOff = toggle("on","off");
+var speed = toggle("slow","medium","fast");
+
+hello();      // "hello"
+hello();      // "hello"
+
+onOff();      // "on"
+onOff();      // "off"
+onOff();      // "on"
+```
+
+Solution:
+
+```javascript
+function toggle(...args) { // 注意这里需要args, 不是下面return function
+  let count = 0;
+
+  // 不是return function(...args)!!! 要让它向上找args - toggle(...args)
+  // 如果return function(...args) 就是[]了, 因为hello()并没有pass进任何args
+  return function() { 
+    const toRet = args[count] ?? "";
+    count++;
+    count = count % args.length;
+    return toRet;
+  };
+}
+```
+- 注意toggle(...args)但是return function() {} 不需要args!! 如果return function(...args) 就是[]了, 因为hello()并没有pass进任何args
 
 ### <a name="closure-lifecycle-gc">8.6.2 The Closure Lifecycle and Garbage Collection (GC)</a>
 
@@ -1386,6 +1423,9 @@ All solve the same problem: how do files share code? They differ by era and envi
 **Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.6](#build-pipeline). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
 
 ESM singleton — file scope replaces IIFE, `count` is private to the module. ES modules are evaluated **once** regardless of how many files import them.
+
+Ex1.
+
 ```javascript
 // count.js
 let count = 0;
@@ -1400,6 +1440,122 @@ import { addOne, COUNT } from "./count";
 ```
 - export addOne() {...} <span class="orange">错的!! export必须要有function keyword</span>.
 - 除了export function, 也可以export const VAR=1;
+
+##### The Module Pattern with IIFE, CJS and ESM
+
+A **module** = private state + public API. Three things distinguish it from plain objects:
+- Hidden state — internal variables are private by default
+- Public API — only what you explicitly export is accessible
+- Statefulness — the private state persists over time via closure
+
+<span class="orange">除了2.1.2, IIFE, CJS和ESM都是Singleton</span>
+
+Ex2.1.1 IIFE - legacy, Single instance
+
+```javascript
+// Single instance, share同一组records
+const Student = (function() {
+  const records = [
+    { id: 14, name: "Kyle", grade: 86 },
+    { id: 73, name: "Suzy", grade: 87 },
+    { id: 112, name: "Frank", grade: 75 },
+    { id: 6, name: "Sarah", grade: 91 }
+  ];
+
+  return {
+    getName(id) {
+      const match = records.find(record => record.id === id);
+      return match?.name;
+    }
+  }
+})();
+
+// 不用Student().getName(), Student returns object not function
+console.log(Student.getName(73)); 
+```
+- 这是一个Singleton, 大家share同一个records
+- Student<span class="red">不用()</span>, Student本身IIFE后return一个object, 不是function, 可以直接Student.getName
+
+Ex2.1.2 Factory function - legacy, Multiple instance
+
+```javascript
+// Multiple instance, records各不相关
+const StudentMulti = function() {
+  const records = [
+    { id: 14, name: "Kyle", grade: 86 },
+    { id: 73, name: "Suzy", grade: 87 },
+    { id: 112, name: "Frank", grade: 75 },
+    { id: 6, name: "Sarah", grade: 91 }
+  ];
+return {
+    getName(id) {
+      const match = records.find(record => record.id === id);
+      return match?.name;
+    }
+  };
+};
+
+const s1 = StudentMulti(), s2 = StudentMulti();
+console.log(s1.getName(73));
+console.log(s2.getName(73));
+```
+- 区别于2.1.1是IIFE, 立即执行了, 可以直接Student.getName. 这里2.1.2没有IIFE, 必须StudentMulti() - 注意<span class="orange">需要(), 执行完后才能StudentMulti().getName</span>
+- 区别于2.1.1是Singleton, 这里每一个StudentMulti()都有自己的copy
+
+Ex2.2 CJS - legacy
+
+```javascript
+// student.js
+const records = [
+  { id: 14, name: "Kyle", grade: 86 },
+  { id: 73, name: "Suzy", grade: 87 },
+  { id: 112, name: "Frank", grade: 75 },
+  { id: 6, name: "Sarah", grade: 91 }
+];
+
+function getName(id) {
+  const match = records.find(record => record.id === id);
+  return match?.name;
+}
+
+module.exports = {
+  getName,
+};
+
+// app.js
+const { getName } = require("./student.js");
+console.log(getName(73));
+```
+- CJS are file-based, one module per file
+- <span class="orange">CJS are singletons</span>: no matter how many times you require(..), you get references to the single shared instance.
+
+Ex2.3 ESM - 用这个
+
+```javascript
+const records = [
+  { id: 14, name: "Kyle", grade: 86 },
+  { id: 73, name: "Suzy", grade: 87 },
+  { id: 112, name: "Frank", grade: 75 },
+  { id: 6, name: "Sarah", grade: 91 }
+];
+
+export function getName(id) {
+  const match = records.find(record => record.id === id);
+  return match?.name;
+}
+
+// app.js
+// ranaming import
+import { getName as getStudentName } from "./student.js";
+console.log(getStudentName(73));
+
+// namespace import, import all export
+import * as Student from "./student.js";
+console.log(Student.getName(73));
+```
+- ESM are file-based, one module per file
+- <span class="orange">ESM are singletons</span>
+- 注意rename和import * as Student from "..." 的写法
 
 ---
 

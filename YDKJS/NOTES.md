@@ -29,7 +29,7 @@
 - [x] [§8.6.2 The Closure Lifecycle and Garbage Collection (GC)](../docs/guide.md#closure-lifecycle-gc)
 - [x] [§8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
   - [ch8.md — The Module Pattern](scope-closures/ch8.md)
-- [ ] [apB.md — Practice](scope-closures/apB.md)
+- [ ] [apB.md — Practice](scope-closures/apB.md) - calculator
 
 ### Book 3: Objects & Classes
 - [ ] [§6.2 Creating Objects](../docs/guide.md#create-obj) — [§6.10 Extended Object Literal Syntax](../docs/guide.md#extended-obj-literal-syntax) — [§3.10.4 Destructuring](../docs/guide.md#destructuring-assignment)
