@@ -23,10 +23,11 @@
 - [x] [§8.2 Invoking Functions](../docs/guide.md#func-invoke)
 - [x] [§8.3 Function Arguments and Parameters](../docs/guide.md#func-args-params)
 - [x] ~~[§8.4 Functions as Values](../docs/guide.md#func-val)~~
-- [ ] [§8.6 Closure](../docs/guide.md#closure)
-- [ ] [§8.6.1 Closure in Loops](../docs/guide.md#closure-in-loops)
-  - [ ] [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
-- [ ] [§8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
+- [x] [§8.6 Closure](../docs/guide.md#closure)
+- [x] [§8.6.1 Closure in Loops](../docs/guide.md#closure-in-loops)
+  - [x] [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
+- [x] [§8.6.2 The Closure Lifecycle and Garbage Collection (GC)](../docs/guide.md#closure-lifecycle-gc)
+- [x] [§8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
   - [ch8.md — The Module Pattern](scope-closures/ch8.md)
 - [ ] [apB.md — Practice](scope-closures/apB.md)
 

@@ -12,7 +12,8 @@
 * [8.3 Function Arguments and Parameters](#func-args-params)
 * [8.6 Closure](#closure)
 * [8.6.1 Closure in Loops](#closure-in-loops)
-* [8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
+* [8.6.2 The Closure Lifecycle and Garbage Collection (GC)](#closure-lifecycle-gc)
+* [8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
 * [6.2 Creating Objects](#create-obj)
 * [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#extended-obj-literal-syntax)
 	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#extended-obj-literal-syntax-shorthand-prop-method)
@@ -94,7 +95,7 @@ The same static/dynamic split shows up across JS — one side is a **language-le
 | Compile / parse time (hoisted — usable before their line) | Runtime (only available when that line executes) |
 |---|---|
 | Function **declaration** — name + value both registered | Function **expression** — assigned when that line executes |
-| `import` (ESM) | `require()` (CJS) |
+| `import`/`export` (ESM) - Browser+NodeJS | `require`/`module.exports` (CJS) - NodeJS |
 | `var` — name registered (value is `undefined` until line runs) | `let` / `const` — not available at all until line executes (TDZ) |
 
 **Function declaration vs expression:**
@@ -105,19 +106,6 @@ function awesomeFunction(coolThings) { return amazingStuff; }
 let awesomeFunction = function(coolThings) { return amazingStuff; };
 // identifier awesomeFunction not associated until this line runs at runtime
 ```
-
-**`import` vs `require()`** (see [§8.6.1](#module-systems)):
-```javascript
-import { square } from "./math.js";       // Webpack resolves at build time → tree-shakeable
-const { square } = require("./math");     // just a function call → Webpack can't always tree-shake
-```
-- `require()` (CJS) is Node.js only — browsers don't have it natively; `module.exports` is its export pair
-- `import` (ESM) works in both browser and Node.js (Node 12+); `export` is its export pair
-
-| | Export | Import | Environment |
-|---|---|---|---|
-| CJS | `module.exports = { ... }` | `require()` | Node.js only |
-| ESM | `export` | `import` | Browser + Node.js |
 
 ### <a name="build-pipeline" id="build-pipeline">1.6 Build pipeline (brwweb)</a>
 
@@ -136,6 +124,8 @@ Webpack parses code into ASTs, walks `import`/`require` to build a dependency gr
 | Export model | Static bindings — each `export` is a named reference to a specific function — Webpack knows exactly what's used at parse time. (export is per function) | `module.exports` is a plain object, properties resolved at runtime. A consumer could access any property dynamically - Webpack keeps everything (exports is the whole object) |
 | Tree-shaking | ✅ unused exports dropped | ❌ conservative, can't always tell |
 | Dynamic path | Not allowed | `` require(`./\${name}`) `` bundles entire dir |
+
+See [§8.6.3 Module Systems](#module-systems)
 
 CJS
 ```javascript
@@ -170,6 +160,7 @@ transform.getViewport();
 ESM
 ```javascript
 // transform.js
+export const COUNT = 0; // 注意也可以export variable
 export function getViewport() {
 	return window.innerWidth;
 }
@@ -178,7 +169,8 @@ export function unusedHelper() {
 }
 
 // app.js
-import { getViewport } from "./transform";
+import { getViewport, COUNT } from "./transform";
+console.log(COUNT);
 getViewport();
 
 // bundle.js — unusedHelper removed by tree-shaking
@@ -1143,10 +1135,21 @@ console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一
 
 <span class="orange">How to fix</span>
 - 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
+
 ```javascript
 const funcs = [];
 for(let i = 0; i<10; ++i) {
   funcs[i] = () => i;
+}
+console.log(funcs[5]()); // 5
+```
+- new var per iteration: 注意<span class="orange">必须let j=i, 如果用var还是一样</span>
+
+```javascript
+const funcs = [];
+for(let i = 0; i<10; ++i) {
+  let j = i; // 不能用var 否则还是10
+  funcs[i] = () => j;
 }
 console.log(funcs[5]()); // 5
 ```
@@ -1158,18 +1161,23 @@ function constFunc(v) { // constFunc是一个closure, return的是一个function
 }
 let funcs = [];
 for(var i=0; i<10; ++i) {
-  funcs[i] = constFunc(i); // 必须传进i,否则undefined
+  /**
+   * 1. 必须传进i,否则undefined
+   * 2. constFunc(5) 就是执行了constFunc, 所以funcs[5]= constFunc(5) = ()=>v
+   * 所以funcs[5]()执行的时候就是向上找v -> constFunc(v) -> constFunc(5), 就是5
+   */
+  funcs[i] = constFunc(i);
 }
 console.log(funcs[5]()); // 勿忘多出来的()!! funcs[5]即constFunc(5)返回的是一个function
 ```
 	
-- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5)返回的是一个function, 没有执行
-- `function constFunc(v) { return v; }`也对, 只是最后就是console.log(funcs[5]), <span class="orange">没有多余的()</span>. 因为funcs[5]=counstFunc(5), 不是return function, 而是已经return v了
-- <b>Closure Scope Chain</b>: funcs[5]在loop的时候就已经定义了= constFunc(5), 所以funcs[5]<span class="red">()</span>执行的时候会向上找<span class="orange">outer scope-> param constFunc(5)的5</span>
+- 勿忘最后是funcs[5]<span class="red">()</span>. funcs[5]即constFunc(5), 执行了, 返回的是一个function ()=>v;
+- `function constFunc(v) { return v; }`也对, 只是最后就是console.log(funcs[5]), <u>没有多余的()</u>. 因为funcs[5]=counstFunc(5), return的已经是v了
+- <b>Closure Scope Chain</b>: funcs[5]在loop的时候就已经定义了= constFunc(5)=()=>v, 所以funcs[5]<span class="red">()</span>执行的时候会向上找v<span class="orange">outer scope-> param constFunc(5)的5</span>
 
 Ex1.2 Show help text once focusing on the input box. 
 
-但是No matter what field you focus on, the message "your name" will always be displayed.
+Error: No matter what field you focus on, the message "your name" will always be displayed.
 
 ```html
 <label for="email">Email:</label>
@@ -1184,7 +1192,6 @@ Ex1.2 Show help text once focusing on the input box.
 
 ```javascript
 // 这么写不好, 只需看懂为什么不对. 而且一般用addEventListener("focus", ...)
-const help = document.querySelector("#help");
 const json = [{
 	id: "email",
 	help: "your email"
@@ -1193,6 +1200,7 @@ const json = [{
 	help: "your name"
 }];
 
+const help = document.querySelector("#help");
 for(var i=0, size=json.length; i<size; ++i) {
     var elem = json[i];
     document.getElementById(elem.id).onfocus = () => {
@@ -1200,7 +1208,7 @@ for(var i=0, size=json.length; i<size; ++i) {
     }
 }
 ```
-- <b>Closure Scope Chain</b>: 当onfocus callback的时候只有`() => { helper.innerHTML = elem.help; }`. 此时在<span class="orange">local scope</span>里没有elem的定义, 所以向上找<span class="orange">outer scope</span>, 即for loop的elem, 此时elem = the last obj in json, 所以help text是name的help.
+- <b>Closure Scope Chain</b>: 当focus callback的时候只有`() => { helper.innerHTML = elem.help; }`. 此时在local scope里没有elem的定义, 所以向上找<span class="orange">outer scope: elem=json[i], 已经是last elem in json</span>, 所以help text是name的help.
 
 How to fix
 
@@ -1240,10 +1248,17 @@ function handleFocusEvt(evt) {
 // });
 
 ```
-- 注意d<span class="red">ocument.addEventListener("DOMContentLoaded", ...)</span> vs <span class="red">window.addEventListener("load", ...)</span>
-- `elem.addEventListener("focus", handleFocusEvt)`那handleFocusEvt(evt) vs `elem.addEventListener("focus", () => handleFocus(elem.id))`, 我们控制什么pass进handleFocus
+| | `document.addEventListener("DOMContentLoaded", ...)` | `window.addEventListener("load", ...)` |
+|---|---|---|
+| Fires when | HTML parsed, DOM ready | DOM + images + stylesheets + iframes all loaded |
 
-Ex7. `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
+| | `elem.addEventListener("focus", handleFocusEvt)` | `elem.addEventListener("focus", () => handleFocus(elem.id))` |
+|---|---|---|
+| Handler receives | event object (`evt`) | nothing — arrow ignores it |
+| Access element | `evt.target.id` | `elem.id` via **closure** |
+| Control over args | browser decides | you decide what to pass |
+
+Ex1.3 `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
 
 ```javascript
 function range(start,end) {
@@ -1255,13 +1270,9 @@ range(3,8);    // [3,4,5,6,7,8]
 range(3,0);    // []
 
 var start3 = range(3);
-var start4 = range(4);
-
 start3(3);     // [3]
 start3(8);     // [3,4,5,6,7,8]
 start3(0);     // []
-
-start4(6);     // [4,5,6]
 ```
 
 Book solution:
@@ -1271,7 +1282,7 @@ function range(start, end) {
     start = Number(start) || 0;
 
     if (end === undefined) {
-        return function getEnd(end) {
+        return function(end) {
             return getRange(start, end);
         };
     } else {
@@ -1289,7 +1300,78 @@ function range(start, end) {
 }
 ```
 
-#### <a name="module-systems" id="module-systems">8.6.2 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
+### <a name="closure-lifecycle-gc">8.6.2 The Closure Lifecycle and Garbage Collection (GC)</a>
+
+Closure can unexpectedly prevent GC of variables, leading to memory leaks. Discard function references when they're no longer needed.
+
+有`addEventListener`就一定要有`removeEventListener`, 否则会有<span class="orange">memory leak</span>. 而且只能一个一个unsubscribe.
+
+Ex. 体会下面的写法有问题
+
+```javascript
+const btnHandlers = [];
+btn.addEventListener("click", handleCheckout);
+btn.addEventListener("focus", handleFocus);
+
+unsubscribeAll();
+
+function handleCheckout() {
+  // btnHandlers.push({ action: "click", handler: handleCheckout.name }); - 这是错的, removeEventListener需要real function, 不是function name string!!
+  btnHandlers.push({ action: "click", handler: handleCheckout });
+}
+function handleFocus() {
+  btnHandlers.push({ action: "focus", handler: handleFocus.name });
+}
+function unsubscribeAll() {
+  btnHandlers.forEach(listener => {
+    btn.removeEventListener(listener.action, listener.handler);
+  })
+}
+```
+- btnHandlers.push(...) runs only when the event fires, <span class="red">not when the listener is registered</span>
+  - 如果没有click/focus过btn, btnHandlers=[] when unsubscribeAll(). 但是handleCheckout, handleFocus are still <span class="orange">registered on btn but never cleaned up, causing memory leak</span>.
+- <span class="orange">removeEventListener needs the actual function reference, not the name string</span>. 
+  - <span class="orange">handleCheckout.name</span>是function的name string, not the function itself.
+
+How to fix
+```javascript
+const eventHandlers = [];
+
+function subscribe(elem, action, handler) {
+  eventHandlers.push({ elem, action, handler });
+  elem.addEventListener(action, handler);
+}
+function unsubscribeAll() {
+  // 勿忘括号({...}), 不能直接{...} => {}
+  eventHandlers.forEach(({ elem, action, handler }) => {
+    elem.removeEventListener(action, handler);
+  });
+
+  // clear eventHandler
+  eventHandlers.length = 0; 
+}
+
+subscribe(btn, "click", handleClick);
+subscribe(input, "focus", handleFocus);
+
+unsubscribeAll()；
+```
+- 在register的时候就push进eventHandlers, 而不是等到callback
+- 注意eventHandlers.length=0, 这样array会被gc走
+- 如果想写btn.subscribe(...)会比较复杂, 得写
+```javascript
+HTMLElement.prototype.subscribe = function(action, handler) {
+  eventHandlers.push({ elem: this, action, handler });
+  this.addEventListener(action, handler);
+};
+
+btn.subscribe("click", handleClick);
+```
+- `HTMLElement.prototype.subscribe = (action, handler) => {...}`是错的!! <span class="red">不能用arrow function, 因为arrow function doesn't have their own `this`</span>!! this在arrow里一般都是window. 必须用regular function!!
+  - <span class="red">一般来讲, Most event handler callbacks都用**regular function**, 特别是需要this的时候</span>
+- Modifying built-in prototypes is bad practice — it can conflict with browser APIs or other libraries
+
+#### <a name="module-systems" id="module-systems">8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
 > YDKJS > Scope & Closures > ch8
 
 All solve the same problem: how do files share code? They differ by era and environment.
@@ -1299,52 +1381,25 @@ All solve the same problem: how do files share code? They differ by era and envi
 | IIFE closure | Browser | Manual `<script>` order | `(function(){})()` | Legacy pattern |
 | CommonJS (CJS) | Node.js | Sync `require()` | `module.exports` / `require` | Dominant in Node |
 | AMD | Browser | Async, needs RequireJS | `define([deps], fn)` | Obsolete |
-| UMD | Both | Wrapper shim around CJS+AMD | Boilerplate | Legacy libs only |
 | ESM | Both | Static, async-capable | `import` / `export` | Modern standard |
 
-**Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.5](#compile-vs-runtime-pattern). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
-
-**CJS (Node.js)**
-```javascript
-// math.js
-module.exports = { square: x => x * x };
-
-// app.js
-const { square } = require("./math");
-```
-
-**AMD (browser, legacy)**
-```javascript
-define(["./math"], function(math) {
-    console.log(math.square(3));
-});
-```
-
-**UMD (compatibility shim — generated by bundlers, rarely written by hand)**
-```javascript
-(function(root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory(); // CJS
-    else if (typeof define === 'function' && define.amd) define([], factory);    // AMD
-    else root.myLib = factory();                                                  // global
-}(this, function() { return { square: x => x * x }; }));
-```
-
-**ESM (modern standard)**
-```javascript
-// math.js
-export const square = x => x * x;
-
-// app.js
-import { square } from "./math.js";
-```
+**Write ESM everywhere.** Bundlers like Webpack convert it to CJS/UMD for older consumers. The static/dynamic distinction is the same pattern as function declaration vs expression — see [§1.6](#build-pipeline). You'd only encounter CJS writing Node scripts, and UMD/AMD when maintaining old libraries.
 
 ESM singleton — file scope replaces IIFE, `count` is private to the module. ES modules are evaluated **once** regardless of how many files import them.
 ```javascript
-// counter.js
+// count.js
 let count = 0;
-export function increment() { return count++; }
-export function reset()     { count = 0; }
+
+// 都必须有function keyword！！
+export function addOne() { count++; return count; } // function declaration
+export const addOne = function() { ... }; // function express
+
+export const COUNT = 0;
+
+import { addOne, COUNT } from "./count";
 ```
+- export addOne() {...} <span class="orange">错的!! export必须要有function keyword</span>.
+- 除了export function, 也可以export const VAR=1;
 
 ---
 
