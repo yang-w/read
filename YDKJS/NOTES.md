@@ -28,7 +28,7 @@
   - [x] [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
 - [x] [§8.6.2 The Closure Lifecycle and Garbage Collection (GC)](../docs/guide.md#closure-lifecycle-gc)
 - [x] [§8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](../docs/guide.md#module-systems)
-  - [ch8.md — The Module Pattern](scope-closures/ch8.md)
+  - [x] [ch8.md — The Module Pattern](scope-closures/ch8.md)
 - [ ] [apB.md — Practice](scope-closures/apB.md) - prime, calculator
 
 ### Book 3: Objects & Classes
