@@ -1743,7 +1743,7 @@ console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
 | | `{ ...target, ...source }` | `Object.assign(target, source)` |
 |---|---|---|
 | Copy depth | Shallow | Shallow |
-| Mutates target | No — new object created | Yes — modifies target in place |
+| Mutates target | No — new object created | Yes — modifies target in place. Use `Object.assign({}, target, source)` to avoid mutation (legacy, prefer spread) |
 | Common use case | Clone / merge without mutation | Merge into existing object |
 
 Ex3.3.2 class里的function VS arrow function
@@ -1767,37 +1767,6 @@ console.log(cloneBtn); // { handleClickArrow: ƒ } — arrow field is own prop, 
 ```
 - 注意handleClickArrow定义是**=**, 和`prop="a";`一样: handleClickArrow <span class="orange">**=**</span> ()=>{}
 - arrow function是own prop, 在cloneBtn里
-
-Ex2:
-
-```javascript
-const blueSquare = {
-    length: 100,
-    color: "blue"
-};
-Object.defineProperty(blueSquare, "color", {
-    value: "blue",
-    enumerable: true,
-    writable: false // color is NOT writable
-});
-    
-const style = {
-    color: "red"
-};
-
-const greenSquare1 = {
-    ...blueSquare,
-    ...style
-};
-// spread是assign new prop, blueSquare的setter不会被trigger, 所以这里style变成red
-console.log(JSON.stringify(greenSquare1)); // {"length":100,"color":"red"}
-
-//Object.assign会trigger blueSquare的setter, 因为color is NOT writable, 所以ERROR
-const greenSquare2 = Object.assign(blueSquare, style); // Uncaught TypeError: Cannot assign to read only property "color" of object "#<Object>"
-
-const g3 = Object.assign({}, blueSquare, style);
-console.log(g3) // {length: 100, color: "red"} 和上面c1类似, targetObj不是blueSquare
-```
         
 ##### <span class="white-on-black">Rest Parameters</span>
 
