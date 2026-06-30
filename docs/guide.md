@@ -1448,6 +1448,13 @@ A **module** = private state + public API. Three things distinguish it from plai
 - Public API — only what you explicitly export is accessible
 - Statefulness — the private state persists over time via closure
 
+> **To share private state (singleton) → IIFE.**
+> `const S = (function() { const privateVar = ...; return { getVar() {} }; })(); // 注意IIFE立刻执行了(), share same privateVar`
+>
+> For independent private state per call → factory function.
+> `const F = function() { const privateVar = ...; return { getVar() {} }; };`
+> `const f1 = F(); f2 = F(); // own privateVar, unrelated`
+
 <span class="orange">除了2.1.2, IIFE, CJS和ESM都是Singleton</span>
 
 Ex2.1.1 IIFE - legacy, Single instance
@@ -1564,30 +1571,34 @@ console.log(Student.getName(73));
 There are three ways to create object. o1, o2, o3 created方式生成的obj是等效的
 
 ```javascript
-let obj = {x: 1, y: 2}; // object created with object literals
-let obj_dup = Object.create(obj);
+const o = new Object();
 
-let o1 = {};
-let o2 = new Object();
-let o3 = Object.create(Object.prototype);
+const o1 = { x: 1, y: 2, z: [1,2] }; // object literals
+const o2 = Object.create(o1); 
+
+// empty o2 without new prop assigned to o2, everything reads from o1
+console.log(o2.x); // 1, inherited from o1
+o1.x = 3;
+console.log(o2.x); // 3, reading from o1
+console.log(o2.hasOwnProperty("x")); // false
+
+// creates own property x on o2
+o2.x = 10;
+console.log(o2.x); // 10
+console.log(o1.x); // 3, no affect to o1
+o1.x = "new o1";
+console.log(o2.x); // 10, o1 and o2 have their own x for each now
+console.log(o2.hasOwnProperty("x")); // true
+
+o2.z.push(3);
+console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 ```
 
-```Object.create(proto)``` 会返回一个新的object, 以proto作为他的prototype, 
-即新的object inherits properties from proto.
-
-```let p = Object.create({x: 1, y: 2});``` p inherits properties both from ```{x: 1, y: 2}``` and `Object.prototype`.
+- `object.create(o1)` <span class="orange">creates an empty o2</span> - no own properties at all
+- o2 reads x by walking up the prototype chain to o1. So whatever o1.x is, o2.x reflects it
+- <span class="orange">unless assigning o2.prop = ... creates an own property on o3</span>
 
 #### <a name="extended-obj-literal-syntax" id="extended-obj-literal-syntax">6.10 Extended Object Literal Syntax (更多的object literal的定义方法)</a>
-
-An <b>Object Literal</b> is a comma-separated list of colon-separated name:value pairs, enclosed within curly braces, 即(key, value) pairs. eg:
-
-```javascript
-// Object `empty`, `point`, they are all object literals
-let empty = {};
-let point = { x: 0, y: 0 };
-```
-
-除了```{x: 1, y: 2}```这种常见的定义object的方法, there are a number of extended syntax for object literals as shown in the following sections.
 
 ##### <a name="extended-obj-literal-syntax-shorthand-prop-method" id="extended-obj-literal-syntax-shorthand-prop-method">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
 
@@ -1597,72 +1608,31 @@ When using shorthand syntax, besides a regular JavaScript identifier like the pr
 
 ```javascript
 let x=1, y=2;
-
-// instead of
-let o = {
-	x: x,
-	y: y 
+let o = { // shorthand
+  x, 
+  y,
 };
 
-// DOTHIS: shorthand props
-let o = { x, y };
-```
-
-```javascript
-let x=1, y=2;
-const PROP_NAME = "const prop name";
-const computedPropName = () => "prop_1";
-let obj = {
-    x,
-    y,
-    [PROP_NAME]: "prop name is a variable",
-    [computedPropName()]: "testing prop name returned by functions",
-    "prop with space": "testing prop with space",
-};
-console.log(`obj.x = ${obj.x}, obj.y = ${obj.y}`);
-console.log(`obj[PROP_NAME] = ${obj[PROP_NAME]}`); // prop name is a variable
-console.log(`obj[computedPropName()] = ${obj[computedPropName()]}`); // testing prop name returned by functions
-console.log(`obj[prop with space] = ${obj["prop with space"]}`); // testing prop with space
+const obj = {};
+const varKey = "key"
+obj[varKey] = "test for key";
+obj["prop with space"] = "test for space";
+console.log(obj[varKey]);
+console.log(obj["prop with space"]);
 ```
 
 ##### Shorthand Methods
 
-1. function name后直接是(): ```area()```
-2. functionName()后没有冒号, 直接{ ... }
-
 ```javascript
 let square = {
     side: 10,
-    areaOld: function() { // instead of
-    	return this.side * this.side;
-    },
-    area() { // DOTHIS: shorthand methods
-        return this.side * this.side; // 注意这里this的应用
+    area() {
+        return this.side * this.side; // 必须用this.side, side is not in scope
     }
 }
 square.area(); // 100
 ```
-
-```javascript
-const METHOD_NAME = "plus1";
-let square = {
-    side: 10,
-    area() {
-        return this.side * this.side;
-    },
-    "method with space"(x) {
-        return x;
-    },
-    [METHOD_NAME](x) {
-        return x+1;
-    }
-};
-console.log(`square.area = ${square.area()}`);
-
-//注意写法obj[funcName](param)
-console.log(`square["method with space"](1) = ${square["method with space"](1)}`); // 1
-console.log(`square.plus1(2) = ${square[METHOD_NAME](1)}`);  // 2
-```
+- object里的function必须用this.prop
 
 ##### <a name="extended-obj-literal-syntax-spread" id="extended-obj-literal-syntax-spread">6.10.4 Spread Operator + Rest Parameters</a>
 
@@ -1670,290 +1640,213 @@ console.log(`square.plus1(2) = ${square[METHOD_NAME](1)}`);  // 2
 
 Spread syntax can be used when all elements from an object or array need to be included in a list of some kind. 
 
-类似于unpack elements of an array, 变成单个的items, 或者是unpack an object, 变成单个的(key, value) pairs.
+> Spread operator可以用于
+> - <span class="orange">Spread array</span> `Math.max(...nums) // nums=[1,2], Math.max.apply(null, nums)`
+> - <span class="orange">Spread object</span> `copy = { ...copy, newProp: 1, }`
+> - Convert <span class="orange">array-like</span> to array `nodeArry = [...document.querySelectorAll(img)]`, `[...arguments]`
+> - <span class="orange">String to array</span> `[...str]`
+> - <span class="orange">Set/Map to array</span> `[...set]`
 
-Spread operator可以用于
-- <span class="orange">Array</span> `sum(...nums)`
-- <span class="orange">Object</span> `copy = { ...obj }`
-- Convert <span class="orange">array-like</span> to array `nodeArry = [...document.querySelectorAll(img)]`, `[...arguments]`
-- <span class="orange">String to array</span> `[...str]`
-- <span class="orange">Set/Map to array</span> `[...set]`
+Ex1.
+```javascript
+arry1.unshift(4, 5); // [4,5, ..arry1]
+arry1.unshift(...arry2);  // [...arry2, ...arry1];
 
-* <b>For function calls </b>
-	
-    一般用于function的params有好多, 把它们合成一个array.
+Math.max(...nums); // Math.max.apply(null, nums)
+```
 
-    过去这种情况用`myFunc.apply(null, args)`, 现在可以直接用`myFunc(...args)`
+Ex2. `[...arry]` - Array Shallow Copy
 
-    ```javascript
-    myFunction(...arry);  // myFunction(1,2,3), arry = [1,2,3]
-    ```
+```javascript
+let arry1 = [1,2,3];
+let arry2 = [...arry1]; // like arry1.slice()
+arry1.push(4);
+console.log(arry1); // [1,2,3,4]
+console.log(arry2); // [1,2,3] arry2依然是[1,2,3]
 
-    Example: 
-        
-    ```javascript
-    const sum = (x, y, z) => x + y + z;
-    let nums = [1, 2, 3];
-        
-    console.log(sum.apply(null, nums)); // 6
-    console.log(sum(...nums)); // 6
-        
-    nums.push(4);
-    console.log(sum(...nums)); // 依然是6, 虽然nums的4个数 all would be passed, but only the first three would be used 
 
-    function sum2(...arry) { // 和sum(x,y,z)类似, 只是这里把params合成了一个array, 并且param没有个数限制
-        return arry.reduce((acc, cur) => acc + cur, 0);
+let a = [[1], [2], [3]];
+let b = [...a]; // b = [[1], [2], [3]]  
+b.shift().shift(); //  1, 注意返回的是shift出去的: [1].shift()的1
+console.log(b); // [[2], [3]], 注意b只剩两个了
+console.log(a); //[[], [2], [3]], 注意a的第一个的1没了
+```	
+- `b.shift().shift()`
+  - 是[1].shift(), 不是b连着shift出[1]和[2]
+  - 注意还是剩下两个[[2],[3]]
+
+Ex3.1 `{ ...obj, prop1: "a" }` - Object Shallow Copy
+
+```javascript
+const circle = {
+  radius: 10,
+  style: {
+      background: "red"
+  }
+};
+const coloredCircle = {
+  ...circle,
+  color: "black"
+}
+console.log(JSON.stringify(coloredCircle)); // {"radius":10,"style":{"background":"red"},"color":"black"}
+
+coloredCircle.radius = 20;
+coloredCircle.style.background = "yellow";
+// style是shallow copy, circle.style.background也变了, 但是radius没变
+console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
+```
+
+Ex3.2
+
+```javascript
+const o1 = { x: 1 };
+const o2 = Object.create(o1); // o2是一个empty object
+const o3 = { ...o2 };
+console.log(o3.x); // undefined
+```
+- 注意Object.create只是create了一个empty object, o2没有自己的x, unless do o2.x=10
+
+> **Spread copies only own enumerable properties — inherited prototype methods are not included.**
+
+Ex3.3.1 spread没有inherited functions
+
+```javascript
+class BaseClass {
+  prop = "a"; // 不是prop: "a", 是=不是:, 是;不是,
+  foo() {
+      return "baseClass";
+  }
+}
+class MyClass extends BaseClass {
+    bar() {
+        return "myClass: bar";
     }
-    sum2(...nums); // 10, 区别于sum(nums)只取前三个
-    ```
-	
-	注意是sum.apply(null, args)不是Function.prototye.apply(thisArg, argsArry), 区别于
-	- Array.prototype.slice.call(arguments)
-	- Array.prototype.unshift.apply(arry1, arry2)
-        ```javascript
-        arry1.unshift(4, 5); // [4,5, ..arry1]
-        arry1.unshift(...arry2); 
-        [...arry2, ...arry1];
-        ```
-	- 区别Spread Operator和Rest Parameter. 
-		- sum2<b>定义</b>中的(<span class="orange">...nums</span>) 是rest paramter
-		- sum2<b>具体使用时</b>sum2的(<span class="orange">....nums</span>)是spread operator
-	
-* <b>For array literals</b>
-	
-	```javascript
-	[...arry1, "4", ...arry2, 6]; // unpack elements of an array, and combine them to a new array
-	```
-		
-	Example: 
-	- <b>Copy Array</b>, 等同于`arry.slice()`
-	
-        ```javascript
-        let arry1 = [1,2,3];
-        let arry2 = [...arry1]; // like arry1.slice()
-            
-        arry1.push(4);
-        console.log(arry1); // [1,2,3,4]
-        console.log(arry2); // [1,2,3] arry2依然是[1,2,3]
-        ```	
-        
-        但是Spread syntax effectively goes <u>one level deep</u> while copying an array. Therefore, it may be <u>unsuitable for copying multidimensional arrays</u>, as the following example shows.
-        
-        ```javascript
-		let a = [[1], [2], [3]];
-		let b = [...a]; // b = [[1], [2], [3]]
-			
-		b.shift().shift(); //  1, 注意返回的是shift出去的: [1].shift()的1
-		console.log(b); // [[2], [3]], 注意b只剩两个了
-		console.log(a); //[[], [2], [3]], 注意a的第一个的1没了
-		```
-		
-	- <b>Concatenate Arrays</b>, 等同于`arry1.concat(arry2)`, 类似的还有`Array.prototype.unshift.apply(arry1, arry2)`
-	
-        ```javascript
-        let arry1 = [1, 2], arry2 = [3, 4];
-        arry1 = [...arry1, ...arry2]; // 等同于arry1.concat(arry2): [1,2,3,4]
-        
-        arry1 = [1, 2]; // reset arry1
-        // 勿忘.apply. 等同于[...arry2, ...arry1]
-        Array.prototype.unshift.apply(arry1, arry2); //[3,4,1,2], 把arry2整个放在arry1前面
-        
-        arry1 = [1, 2]; // reset arry1
-        // 注意这里依然是[3,4,1,2], 不是[4,3,1,2]
-        arry1.unshift(...arry2); // [3,4,1,2]
-        ```
+}
+const myClass = new MyClass();
+myClass.baz = function() {
+    return "myClass: baz";
+}
 
-* <b>For object literals</b>
+const clone = { ...myClass };
+console.log(clone); // {prop: 'a', baz: ƒ}. 注意clone没有bar也没有foo, new MyClass()的foo和bar是inherited
+console.log(JSON.stringify(clone)); // {"prop":"a"}, 区别于直接log,没有function
 
-    ```javascript
-    let objClone = { ...obj }; // pass all key:value pairs from an object 
-    ```
+console.log(clone.constructor.name); // Object
+console.log(clone instanceof MyClass); // false
 
-    ```javascript
-    const obj = { foo: "bar" };
-    const clone = { ...obj }; // { foo: "bar" }
-    obj.foo = "baz";
-    clone.foo; // "bar", shallow copy, 没有随着obj.foo变
-    ```
+const clone2 = Object.assign({}, myClass); // Object.assign()和...一样, 都没有inherited
+console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
+```
+- 注意class里prop的写法prop <span class="red">**=**</span> "test"<span class="red">**;**</span>
+- clone里的prop是属于自己的: eg: clone.prop="clone prop", 并不影响myClass.prop. 区别于foo和bar是inherited, 是reference. 但是arrow function除外, arrow function是自己的prop (见下例)
 
-    If the object that is spread and the object it is being spread into both have a property with the same name, then the value of that property will be the one that comes last:
+Ex3.3.2 class里的function VS arrow function
 
-    ```javascript
-    let obj1 = { foo: "bar", x: 42 };
-    let obj2 = { foo: "baz", y: 13 };
-    let mergedObj = {...obj1, ...obj2}; // obj1.foo will be overwritten by obj2.foo
-    console.log(JSON.stringify(mergedObj)); // {"foo":"baz","x":42,"y":13}
-    ```
+```javascript
+class Button {
+  handleClick() {
+    console.log(this); // this = btn (loses instance context)
+  }
+  handleClickArrow = () => {
+    console.log(this); // this = Button instance, always
+  }
+}
+const btn = document.querySelector("button");
+const button = new Button();
+btn.addEventListener("click", button.handleClick);      // this = btn
+btn.addEventListener("click", button.handleClickArrow); // this = button instance
 
-    Also note that the spread operator only spreads <span class="orange"><u>own</u> <u>enumerable</u></span> properties of an object, <span class="orange">not any inherited ones</span>:
-
-    ```javascript
-    let o1 = Object.create({ x: 1 }); // o1 inherits the property x
-    let o2 = {...o1};
-    console.log(o2.x); // undefined, 注意o2没有inherited property x
-    ```
-
-    注意下面用spread operator clone的obj, does NOT copy inherited properties, <span class="orange">NOR inherit class information</span>.
-    在这一点上, <u>Object.assign() behaves the SAME</u>.
-
-    ```javascript
-    class BaseClass {
-        foo() {
-            return "baseClass";
-        }
-    }
-    class MyClass extends BaseClass {
-        bar() {
-            return "myClass: bar";
-        }
-    }
-    const myClass = new MyClass();
-    myClass.baz = function() {
-        return "myClass: baz";
-    }
-
-    const clone = { ...myClass };
-    // 注意spread除了clone props, 还clone functions
-    console.log(clone); // {baz: [Function]}. 注意clone没有bar也没有foo, new MyClass()的bar是inherited
-    console.log(JSON.stringify(clone)); // {}, 区别于直接log, clone没有props,只有function
-
-    console.log(clone.constructor.name); // Object
-    console.log(clone instanceof MyClass); // false
-
-    const clone2 = Object.assign({}, myClass); // Object.assign()和...一样, 都没有inherited
-    console.log(clone2); // {baz: ƒ} 没有bar也没有foo
-    ```
-
-    Example:
+const cloneBtn = { ...button };
+console.log(cloneBtn); // { handleClickArrow: ƒ } — arrow field is own prop, handleClick is not
+```
   
-    - <b>Clone / Extend Object</b>: Note that the cloning is always <span class="orange">shallow</span>, eg: 下面circle.style和coloredCircle.style指向的是同一个ref.
+<div class="border">
+<h3 class="title">Spread operator vs. Object.assign()</h3>
+-- 都是shallow copy
+-- 都是does NOT copy inherited properties, NOR inherit class information
+-- <b>Object.assign()</b> invokes <span class="orange">setters</span> on the target object, while <b>spread operator</b> doesn’t, it defines <span class="orange">new properties</span> in the target object. <span class="blue">See Ex1</span>, spread operator没有trigger set导致circle.radius没能update.
+<br>
+-- 但是因为Object.assign会trigger setter, 所以如果targetObj有read-only properties时会ERROR, 但是spread operator就不会. <span class="blue">See Ex2</span>.
+</div>
 
-        ```javascript
-        const circle = {
-            radius: 10,
-            style: {
-                background: "red"
-            }
-        };
-        const coloredCircle = {
-            ...circle, // 注意写法
-            color: "black"
-        }
-        console.log(JSON.stringify(coloredCircle)); // {"radius":10,"style":{"background":"red"},"color":"black"}
-
-        coloredCircle.radius = 20;
-        coloredCircle.style.background = "yellow";
-        // style是shallow copy, circle.style.background也变了, 但是radius没变
-        console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
-        ```
-
-    - <b>Merge Object</b>
-
-        ```javascript
-        const circle = {
-            radius: 10,
-            style: {
-                background: "red"
-            }
-        };
-        const style = {
-            border: "1 px";
-        };
-        const mergedCircle = {
-            ...circle,
-            ...style
-        };
-        // 注意border并没有被汇进style里, 因为...style后剩下的只有它的(key,value) pair了
-        console.log(JSON.stringify(mergedCircle)); // {"radius":10,"style":{"background":"yellow"},"border":"1px"}
-        ```
-            
-    <div class="border">
-    <h3 class="title">Spread operator vs. Object.assign()</h3>
-    -- 都是shallow copy
-    -- 都是does NOT copy inherited properties, NOR inherit class information
-    -- <b>Object.assign()</b> invokes <span class="orange">setters</span> on the target object, while <b>spread operator</b> doesn’t, it defines <span class="orange">new properties</span> in the target object. <span class="blue">See Ex1</span>, spread operator没有trigger set导致circle.radius没能update.
-    <br>
-    -- 但是因为Object.assign会trigger setter, 所以如果targetObj有read-only properties时会ERROR, 但是spread operator就不会. <span class="blue">See Ex2</span>.
-    </div>
-
-    Ex1: 下面的diameter是<span class="orange">accessor property</span>, 对应于data property (6.10.6 Property Getters and Setters). 注意<span class="orange">accessor prop在JSON.stringify时不会print出来</span>.
-        
-    ```javascript
-    class Circle {
-        constructor(radius) {
-            this.radius = radius;
-        }
-        get diameter() {
-            return this.radius * 2;
-        }
-        set diameter(val) {
-            this.radius = val/2;
-            console.log(`diameter SET called, val = ${val}`);
-        }
+Ex1: 下面的diameter是<span class="orange">accessor property</span>, 对应于data property (6.10.6 Property Getters and Setters). 注意<span class="orange">accessor prop在JSON.stringify时不会print出来</span>.
+    
+```javascript
+class Circle {
+    constructor(radius) {
+        this.radius = radius;
     }
+    get diameter() {
+        return this.radius * 2;
+    }
+    set diameter(val) {
+        this.radius = val/2;
+        console.log(`diameter SET called, val = ${val}`);
+    }
+}
+
+const circle = new Circle(10);
+// 注意diamter没有print出来 只有radius
+console.log(JSON.stringify(circle)); // {"radius":10} 注意没有diameter, 区别于radius, diameter只能通过circle.diameter得到
+
+const c1 = Object.assign({}, circle, { diameter: 30 });
+console.log(JSON.stringify(c1)); // {"radius":10,"diameter":30}, 注意radius没有变, 且diameter是新添的, 不是circle.diameter
+console.log(c1.diameter); // 30, 这里的diamter不是circle.diameter
+
+const c2 = Object.assign(circle, { diameter: 40 }); // trigger "diameter SET called, val = 40"	
+// 注意circle.radius变了, 但没有diameter这个prop!!! 区别于c1
+console.log(JSON.stringify(c2)); // {"radius":20} 依然只有radius,没有diameter
+console.log(c2.diameter); // 40
+console.log(circle); // {radius: 20} 本身的circle变了
+
+const c3 = {
+    ...circle,
+    diameter: 50
+};
+console.log(JSON.stringify(c3)); // {"radius":20,"diameter":50}, 和c1一样, diameter是新添的, 和circle.diameter没关系
+console.log(circle); // {radius: 20}
+console.log(circle.diameter); // 40, 没变
+```	
     
-    const circle = new Circle(10);
-    // 注意diamter没有print出来 只有radius
-    console.log(JSON.stringify(circle)); // {"radius":10} 注意没有diameter, 区别于radius, diameter只能通过circle.diameter得到
+<span class="yellowBG">注意区别上面的c1和c2:</span>
+
+- c1的targetObj是{}, 所以setter没有被trigger, 所以circle.radius也没有变. c2的targetObj是circle, 所以setter被trigger了, 因此circle.radius也变了.
+- c1的diameter是新添的, 和circle.diamter没关系. c2的diamter是circle本身的. log(c1)有diameter, 但是log(c2)没有diameter
+
+<span class="yellowBG">c2和c3的区别:</span>
+
+- c3的spread没有trigger setter, 只是assign了新的diameter给c3, 所以circle.radius没变, 并且c3也有prop-diameter, 和c1一样
+
+Ex2:
+
+```javascript
+const blueSquare = {
+    length: 100,
+    color: "blue"
+};
+Object.defineProperty(blueSquare, "color", {
+    value: "blue",
+    enumerable: true,
+    writable: false // color is NOT writable
+});
     
-    const c1 = Object.assign({}, circle, { diameter: 30 });
-    console.log(JSON.stringify(c1)); // {"radius":10,"diameter":30}, 注意radius没有变, 且diameter是新添的, 不是circle.diameter
-    console.log(c1.diameter); // 30, 这里的diamter不是circle.diameter
-    
-    const c2 = Object.assign(circle, { diameter: 40 }); // trigger "diameter SET called, val = 40"	
-    // 注意circle.radius变了, 但没有diameter这个prop!!! 区别于c1
-    console.log(JSON.stringify(c2)); // {"radius":20} 依然只有radius,没有diameter
-    console.log(c2.diameter); // 40
-    console.log(circle); // {radius: 20} 本身的circle变了
-    
-    const c3 = {
-        ...circle,
-        diameter: 50
-    };
-    console.log(JSON.stringify(c3)); // {"radius":20,"diameter":50}, 和c1一样, diameter是新添的, 和circle.diameter没关系
-    console.log(circle); // {radius: 20}
-    console.log(circle.diameter); // 40, 没变
-    ```	
-        
-    <span class="yellowBG">注意区别上面的c1和c2:</span>
-    
-    - c1的targetObj是{}, 所以setter没有被trigger, 所以circle.radius也没有变. c2的targetObj是circle, 所以setter被trigger了, 因此circle.radius也变了.
-    - c1的diameter是新添的, 和circle.diamter没关系. c2的diamter是circle本身的. log(c1)有diameter, 但是log(c2)没有diameter
-    
-    <span class="yellowBG">c2和c3的区别:</span>
-    
-    - c3的spread没有trigger setter, 只是assign了新的diameter给c3, 所以circle.radius没变, 并且c3也有prop-diameter, 和c1一样
-    
-    Ex2:
-    
-    ```javascript
-    const blueSquare = {
-        length: 100,
-        color: "blue"
-    };
-    Object.defineProperty(blueSquare, "color", {
-        value: "blue",
-        enumerable: true,
-        writable: false // color is NOT writable
-    });
-        
-    const style = {
-        color: "red"
-    };
-    
-    const greenSquare1 = {
-        ...blueSquare,
-        ...style
-    };
-    // spread是assign new prop, blueSquare的setter不会被trigger, 所以这里style变成red
-    console.log(JSON.stringify(greenSquare1)); // {"length":100,"color":"red"}
-    
-    //Object.assign会trigger blueSquare的setter, 因为color is NOT writable, 所以ERROR
-    const greenSquare2 = Object.assign(blueSquare, style); // Uncaught TypeError: Cannot assign to read only property "color" of object "#<Object>"
-    
-    const g3 = Object.assign({}, blueSquare, style);
-    console.log(g3) // {length: 100, color: "red"} 和上面c1类似, targetObj不是blueSquare
-    ```
+const style = {
+    color: "red"
+};
+
+const greenSquare1 = {
+    ...blueSquare,
+    ...style
+};
+// spread是assign new prop, blueSquare的setter不会被trigger, 所以这里style变成red
+console.log(JSON.stringify(greenSquare1)); // {"length":100,"color":"red"}
+
+//Object.assign会trigger blueSquare的setter, 因为color is NOT writable, 所以ERROR
+const greenSquare2 = Object.assign(blueSquare, style); // Uncaught TypeError: Cannot assign to read only property "color" of object "#<Object>"
+
+const g3 = Object.assign({}, blueSquare, style);
+console.log(g3) // {length: 100, color: "red"} 和上面c1类似, targetObj不是blueSquare
+```
         
 ##### <span class="white-on-black">Rest Parameters</span>
 
