@@ -1598,11 +1598,9 @@ console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 - o2 reads x by walking up the prototype chain to o1. So whatever o1.x is, o2.x reflects it
 - <span class="orange">unless assigning o2.prop = ... creates an own property on o3</span>
 
-#### <a name="extended-obj-literal-syntax" id="extended-obj-literal-syntax">6.10 Extended Object Literal Syntax (更多的object literal的定义方法)</a>
+#### <a name="extended-obj-literal-syntax" id="extended-obj-literal-syntax">6.10 Extended Object Literal Syntax</a>
 
 ##### <a name="extended-obj-literal-syntax-shorthand-prop-method" id="extended-obj-literal-syntax-shorthand-prop-method">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
-
-When using shorthand syntax, besides a regular JavaScript identifier like the prop name "side" and function name "area", the key of object can be string literals (下面的`"prop/method with space"`) and computed property names (variable like  `PROP_NAME`, `METHOD_NAME`, `computedPropName()`), <span class="yellowBG">用bracket括起来就可以</span>, 类似于template string里的`${...}`, 告诉compiler这是expression, 要evaluate.
 
 ##### Shorthand Properties
 
@@ -1641,8 +1639,8 @@ square.area(); // 100
 Spread syntax can be used when all elements from an object or array need to be included in a list of some kind. 
 
 > Spread operator可以用于
-> - <span class="orange">Spread array</span> `Math.max(...nums) // nums=[1,2], Math.max.apply(null, nums)`
-> - <span class="orange">Spread object</span> `copy = { ...copy, newProp: 1, }`
+> - <span class="orange">Spread array to items</span> `Math.max(...nums) // nums=[1,2], Math.max.apply(null, nums)`
+> - <span class="orange">Spread object to <key,val> pairs</span> `copy = { ...copy, newProp: 1, }`
 > - Convert <span class="orange">array-like</span> to array `nodeArry = [...document.querySelectorAll(img)]`, `[...arguments]`
 > - <span class="orange">String to array</span> `[...str]`
 > - <span class="orange">Set/Map to array</span> `[...set]`
@@ -1673,7 +1671,8 @@ console.log(a); //[[], [2], [3]], 注意a的第一个的1没了
 ```	
 - `b.shift().shift()`
   - 是[1].shift(), 不是b连着shift出[1]和[2]
-  - 注意还是剩下两个[[2],[3]]
+  - b还剩下两个[2]和[3]
+- a还是有三个, 只是第一个是[], 区别于b
 
 Ex3.1 `{ ...obj, prop1: "a" }` - Object Shallow Copy
 
@@ -1696,6 +1695,8 @@ coloredCircle.style.background = "yellow";
 console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
 ```
 
+> **Spread copies only own enumerable properties — inherited props and prototype methods are not included.**
+
 Ex3.2
 
 ```javascript
@@ -1706,33 +1707,32 @@ console.log(o3.x); // undefined
 ```
 - 注意Object.create只是create了一个empty object, o2没有自己的x, unless do o2.x=10
 
-> **Spread copies only own enumerable properties — inherited prototype methods are not included.**
-
 Ex3.3.1 spread没有inherited functions
 
 ```javascript
 class BaseClass {
   prop = "a"; // 不是prop: "a", 是=不是:, 是;不是,
   foo() {
-      return "baseClass";
+    return "baseClass";
   }
 }
 class MyClass extends BaseClass {
-    bar() {
-        return "myClass: bar";
-    }
+  bar() {
+    return "myClass: bar";
+  }
 }
 const myClass = new MyClass();
 myClass.baz = function() {
-    return "myClass: baz";
+  return "myClass: baz";
 }
 
 const clone = { ...myClass };
-console.log(clone); // {prop: 'a', baz: ƒ}. 注意clone没有bar也没有foo, new MyClass()的foo和bar是inherited
-console.log(JSON.stringify(clone)); // {"prop":"a"}, 区别于直接log,没有function
+console.log(clone); // {prop: 'a', baz: ƒ}. 注意clone没有foo也没有bar, myClass的foo和bar都是inherited
+console.log(JSON.stringify(clone)); // {"prop":"a"}, 区别于直接log, 没有function
 
 console.log(clone.constructor.name); // Object
 console.log(clone instanceof MyClass); // false
+
 
 const clone2 = Object.assign({}, myClass); // Object.assign()和...一样, 都没有inherited
 console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
@@ -1740,82 +1740,33 @@ console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
 - 注意class里prop的写法prop <span class="red">**=**</span> "test"<span class="red">**;**</span>
 - clone里的prop是属于自己的: eg: clone.prop="clone prop", 并不影响myClass.prop. 区别于foo和bar是inherited, 是reference. 但是arrow function除外, arrow function是自己的prop (见下例)
 
+| | `{ ...target, ...source }` | `Object.assign(target, source)` |
+|---|---|---|
+| Copy depth | Shallow | Shallow |
+| Mutates target | No — new object created | Yes — modifies target in place |
+| Common use case | Clone / merge without mutation | Merge into existing object |
+
 Ex3.3.2 class里的function VS arrow function
 
 ```javascript
 class Button {
   handleClick() {
-    console.log(this); // this = btn (loses instance context)
+    console.log(this); // this = btn (loses Button instance context)
   }
-  handleClickArrow = () => {
+  handleClickArrow = () => { // 注意是=, 和prop="test"一样
     console.log(this); // this = Button instance, always
   }
 }
 const btn = document.querySelector("button");
 const button = new Button();
-btn.addEventListener("click", button.handleClick);      // this = btn
+btn.addEventListener("click", button.handleClick); // this = btn
 btn.addEventListener("click", button.handleClickArrow); // this = button instance
 
 const cloneBtn = { ...button };
 console.log(cloneBtn); // { handleClickArrow: ƒ } — arrow field is own prop, handleClick is not
 ```
-  
-<div class="border">
-<h3 class="title">Spread operator vs. Object.assign()</h3>
--- 都是shallow copy
--- 都是does NOT copy inherited properties, NOR inherit class information
--- <b>Object.assign()</b> invokes <span class="orange">setters</span> on the target object, while <b>spread operator</b> doesn’t, it defines <span class="orange">new properties</span> in the target object. <span class="blue">See Ex1</span>, spread operator没有trigger set导致circle.radius没能update.
-<br>
--- 但是因为Object.assign会trigger setter, 所以如果targetObj有read-only properties时会ERROR, 但是spread operator就不会. <span class="blue">See Ex2</span>.
-</div>
-
-Ex1: 下面的diameter是<span class="orange">accessor property</span>, 对应于data property (6.10.6 Property Getters and Setters). 注意<span class="orange">accessor prop在JSON.stringify时不会print出来</span>.
-    
-```javascript
-class Circle {
-    constructor(radius) {
-        this.radius = radius;
-    }
-    get diameter() {
-        return this.radius * 2;
-    }
-    set diameter(val) {
-        this.radius = val/2;
-        console.log(`diameter SET called, val = ${val}`);
-    }
-}
-
-const circle = new Circle(10);
-// 注意diamter没有print出来 只有radius
-console.log(JSON.stringify(circle)); // {"radius":10} 注意没有diameter, 区别于radius, diameter只能通过circle.diameter得到
-
-const c1 = Object.assign({}, circle, { diameter: 30 });
-console.log(JSON.stringify(c1)); // {"radius":10,"diameter":30}, 注意radius没有变, 且diameter是新添的, 不是circle.diameter
-console.log(c1.diameter); // 30, 这里的diamter不是circle.diameter
-
-const c2 = Object.assign(circle, { diameter: 40 }); // trigger "diameter SET called, val = 40"	
-// 注意circle.radius变了, 但没有diameter这个prop!!! 区别于c1
-console.log(JSON.stringify(c2)); // {"radius":20} 依然只有radius,没有diameter
-console.log(c2.diameter); // 40
-console.log(circle); // {radius: 20} 本身的circle变了
-
-const c3 = {
-    ...circle,
-    diameter: 50
-};
-console.log(JSON.stringify(c3)); // {"radius":20,"diameter":50}, 和c1一样, diameter是新添的, 和circle.diameter没关系
-console.log(circle); // {radius: 20}
-console.log(circle.diameter); // 40, 没变
-```	
-    
-<span class="yellowBG">注意区别上面的c1和c2:</span>
-
-- c1的targetObj是{}, 所以setter没有被trigger, 所以circle.radius也没有变. c2的targetObj是circle, 所以setter被trigger了, 因此circle.radius也变了.
-- c1的diameter是新添的, 和circle.diamter没关系. c2的diamter是circle本身的. log(c1)有diameter, 但是log(c2)没有diameter
-
-<span class="yellowBG">c2和c3的区别:</span>
-
-- c3的spread没有trigger setter, 只是assign了新的diameter给c3, 所以circle.radius没变, 并且c3也有prop-diameter, 和c1一样
+- 注意handleClickArrow定义是**=**, 和`prop="a";`一样: handleClickArrow <span class="orange">**=**</span> ()=>{}
+- arrow function是own prop, 在cloneBtn里
 
 Ex2:
 
