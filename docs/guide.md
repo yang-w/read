@@ -1634,14 +1634,14 @@ square.area(); // 100
 
 ##### <a name="extended-obj-literal-syntax-spread" id="extended-obj-literal-syntax-spread">6.10.4 Spread Operator + Rest Parameters</a>
 
-##### <span class="white-on-black">Spread Syntax</span>
+##### Spread Syntax
 
 Spread syntax can be used when all elements from an object or array need to be included in a list of some kind. 
 
 > Spread operator可以用于
 > - <span class="orange">Spread array to items</span> `Math.max(...nums) // nums=[1,2], Math.max.apply(null, nums)`
 > - <span class="orange">Spread object to <key,val> pairs</span> `copy = { ...copy, newProp: 1, }`
-> - Convert <span class="orange">array-like</span> to array `nodeArry = [...document.querySelectorAll(img)]`, `[...arguments]`
+> - Convert <span class="orange">array-like</span> to array `nodeArry = [...document.querySelectorAll(img)]`, `[...arguments]` - 也可以用`Array.from(arguments)`
 > - <span class="orange">String to array</span> `[...str]`
 > - <span class="orange">Set/Map to array</span> `[...set]`
 
@@ -1695,7 +1695,7 @@ coloredCircle.style.background = "yellow";
 console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
 ```
 
-> **Spread copies only own enumerable properties — inherited props and prototype methods are not included.**
+> **Spread copies only own enumerable props/arrow functions — inherited props and prototype methods are not included.**
 
 Ex3.2
 
@@ -1727,18 +1727,18 @@ myClass.baz = function() {
 }
 
 const clone = { ...myClass };
-console.log(clone); // {prop: 'a', baz: ƒ}. 注意clone没有foo也没有bar, myClass的foo和bar都是inherited
+console.log(clone); // {prop: 'a', baz: ƒ}. 注意clone没有foo也没有bar, myClass的foo和bar都是inherited/reference
 console.log(JSON.stringify(clone)); // {"prop":"a"}, 区别于直接log, 没有function
 
 console.log(clone.constructor.name); // Object
 console.log(clone instanceof MyClass); // false
 
 
-const clone2 = Object.assign({}, myClass); // Object.assign()和...一样, 都没有inherited
+const clone2 = Object.assign({}, myClass); // = { ...myClass }, 都没有inherited
 console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
 ```
 - 注意class里prop的写法prop <span class="red">**=**</span> "test"<span class="red">**;**</span>
-- clone里的prop是属于自己的: eg: clone.prop="clone prop", 并不影响myClass.prop. 区别于foo和bar是inherited, 是reference. 但是arrow function除外, arrow function是自己的prop (见下例)
+- `{ ...myClass }`<span class="orange">只copy myClass自己的props/functions. 每一个const mc = new MyClass()都有自己的prop</span>, mc1.prop="a"并不影响mc2.prop. <span class="orange">区别于foo和bar是inherited</span>, 是reference. 但是arrow function除外, arrow function是自己的prop (见下例)
 
 | | `{ ...target, ...source }` | `Object.assign(target, source)` |
 |---|---|---|
@@ -1755,7 +1755,7 @@ class Button {
   }
   handleClickArrow = () => { // 注意是=, 和prop="test"一样
     console.log(this); // this = Button instance, always
-  }
+  }; // 注意需要; just like prop="a";
 }
 const btn = document.querySelector("button");
 const button = new Button();
@@ -1765,130 +1765,64 @@ btn.addEventListener("click", button.handleClickArrow); // this = button instanc
 const cloneBtn = { ...button };
 console.log(cloneBtn); // { handleClickArrow: ƒ } — arrow field is own prop, handleClick is not
 ```
-- 注意handleClickArrow定义是**=**, 和`prop="a";`一样: handleClickArrow <span class="orange">**=**</span> ()=>{}
+- 注意handleClickArrow定义是<b>=</b>和<b>;</b> handleClickArrow <span class="orange">**=**</b></span> ()=>{}<span class="orange">**;**</span> - 和`prop="a";`一样
 - arrow function是own prop, 在cloneBtn里
         
-##### <span class="white-on-black">Rest Parameters</span>
+##### Rest Parameters
 
-The rest parameter syntax allows a function to accept an indefinite number of arguments <span class="orange">as an array</span>, 区别于`arguments`.
+<span class="orange">Rest用于function definition时的params</span>, 因此具体用这个function的时候pass进的params是无所谓多少个的. 区别于<span class="orange">Spead用于trigger function的时候</span>, 只是为了不一个一个写params, 但是function本身定义时能接受的params是定量的, eg: Math.max(...nums).
 
-<span class="orange">Rest用于function definition时的params</span>, 因此具体用这个function的时候pass进的params是无所谓多少个的. 区别于<span class="orange">Spead用于具体用function的时候</span>, 只是为了不一个一个写params, 但是function本身定义时能接受的params是定量的.
+Ex1. 
 
 ```javascript
+// Ex1.
 function f1(a, b, ...rest) {
-	// ... rest是一个array
+	// 这是rest, rest是一个array
 }
-
 const arry = [1,2];
-f2(...arry); // 区别于f1(...rest)的rest, 这里表示f2的params是一个一个的数字
-```
+f2(...arry); // 这是spread
 
-<div class="border">
-	<h3 class="title"> Spread syntax vs. Rest syntax</h3>
-	<b>Spread Syntax</b>可用于unpack <u>arry and object</u>, transform <u>array-like object (string/arguments/NodeList)</u> and <u>iterable object (set/map)</u> to an array.
-	<br>
-	-- Unpack <b>array</b> 例如上面[...arry1, 4, ...arry2, 6]<br>
-  -- Unpack <b>object</b> `{ ... obj }`<br>
-  -- Transform <b>array-like</b> to array `nodeArry = [...document.querySelectorAll("img")]`, `[...arguments]` <br>
-  -- Transform <b>string</b> to array `[...str]`<br>
-  -- Transform <b>set</b> to array  `[...set]`, `[...map]`<br>
-	-- <u>Spread operator</u>一般用于function invocation. eg: `Math.max(...nums)`, `arry1.push(...arry2)`. <br>
-	<span class="orange">区别于</span><u>Rest parameter</u>, 一般用于function definition. eg: `function f(a, ...args)`<br>
-	<br>
-	<b>Rest Syntax</b> 
-	<br>
-	-- Collects multiple elements and "condenses" them into a single element. 他是把所有剩下的args集中到一个array中. 具体看下面的Rest Parameters. <br>
-	-- Rest parameters一般用于function definition.<br>
-	-- A function <b>definition</b> can have only one ...restParam. `function foo(...one, ...wrong, ...wrong); // WRONG` <br>
-	-- The rest parameter must be the last parameter in the function definition. `function foo(...wrong, arg2, arg3); // WRONG` <br>
-</div>
-
-
-```javascript
-// Ex1
-function sum(...args) {
-    // 注意这里args直接就是个array
-    return args.reduce((acc, cur) => acc + cur, 0);
+// Ex2.
+function sum(...nums) { // rest
+  return nums.reduce((acc, cur) => acc + cur, 0);
 }
 const arry = [1,2,3];
-console.log(sum(...arry)); // 6. 注意不是sum([1,2,3])!!!
+console.log(sum(...arry)); // 6. spread. 注意不是sum([1,2,3])!!!
 
-// Ex2
-function multiply(multiplier, ...args) {
-    return args.map(num => num*multiplier);
+// Ex3.
+function multiply(multiplier, ...args) { // rest
+  return args.map(num => num * multiplier);
 }
 console.log(multiply(10, 1, 2, 3)); // [10, 20, 30]
 ```
 
-区别于具体用sum的时候```sum(...arry)```:  这里arry是已知的, 是Spread Operator, 只是为了不用一个一个写params, 所以用spread operator把nums里的items unpack. 
-<br><br>
-区别于sum的定义```function sum(...args)```是未知的, 作用是把所有剩下的args集合成一个arry, pass进function.
-
-
-<div class="border">
-	<h3 class="title">Rest Parameters vs. arguments</h3>
-	-- The <b>arguments</b> is an array-like object, is <span class="orange">not a real array</span>, 只有`argments.length`,  while <b>...restParams</b> <span class="orange">is an array</span> instance, meaning methods like sort, map, forEach or pop can be applied on it directly; <span class="blue">See Ex1</span>.
-	<br>
-	-- The <b>...restParams</b> packs all the extra parameters into a single array, therefore it does not contain any named argument defined <span class="orange">before</span> the <b>...restParams</b>. Whereas the <b>arguments</b> object contains all of the parameters -- including all of the stuff in the <b>...restParams</b> -- unpacked. <span class="blue">See Ex2</span>.
-</div>
-
-Ex1: 注意`arguments` transforms into an array的三种方法
+Ex2. 注意`arguments` to array的方法
 
 ```javascript
-function sortRestArgs(...args) {
-    return args.sort();
-}
 function sortArguments() { // 这里不用写params
-    try {
-        return arguments.sort();
-    } catch(e) {
-        console.log(e);
-        
-        // -- From arguments to an array --
-        let arry1 = Array.prototype.slice.call(arguments);
-        // -- or --
-        let arry2 = Array.from(arguments);
-        // -- or --
-        let arry3 = [...arguments];
-        
-        console.log(arry1.sort()); // [1, 3, 5, 7]
-        console.log(arry2.sort()); // [1, 3, 5, 7]
-        console.log(arry3.sort());
-    }
+  try {
+    return arguments.sort();
+  } catch(err) {
+    console.log(err);
+    
+    // -- From arguments to an array --
+    let arry1 = Array.prototype.slice.call(arguments);
+    // -- or --
+    let arry2 = Array.from(arguments);
+    // -- or --
+    let arry3 = [...arguments];
+    
+    console.log(arry1.sort()); // [1, 3, 5, 7]
+    console.log(arry2.sort()); // [1, 3, 5, 7]
+    console.log(arry3.sort());
+  }
 } 
-// 注意这里sortRestArgs和sortArguments pass进的都不是array!!! 
-// 不是sortRestArgs([5,3,7,1])!!!
-console.log(sortRestArgs(5,3,7,1)); // [1, 3, 5, 7]
-console.log(sortArguments(5,3,7,1)); // throws a TypeError (arguments.sort is not a function)
-
+console.log(sortArguments(5,3,7,1)); // TypeError: arguments.sort is not a function
 ```
-
-Ex2:
-
-```javascript
-function myFunc(a, b, ...otherArgs) {
-	console.log(`a = ${a}, b = ${b}`);
-	console.log(otherArgs);
-	console.log(`otherArgs.length = ${otherArgs.length}`);
-	
-	// Array.from不是in-place, arguments没变
-	console.log(Array.from(arguments)); // 注意这里arguments转换成array
-	console.log(`arguments.length = ${arguments.length}`); // arguments只有.length
-}
-myFunc(1, 2, 3, 4, 5);
-// a = 1, b = 2
-// [3, 4, 5] <-- 注意otherArgs是一个array
-// otherArgs.length = 3
-// [1, 2, 3, 4, 5] <-- arguments
-// arguments.length = 5
-
-myFunc(1); 
-// a = 1, b = undefined
-// [] <-- 注意虽然只有一个param, otherArgs依然是arry, 只是是空arry, 不是undefined, 区别于b
-// otherArgs.length = 0
-// [1] <-- arguments
-// arguments.length = 1
-```
+- arguments是array-like, <span class="orange">只支持arguments.length</span>
+- array-like不能直接用array的function. transform to array的方法: 
+  - `[...arguments]`
+  - `Array.from(arguments)`
 
 #### <a name="destructuring-assignment" id="destructuring-assignment">3.10.4 Destructuring Assignment</a>
 
