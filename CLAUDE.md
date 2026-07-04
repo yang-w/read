@@ -46,18 +46,28 @@ Detailed notes go into `docs/guide.md`, NOT into NOTES.md. NOTES.md is only for 
 
 **TOC** (at the top of the file):
 ```
-* [N. Topic1, Topic2, Topic3](#anchor-id)
+* [N. Topic1, Topic2, Topic3](#anchor-slug)
 ```
 - `N` = chapter number (just an indicator, not the chapter title)
 - Label is content-focused (what the notes are about), not the chapter name
 
 **Section header** (in the notes body):
 ```
-#### <a name="anchor-id">N. Topic1, Topic2, Topic3</a>
+#### <a name="anchor-slug">N. Topic1, Topic2, Topic3</a>
 > Book > Chapter
 ```
 - Anchor is wrapped inside the heading tag (not a separate tag before it)
 - Breadcrumb on the line below as a blockquote
+
+**Anchor slug** — must be the VS Code-compatible slug derived from the heading text:
+1. Take the heading text (strip any HTML)
+2. Lowercase
+3. Remove everything that isn't alphanumeric, a space, or a hyphen
+4. Replace spaces with hyphens
+
+Example: `3.10.4 Destructuring Assignment` → `3104-destructuring-assignment`
+
+Use the **same slug** in both the `<a name>` and the TOC link so they stay in sync.
 
 **Subsections** use `N.1`, `N.2`, `N.3` format:
 ```
@@ -71,8 +81,8 @@ Detailed notes go into `docs/guide.md`, NOT into NOTES.md. NOTES.md is only for 
 
 **Linking**: whenever referring to a section in guide.md or a chapter in YDKJS/TS, always include a markdown link — never mention a section name or number without linking to it.
 
-**Example** (ch1 of YDKJS Get Started):
-- TOC: `* [1. Transpiling, Build Pipeline, Compile vs Runtime](#ydkjs-ch1)`
-- Header: `#### <a name="ydkjs-ch1">1. Transpiling, Build Pipeline, Compile vs Runtime</a>`
-- Breadcrumb: `> YDKJS > Get Started > ch1`
-- Subsections: `### 1.1 Transpiling`, `### 1.2 Build Pipeline`, `### 1.3 Compile vs Runtime`
+**Example** (§3.10.4):
+- TOC: `* [3.10.4 Destructuring Assignment](#3104-destructuring-assignment)`
+- Header: `#### <a name="3104-destructuring-assignment">3.10.4 Destructuring Assignment</a>`
+- Breadcrumb: `> JS: The Definitive Guide > §3.10.4`
+- Subsections: `### 3.10.4.1 Array Destructuring`, `### 3.10.4.2 Object Destructuring`

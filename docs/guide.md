@@ -1,54 +1,54 @@
 <link href="css/style.css" rel="stylesheet"></link>
 
-* [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#ydkjs-ch1)
-	* [1.5 Compile vs Runtime: A Recurring Pattern](#compile-vs-runtime-pattern)
-	* [1.6 Build Pipeline](#build-pipeline)
-* [3.10 Lexical Scope, Global vs Local](#global-local)
-* [3.10.1 `var` + Hoisting](#hoist)
-* [3.10.2 `let`/`const` + TDZ](#let-const)
-* [3.10.3 `catch` Block Scope](#catch-scope)
-* [8.1 Defining Functions](#func-def)
-* [8.2 Invoking Functions](#func-invoke)
-* [8.3 Function Arguments and Parameters](#func-args-params)
-* [8.6 Closure](#closure)
-* [8.6.1 Closure in Loops](#closure-in-loops)
-* [8.6.2 The Closure Lifecycle and Garbage Collection (GC)](#closure-lifecycle-gc)
-* [8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](#module-systems)
-* [6.2 Creating Objects](#create-obj)
-* [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#extended-obj-literal-syntax)
-	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#extended-obj-literal-syntax-shorthand-prop-method)
-	* [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread)
-* [3.10.4 Destructuring Assignment](#destructuring-assignment)
-* [3.10.5 `Object.entries()`](#object-entires)
-* [5.4.4 for/of](#for-of)
-* [5.4.5 for/in](#for-in)
-* [6.7 Extending Objects](#extending-obj)
-* [6.9 Object Methods](#obj-method)
-* [7.1 Creating Arrays (`Array.of`, `Array.from`)](#create-arry)
-* [7.8 Array Methods](#arry-methods)
-	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#arry-iterator)
-	* [7.8.2 Flattening arrays with `flat()` and `flatMap()`)](#arry-flat)
-	* [7.8.3 Adding arrays with `concat()`](#arry-concat)
-	* [7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`](#arry-stack-queue)
-	* [7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`](#arry-subarry)
-	* [7.8.6 Array Sorting Methods (`sort`, `reverse`)](#arry-sort)
-	* [7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)](#arry-to-string)
-* [11.1.1 The Set Class](#set)
-* [11.1.2 The Map Class](#map)
-* [9.2 Classes and Constructors](#class-constructor)
-* [9.3 Classes with the class Keyword](#class-with-class-keyword)
-* [9.4 Adding Methods to Existing Classes](#add-method-to-existing-class)
-* [9.5 Subclasses](#subclass)
-* [8.7 Function Properties, Methods, and Constructor](#func-prop-method-constructor)
-	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#func-prop)
-	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#func-apply-call-bind)
-	* [8.8.2 Higher-Order Functions](#higher-order-func)
-* [4.13.3 The `typeof` and `instanceof` Operator](#typeof-instanceof)
-* [4.11.1 Assignment with Operation](#assignment-with-operation)
-* [async/await](#async-await)
-* [Input change debounce](#input-debounce)
-* [Big data with virtualization](#virtualization-windowing)
-* [HTML and CSS gotcha](#html-css-gotcha)
+* [1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline](#1-transpiling-transpile-vs-compile-compile-vs-runtime-build-pipeline)
+	* [1.5 Compile vs Runtime: A Recurring Pattern](#15-compile-vs-runtime-a-recurring-pattern)
+	* [1.6 Build Pipeline](#16-build-pipeline-brwweb)
+* [3.10 Lexical Scope, Global vs Local](#310-lexical-scope-global-vs-local)
+* [3.10.1 `var` + Hoisting](#3101-var-hoisting)
+* [3.10.2 `let`/`const` + TDZ](#3102-letconst-tdz)
+* [3.10.3 `catch` Block Scope](#3103-catch-block-scope)
+* [8.1 Defining Functions](#81-defining-functions)
+* [8.2 Invoking Functions](#82-invoking-functions)
+* [8.3 Function Arguments and Parameters](#83-function-arguments-and-parameters)
+* [8.6 Closure](#86-closure)
+* [8.6.1 Closure in Loops](#861-closure-in-loops)
+* [8.6.2 The Closure Lifecycle and Garbage Collection (GC)](#862-the-closure-lifecycle-and-garbage-collection-gc)
+* [8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](#863-module-systems-iife-cjs-amd-umd-esm)
+* [6.2 Creating Objects](#62-creating-objects)
+* [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#610-extended-object-literal-syntax)
+	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods)
+	* [6.10.4 Spread Operator + Rest Parameters](#6104-spread-operator-rest-parameters)
+* [3.10.4 Destructuring Assignment](#3104-destructuring-assignment)
+* [3.10.5 `Object.entries()`](#3105-objectentries)
+* [5.4.4 for/of](#544-forof)
+* [5.4.5 for/in](#545-forin)
+* [6.7 Extending Objects](#67-extending-objects)
+* [6.9 Object Methods](#69-object-methods)
+* [7.1 Creating Arrays (`Array.of`, `Array.from`)](#71-creating-arrays-arrayof-arrayfrom)
+* [7.8 Array Methods](#78-array-methods)
+	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#781-array-iterator-methods)
+	* [7.8.2 Flattening arrays with `flat()` and `flatMap()`)](#782-flattening-arrays-with-flat-and-flatmap)
+	* [7.8.3 Adding arrays with `concat()`](#783-adding-arrays-with-concat)
+	* [7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`](#784-stacks-and-queues-with-push-pop-shift-and-unshift)
+	* [7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`](#785-subarrays-with-slice-splice-fill-and-copywithin)
+	* [7.8.6 Array Sorting Methods (`sort`, `reverse`)](#786-array-sorting-methods-sort-reverse)
+	* [7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)](#787-array-to-string-conversions-jsonstringify-join-tostring)
+* [11.1.1 The Set Class](#1111-the-set-class)
+* [11.1.2 The Map Class](#1112-the-map-class)
+* [9.2 Classes and Constructors](#92-classes-and-constructors)
+* [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
+* [9.4 Adding Methods to Existing Classes](#94-adding-methods-to-existing-classes)
+* [9.5 Subclasses](#95-subclasses)
+* [8.7 Function Properties, Methods, and Constructor](#87-function-properties-methods-and-constructor)
+	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#871-funclength-funcname-funcprototype)
+	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#874-5-the-funcapply-funccall-and-funcbind-methods)
+	* [8.8.2 Higher-Order Functions](#882-higher-order-functions)
+* [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
+* [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
+* [async/await](#asyncawait)
+* [Input change debounce](#input-change-debounce)
+* [Big data with virtualization](#big-data-with-virtualization)
+* [HTML and CSS gotcha](#html-and-css-gotcha)
 
 #### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline</a>
 
@@ -1828,140 +1828,34 @@ console.log(sortArguments(5,3,7,1)); // TypeError: arguments.sort is not a funct
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#object_destructuring)
 
-The <span class="bold">destructuring assignment</span> syntax is a JavaScript expression that makes it possible to unpack values from <span class="bold">arrays</span>, or properties from <span class="bold">objects</span>, into distinct variables.
+The **destructuring assignment** syntax is a JavaScript expression that makes it possible to unpack values from <u>arrays</u>, or properties from <u>objects</u>, into distinct variables.
 
-##### <span class="white-on-black">Array Destructuring</span>
-
-##### Swapping variables
-```javascript
-let [x, y] = [1, 2];
-[x, y] = [x+1, y+1];
-[x, y] = [y, x]; // swap
-console.log(`[x, y] = ${[x, y]}`);  // [x, y] = 3,2. toString()了
-console.log([x, y]); // [3, 2]
-```
-
-```javascript
-const arr = [1,2,3];
-// 1. swap 注意这里的arry[2], arry[1]是reference, 
-// 2. [arry[2], arry[1]] = [2, 3]. 右边的值已经取出来了, 虽然arry[2]先变成了arry[1], 但是当arry[1]=arry[2]时的arry[2]依然是原来的arry[2]
-[arr[2], arr[1]] = [arr[1], arr[2]];
-console.log(arr); // [1,3,2]
-```
-
-##### Default values
+##### Array Destructuring
 
 ```javascript
 // Default values
-let [c=2, d=5] = [1];
+let [c=2, d=5] = [1]; // 不能用const!!
 console.log(`c = ${c}, d = ${d}`); // c = 1, d = 5
-```
 
-##### Parsing an array returned from a function
-
-```javascript
-// Parsing an array returned from a function
 function f() { return [1, 2, 3]; }
-let [f1, f2] = f();
-console.log(`f1 = ${f1}, f2 = ${f2}`); // f1 = 1, f2 = 2
+// ignore some value
+cosnt [f1, , f3] = f(); // arry[1] is ignored
+console.log(`f1 = ${f1}, f3 = ${f3}`); // f1 = 1, f3 = 3
 
-// Ignoring some returned values
-let [f3, , f4] = f(); //arry[1] is ignored
-console.log(`f3 = ${f3}, f4 = ${f4}`); // f3 = 1, f4 = 3
-```
-
-```javascript
-const [firstElem, secondElem] = [1,2,3,4,5];
-// is equivalent to:
-// const firstElem = arry[0];
-// const secondElem = arry[1];
-console.log(firstElem, secondElem); //1, 2
-```
-
-##### Using rest/spread operator to group the rest into an array
-
-```javascript
 // with ..., spread/rest will group the rest into an array
 let [a, ...rest] = [10, 20, 30];
-console.log(`a = ${a}, rest = ${rest}`); //a = 10, b = 20,30. b is Array[20, 30]
 console.log(rest); // [20, 30]
+
+const [start = "a", ...rest] = [..."hello"];
+console.log(rest); // ['e', 'l', 'l', 'o'], 注意rest是arry of char, 不是剩余的string
 ```
 
-```javascript
-// destructuring on iterable object, anything can be used with for...of loop
-let [start, ...restOfStr] = "hello";
-console.log(start); // "h"
-// 注意这里是arry of charactors, 不是剩余的string
-console.log(restOfStr); // ["e", "l", "l", "o"] 
-```
+##### Object Destructuring
 
-##### <span class="white-on-black">Object Destructuring</span>
-
-Object destructuring左手边是obj的key, 返回的是obj.key, 即val
+Ex1.
 
 ```javascript
 const user = {
-    id: 123,
-    is_verified: true
-};
-const {id, is_verified} = user;
-console.log(`user id = ${id}, isVerified = ${is_verified}`); // user id = 123, isVerified = true
-```
-
-##### Assigning to new variable names
-
-区别于array destructuring的default value, `let [a=1, b=2] = [4];`中用的等号, 这里是冒号
-
-```javascript
-const {id: id_renamed} = user;
-// assign id to id_renamed = 123
-console.log(`assign id to id_renamed = ${id_renamed}`);
-console.log(id); // Uncaught ReferenceError: tes is not defined
-```
-
-##### Default values
-
-区别于上面的assign new var用的是冒号, 这里default val和arry restructuring一样, 都是等号
-
-```javascript
-// 区别于array destructuring. 这里左手边必须是obj的key
-// 剩余一样 注意用等号: aa=1, 不是冒号
-const {aa = 1, bb = 2} = {aa: 3};
-console.log(`aa = ${aa}, bb = ${bb}`); // aa = 3, bb = 2
-```
-
-```javascript
-const { 
-  main: { 
-    content: { 
-      title = "defaultTitle" 
-    } = {} 
-  } = {}
-} = obj || {}; // deconstruct with default fallback
-console.log(title); // defaultTitle
-```
-
-##### Assignment without declaration + Using rest/spread operator to group the rest into an object
-
-注意{...} = {...}外面的括号是必须的
-
-```javascript
-let b;
-// The parentheses ( ... ) around the assignment statement are required.
-// 因为{ a, b, ...rest } is considered a block not an object literal
-// 要么就写成 const {a, b} = obj
-({ a, b, ...rest } = { a: 10, b: 20, c: 30, d: 40 });
-console.log(`a = ${a}, b = ${b}`); // a = 10, b = 20
-
-// spread will group the rest into an object
-console.log(rest); // {c: 30, d: 40}
-```
-
-##### Unpacking fields from objects passed as a function parameter
-
-```javascript
-//注意下面getFirstName是怎么得到fName的
-const user1 = {
     id: 42,
     name: "jdoe",
     fullName: {
@@ -1969,32 +1863,61 @@ const user1 = {
         lName: "doe"
     }
 };
-function getId({id}) {
-    return `userId = ${id}`;
+
+const { 
+  id: userId, // 注意不是id: "userId"!! 没有双引号
+  isVerified = false  // default val
+} = user;
+console.log(userId, isVerified); // 42 false
+
+function getId({ id }) { return id; }
+console.log(getId(user)); // 42
+
+function getFullName({ fullName: { fName, lName } }) { // default {}
+  return `${fName} ${lName}`
 }
-// 注意这里得不到fullName, 只有name和fullName中的fName
-function getFirstName({ name, fullName: {fName}}) {
-	try {
-	    console.log(fullName); // Uncaught ReferenceError: fullName is not defined
-	} catch(e) {}
-	return `${name} = ${fName}`;
-}
-// 注意这里为了同时得到fullName和fullName中的fName, fullName要单独写出来
-function getFullNameWithFName({ name, fullName, fullName: { fName }}) {
-    console.log(`fullName = ${JSON.stringify(fullName)}`); // {fName: "john", lName: "doe"}
-    return `${name} = ${fName}`;
-}
-//这里assign lName给last
-function getLastName({name, fullName: {lName: last}}) { 
-    return `${name} = ${last}`;
-}
-console.log(getId(user1)); // userId = 42
-console.log(getFirstName(user1)); // jdoe = john
-console.log(getFullNameWithFName(user1)); // jdoe = john
-console.log(getLastName(user1)); // jdoe = doe
+console.log(getFullName(user)); // john doe
+```
+- Renaming
+  - 是冒号不是等号!! 区别于default val { id<span class="orange">**:**</span> userId, isVerified <span class="orange">**=**</span> false, } = user
+  - rename没有双引号{ <span class="orange">id: **userId**</span> } = user
+- 注意string里的var的写法
+```
+return `${fName} a ${lName}`; // ``是整个string, 返回john a doe
 ```
 
-##### Nested object and array destructuring
+Ex2.1 fallback default in case obj.key不存在
+
+```javascript
+let object;
+const {
+  main: {
+    content: {
+      title = "defaultTitle", // 等号!! 不是:
+    } = {},
+  } = {},
+} = object || {}; // 这里fallback to {}
+console.log(title); // defaultTitle
+```
+- 注意default都是用=, rename才是:
+
+Ex2.1 Ex1中getFullName param的fallback
+
+```javascript
+function getFullName({fullName: { fName, lName }} = {}) {
+  return `${fName} ${lName}`;
+} 
+console.log(getFullName()); // Uncaught TypeError: Cannot read properties of undefined (reading 'fName')
+
+function getFullName({fullName: { fName, lName } = {} } = {}) {
+  return `${fName} ${lName}`;
+} 
+console.log(getFullName()); // undefined undefined
+```
+- 一个default是不够的 `{fullName: { fName, lName }} = {}`. 如果要fName/lName, 则需要 { fullName: <span class="red">{ fName, lName } = {}</span> } = {}, 否则会undefined.fName -> ERROR
+- 此时结果是两个undefined, 不是一个
+
+Ex3.
 
 ```javascript
 const metadata = {
@@ -2019,116 +1942,65 @@ const metadata = {
     ],
     url: "/en-US/metadata"
 };
-// 注意这里的写法读取的是translations[0].title
-let { 
-  title, 
-  translations: [{title: translatedTitle}] = []
-} = metadata;
-console.log(`title = ${title}, translated = ${translatedTitle}`); // title = metadata, translated = en_title_metadata
 
-// 1. 这里不能再用 {title: translatedTitle} 否则会报错 let/const不能同一个variable(translatedTitle) declare两次
-// 2. 注意这里读取的是translations[1].title
-let { translations: [, { title: translatedTitleEs }]} = metadata;
-console.log(`es translated = ${translatedTitleEs}`); // es translated = es_titile_metadata
-
-// For-of iteration and destructuring
-// 1. 注意这里是怎么对translations循环的 
-// 2. 注意rel_b的assign
-for (let { title, rel: { a, b: rel_b } } of metadata.translations) {
-    console.log(`title = ${title}, rel.a = ${a}, rel.b = ${rel_b}`);
-}
-// title = en_title_metadata, rel.a = en_a, rel.b = en_b
-// title = es_titile_metadata, rel.a = es_a, rel.b = es_b
+// 必须有括号({title, rel}) => {}, 否则ERROR
+metadata.translations.forEach(({ title, rel } = {}) => { 
+  console.log(`title = ${title}, ${JSON.stringify(rel)}`);
+});
+// title = en_title_metadata, {"a":"en_a","b":"en_b"}
+// title = es_titile_metadata, {"a":"es_a","b":"es_b"}
+```
+- `({title, rel}) => {}`必须有括号!! <span class="red">**(**</span>{...}<span class="red">**)**</span> => {}, 否则ERROR
+- 用Template Literals时, 只要没用`${..}`框起来的就是string, 这里在``里要用<span class="red">${</span>JSON.stringify(rel)<span class="red">}</span>
+```
+console.log(`title = ${title}, ${JSON.stringify(rel)}`)
 ```
 
-##### Combined Array and Object Destructuring
+Ex4.1 把from copy进to, 在to的insertAt插入, 插入的是from从fromIndex开始向后数numToCopy个
 
 ```javascript
-const props = [
-    { id: 1, name: "fizz"},
-    { id: 2, name: "bizz"},
-    { id: 3, name: "gizz"}
-];
-const [, , { name }] = props;
-console.log(`props[2].name = ${name}`); //props[2].name = gizz
-```
-
-##### The prototype chain is looked up when the object is deconstructed 
-
-When deconstructing an object, if a property is not accessed in itself, it will continue to look up along the prototype chain.
-
-```javascript
-let obj = {
-    anotherId: 123
-};
-obj.__proto__.prop = "456";
-const { anotherId, prop } = obj; // 注意这里不能再用{ id, prop }中的id了,因为前面已经declare过了
-console.log(`obj.id = ${anotherId}, obj.prop = ${prop}`); // obj.id = 123, obj.prop = 456
-```
-
-##### <span class="white-on-black">Destruct Function Arguments into Parameters</span>
-
-Ex1. Destructure args as array
-
-```javascript
-function vectorAdd1(v1, v2) {
-    return [v1[0]+v2[0], v1[1]+v2[1]];
+function arryCopy({ from=[], to=[], fromIndex=0, numToCopy=0, insertAt=0 } = {}) {
+  // end是fromIndex + numToCopy
+  const copy = from.slice(fromIndex, fromIndex + numToCopy);
+  to.splice(insertAt, 0, ...copy); // 勿忘deletedCount是0
+  return to;
 }
-// compare with destructured args
-function vectorAdd2([x1, y1], [x2, y2]) {
-    return [x1+x2, y1+y2];
-}
-console.log(vectorAdd2([1,2], [3,4])); // [4,6]
-```
 
-Ex2. Destructure args as object
-
-```javascript
-// 注意这里z的default val
-function vectorMultiply({ x, y, z=0 }, scalar) {
-    return {
-        x: x * scalar,
-        y: y * scalar,
-        z: z * scalar
-    };
-}
-console.log(vectorMultiply({ x: 1, y: 2}, 3)); // {x: 3, y: 6, z: 0}
-
-function vectorMultiply2({ x, y, z=0, ...props}, scalar) {
-    return {x: x*scalar, y: y*scalar, z: z*scalar, ...props};
-}
-// 除了x,y,z的props会原封不动的return: 这里的w:-1
-console.log(vectorMultiply2({ x: 1, y: 2, w: -1}, 3)); // { x: 3, y: 6, z: 0, w: -1 }
-```
-
-Ex3. Rename
-
-```javascript
-// 注意这里的rename, 左边的key是不变的, 右边的是rename
-function vectorAdd3({ x: x1, y: y1 }, { x: x2, y: y2 }) {
-    return {
-        x: x1 + x2,
-        y: y1 + y2
-    };
-}
-console.log(vectorAdd3({x: 1, y: 2}, {x: 3, y: 4})); // {x: 4, y: 6}
-```
-
-Ex4. 把from copy进to, 在to的insertAt插入, 插入的是from从fromIndex开始向后数numToCopy个
-
-```javascript
-function arryCopy({ from, to=from, fromIndex=0, numToCopy=from.length, insertAt=0 }) {
-    let valuesToCopy = from.splice(fromIndex, fromIndex + numToCopy);
-    to.splice(insertAt, 0, ...valuesToCopy);
-    return to;
-}
 let a = [1,2,3,4], b=[5,6,7,8];
-// 注意splice从index=2开始插入 所以(1,2,3)是插在7之前!!
+// 没有fromIndex, fallback to 0
 console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1,2,3),7,8]
 ```
+- 注意每一个param的default: trigger arryCopy时没有fromIndex, fallback to 0
+- `arry.slice(start, end)`
+- `arry.splice(start, deleteCount, item1, item2)`
+  - 勿忘**deleteCount**. if omits, <span class="orange">fallback to the length of start to end of array</span>
+  - `...copy`的应用
 
-- arryCopy的params是一个obj, key是from, to, fromIndex, numToCopy, insertAt. 对于obj每个key的defaultVal用等号赋值
-- 注意上例没有pass进fromIndex, 区别于func(a, b, c), 如果call的时候是func(1,2)则b=2, c=undefined, 不可能跳过b, 除非func(1, , 2). 但是obj可以随意跳过某个key
+Ex4.2 `arry.splice`的deleteCount
+
+```javascript
+function arryCopy({ from=[], to=[], fromIndex=0, numToCopy=0, insertAt=0 } = {}) {
+  const copy = from.slice(fromIndex, fromIndex+numToCopy); 
+  console.log(copy);
+  to.splice(insertAt, ...copy); // 没有deleteCount
+  return to;
+}
+let a = [1,2,3,4], b=[5,6,7,8];
+/** 
+ * to.splice(2, 1,2,3): 
+ * 1 as deleteCount, 7被delete了 -> [5,6, (2,3), 8]
+ * */
+console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5, 6, 2, 3, 8]
+
+a = ["a", "b", "c", "d"], b=[5,6,7,8]; // reset b, splice是in-place
+/**
+ *  to.splice(2, "a","b","c"): 
+ * - "a" as deleteCount -> Number("a") = NaN -> splice treats NaN as 0
+ * deleteCount是0 -> [5,6, "b","c", 7,8]
+ * */
+console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5, 6, 'b', 'c', 7, 8]
+```
+- 注意<span class="orange">splice的deleteCount会用`Number()`coerce</span>. 而且如果coerce是<span class="orange">NaN, splice treat it as 0</span>;
 
 #### <a name="object-entires" id="object-entires">3.10.5 Object.entries()</a>
 
@@ -5806,13 +5678,16 @@ Unlike the call() and apply() methods, the bind() method <u>doesn’t immediatel
 
 <span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
 
-All <span class="orange bold">non-primitive</span> objects are instances of <b>Object</b>.
+All <span class="orange bold">non-primitive</span> are **objects**, with `typeof (() => {}) === "function"` and `typeof null === "object"` due to historical quirks.
+- 注意"function"和"object"都是小写, 有双引号是string
 
-<span class="white-on-black">typeof</span>
+Ex1. typeof和primitive
 
-The <b>`typeof`</b> operator is used for getting the <b>type of primitive values</b> mainly.
-
-`typeof` returns `undefined`, `number`, `string`, `boolean`, `symbol`, `object`, `function`. 和primitive types比, <span class="orange">没有`null`, 多了`function`</span>.
+```javascript
+function isPrimitive(value) {
+  return value === null || (typeof value !== "object" && typeof value !== "function");
+}
+```
 
 Ex1.
 
