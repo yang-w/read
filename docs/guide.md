@@ -19,7 +19,8 @@
 	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods)
 	* [6.10.4 Spread Operator + Rest Parameters](#6104-spread-operator-rest-parameters)
 * [3.10.4 Destructuring Assignment](#3104-destructuring-assignment)
-* [3.10.5 `Object.entries()`](#3105-objectentries)
+* [3.10.5 Object Optional Chaining](#3105-object-optional-chaining)
+* [3.10.6 `Object.entries()`](#3106-objectentries)
 * [5.4.4 for/of](#544-forof)
 * [5.4.5 for/in](#545-forin)
 * [6.7 Extending Objects](#67-extending-objects)
@@ -1976,7 +1977,7 @@ console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1
   - 勿忘**deleteCount**. if omits, <span class="orange">fallback to the length of start to end of array</span>
   - `...copy`的应用
 
-Ex4.2 `arry.splice`的deleteCount
+Ex4.2 `arry.splice(start, deleteCount, ...items)`的deleteCount
 
 ```javascript
 function arryCopy({ from=[], to=[], fromIndex=0, numToCopy=0, insertAt=0 } = {}) {
@@ -2002,7 +2003,26 @@ console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5, 6, 
 ```
 - 注意<span class="orange">splice的deleteCount会用`Number()`coerce</span>. 而且如果coerce是<span class="orange">NaN, splice treat it as 0</span>;
 
-#### <a name="object-entires" id="object-entires">3.10.5 Object.entries()</a>
+#### <a name="3105-object-optional-chaining" id="3105-object-optional-chaining">3.10.5 Object Optional Chaining</a>
+> JS: The Definitive Guide > §4.4.1 | YDKJS > Objects & Classes > ch1
+
+The **optional chaining** operator `?.` accesses a property or calls a method on a value that might be `null` or `undefined`, returning `undefined` instead of throwing.
+
+```javascript
+obj?.prop       // undefined if obj is null/undefined
+obj?.method()   // undefined if obj is null/undefined
+arr?.[i]        // undefined if arr is null/undefined
+```
+
+Short-circuits: if the left side is `null`/`undefined`, the right side is **not evaluated**.
+
+```javascript
+let user = null;
+let name = user?.profile.name;  // undefined
+```
+- user is null, the right side `.profile.name` is skipped and the whole expression returns undefined. It <u>never tries to access `.profile` at all</u>.
+
+#### <a name="3106-objectentries" id="3106-objectentries">3.10.6 Object.entries()</a>
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
 

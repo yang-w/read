@@ -33,11 +33,12 @@
 
 ### Book 3: Objects & Classes
 - [x] [§6.2 Creating Objects](../docs/guide.md#62-creating-objects) — [§6.10 Extended Object Literal Syntax](../docs/guide.md#610-extended-object-literal-syntax) — [§3.10.4 Destructuring](../docs/guide.md#3104-destructuring-assignment)
-  - [ ] [?.](objects-classes/ch1.md#conditional-property-access)
-  - [ ] [hasOwnProperty](objects-classes/ch1.md#better-existence-check)
-- [ ] [§3.10.5 Object.entries()](../docs/guide.md#3105-objectentries)
+  - [x] [§3.10.5 Object Optional Chaining](../docs/guide.md#3105-object-optional-chaining)
+- [ ] [§3.10.6 Object.entries()](../docs/guide.md#3106-objectentries)
 - [ ] [§5.4.4 for/of](../docs/guide.md#544-forof)
 - [ ] [§5.4.5 for/in](../docs/guide.md#545-forin)
+    - [ ] [hasOwnProperty](objects-classes/ch1.md#better-existence-check)
+      - [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn)
 - [ ] [§6.7 Extending Objects](../docs/guide.md#67-extending-objects)
 - [ ] [§6.9 Object Methods](../docs/guide.md#69-object-methods)
   - [ch2.md — How Objects Work](objects-classes/ch2.md)
