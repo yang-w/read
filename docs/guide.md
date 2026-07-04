@@ -20,9 +20,11 @@
 	* [6.10.4 Spread Operator + Rest Parameters](#6104-spread-operator-rest-parameters)
 * [3.10.4 Destructuring Assignment](#3104-destructuring-assignment)
 * [3.10.5 Object Optional Chaining](#3105-object-optional-chaining)
-* [3.10.6 `Object.entries()`](#3106-objectentries)
-* [5.4.4 for/of](#544-forof)
-* [5.4.5 for/in](#545-forin)
+* [3.10.6 `Object.entries()`](#3106-objectentriesobjarry)
+* [5.4.4 for...of](#544-forof)
+* [5.4.5 for...in](#545-forin)
+	* [5.4.5.1 Object.hasOwn](#5451-objecthasown)
+* [5.4.6 for...of vs for...in](#546-forof-vs-forin)
 * [6.7 Extending Objects](#67-extending-objects)
 * [6.9 Object Methods](#69-object-methods)
 * [7.1 Creating Arrays (`Array.of`, `Array.from`)](#71-creating-arrays-arrayof-arrayfrom)
@@ -51,7 +53,7 @@
 * [Big data with virtualization](#big-data-with-virtualization)
 * [HTML and CSS gotcha](#html-and-css-gotcha)
 
-#### <a name="ydkjs-ch1" id="ydkjs-ch1">1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline</a>
+#### <a name="1-transpiling-transpile-vs-compile-compile-vs-runtime-build-pipeline" id="1-transpiling-transpile-vs-compile-compile-vs-runtime-build-pipeline">1. Transpiling, Transpile vs Compile, Compile vs Runtime, Build Pipeline</a>
 
 ### 1.1 Transpiling
 - **forwards-compatibility**: 
@@ -87,7 +89,7 @@
 - **"JS errors appear at runtime"** → V8 is executing code and blows up mid-run
 - **"TS catches errors at compile time"** → `tsc` on your machine during dev, before browser sees anything
 
-### <a name="compile-vs-runtime-pattern" id="compile-vs-runtime-pattern">1.5 Compile vs Runtime: A Recurring Pattern</a>
+### <a name="15-compile-vs-runtime-a-recurring-pattern" id="15-compile-vs-runtime-a-recurring-pattern">1.5 Compile vs Runtime: A Recurring Pattern</a>
 
 The same static/dynamic split shows up across JS — one side is a **language-level syntax construct** the parser knows about before any code runs; the other is a **runtime value or function call** resolved only when that line executes.
 
@@ -108,7 +110,7 @@ let awesomeFunction = function(coolThings) { return amazingStuff; };
 // identifier awesomeFunction not associated until this line runs at runtime
 ```
 
-### <a name="build-pipeline" id="build-pipeline">1.6 Build pipeline (brwweb)</a>
+### <a name="16-build-pipeline-brwweb" id="16-build-pipeline-brwweb">1.6 Build pipeline (brwweb)</a>
 
 Webpack:
 1. **Transpiles** source files with Babel
@@ -194,7 +196,7 @@ Browser (V8):
 
 ---
 
-#### <a name="global-local" id="global-local">3.10 Lexical Scope, Global vs Local</a>
+#### <a name="310-lexical-scope-global-vs-local" id="310-lexical-scope-global-vs-local">3.10 Lexical Scope, Global vs Local</a>
 
 - **Global variables** live as long as your application (your window / your web page) lives.
 - **Local variables** have short lives. They are created when the function is invoked, and deleted when the function is finished.
@@ -303,7 +305,7 @@ console.log(window.notThree);  // undefined
 ```
 - `window.x` global只能access `var/function`, `let/const/class`都不行
 
-#### <a name="hoist" id="hoist">3.10.1 `var` + Hoisting</a>
+#### <a name="3101-var-hoisting" id="3101-var-hoisting">3.10.1 `var` + Hoisting</a>
 
 - `var` is scoped to the **nearest function block**. Declaration is hoisted to the top of its function scope.
 
@@ -409,7 +411,7 @@ setName(person);
 console.log(person.name);    // "Nicholas", 不是Greg!!
 ```
 
-#### <a name="let-const" id="let-const">3.10.2 `let`/`const` + TDZ</a>
+#### <a name="3102-letconst-tdz" id="3102-letconst-tdz">3.10.2 `let`/`const` + TDZ</a>
 
 - `let` is scoped to the **nearest enclosing block** `{ }` (can be smaller than a function block)
 - 对于`let`, 可以不付初始值, the value will be undefined
@@ -576,7 +578,7 @@ function blockScoped() {
 }
 ```
 
-#### <a name="catch-scope" id="catch-scope">3.10.3 `catch` Block Scope</a>
+#### <a name="3103-catch-block-scope" id="3103-catch-block-scope">3.10.3 `catch` Block Scope</a>
 > YDKJS > Scope & Closures > [ch6](../YDKJS/scope-closures/ch6.md)
 
 ```js
@@ -655,7 +657,7 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
 
   - Outside the function, the outer sum is unaffected.
 
-#### <a name="func-def" id="func-def">8.1 Defining Functions</a>
+#### <a name="81-defining-functions" id="81-defining-functions">8.1 Defining Functions</a>
 
 四种方法define function: function declaration, function expression, arrow function, nested function.
 
@@ -852,7 +854,7 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
     ```
     - 注意<span class="orange">`setTimeout(func, delay)`的func</span>, by default if there is no set on `this` in the call or with `bind`, <span class="orange">func是executes on the window scope, 即func的this是window obj</span>.
 
-#### <a name="func-invoke" id="func-invoke">8.2 Invoking Functions</a>
+#### <a name="82-invoking-functions" id="82-invoking-functions">8.2 Invoking Functions</a>
 
 Functions can be invoked in 5 ways: as function, as obj.method, as constructor, indireclty thru `apply`/`call`, implicit function invocation: `getter`/`setter`, `toString`, etc.
 
@@ -894,7 +896,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
   - `Number.toFixed(n)`return的是string, 必须Number cast, 否则算result的时候是string相加: `(2/10).toFixed(1) + (4/10).toFixed(1); // "0.20.4"`
   - 6/10结果是0.6000000000000001, floating, 要用`toFixed(n)`变成n位小数, eg: currency saved as cents, then do (priceInCent/100).toFixed(2) => "10.25"
 
-#### <a name="func-args-params" id="func-args-params">8.3 Function Arguments and Parameters</a>
+#### <a name="83-function-arguments-and-parameters" id="83-function-arguments-and-parameters">8.3 Function Arguments and Parameters</a>
 
 - Optional Parameters and Defaults
 
@@ -942,7 +944,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	- rest是从第二个param开始的剩下所有params的合集. 如果max()没有params, rest = [], 即空arry;
   - 也可以写成`Math.max.apply(null, arry)`
 
-#### <a name="closure" id="closure">8.6 Closure</a>
+#### <a name="86-closure" id="86-closure">8.6 Closure</a>
 
 A **closure** is <u>a function</u> that can access variables from its outer scope, even after that outer scope has finished executing. 
 - An IIFE is one way to create a private scope that closures can capture, but closures do not require IIFEs: 比如下面Ex1.2 return a function inside a function.
@@ -1112,7 +1114,7 @@ console.log(Singleton.getInstance()); // 不再trigger createInstance了
 - 不是const a = Singleton()!! <span class="orange">Singleton不是一个function</span>, 它return的是一个object
   - 区别于2.1.1, <span class="orange">这里不是return getInstance, 而是return一个object { getInstance }</span>, 所以可以用function名Singleton.getInstance()
 
-### <a name="closure-in-loops">8.6.1 Closure in Loops</a>
+### <a name="861-closure-in-loops" id="861-closure-in-loops">8.6.1 Closure in Loops</a>
 
 <b>Closure Scope Chain</b>: Every closure has three scopes (它解释了下面how variables are resolved when it's inside <u>closures in loops</u>)
 - Local Scope (Own scope)
@@ -1338,7 +1340,7 @@ function toggle(...args) { // 注意这里需要args, 不是下面return functio
 ```
 - 注意toggle(...args)但是return function() {} 不需要args!! 如果return function(...args) 就是[]了, 因为hello()并没有pass进任何args
 
-### <a name="closure-lifecycle-gc">8.6.2 The Closure Lifecycle and Garbage Collection (GC)</a>
+### <a name="862-the-closure-lifecycle-and-garbage-collection-gc" id="862-the-closure-lifecycle-and-garbage-collection-gc">8.6.2 The Closure Lifecycle and Garbage Collection (GC)</a>
 
 Closure can unexpectedly prevent GC of variables, leading to memory leaks. Discard function references when they're no longer needed.
 
@@ -1409,7 +1411,7 @@ btn.subscribe("click", handleClick);
   - <span class="red">一般来讲, Most event handler callbacks都用**regular function**, 特别是需要this的时候</span>
 - Modifying built-in prototypes is bad practice — it can conflict with browser APIs or other libraries
 
-#### <a name="module-systems" id="module-systems">8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
+#### <a name="863-module-systems-iife-cjs-amd-umd-esm" id="863-module-systems-iife-cjs-amd-umd-esm">8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM</a>
 > YDKJS > Scope & Closures > ch8
 
 All solve the same problem: how do files share code? They differ by era and environment.
@@ -1567,7 +1569,7 @@ console.log(Student.getName(73));
 
 ---
 
-#### <a name="create-obj" id="create-obj">6.2 Creating Objects</a>
+#### <a name="62-creating-objects" id="62-creating-objects">6.2 Creating Objects</a>
 
 There are three ways to create object. o1, o2, o3 created方式生成的obj是等效的
 
@@ -1599,9 +1601,9 @@ console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 - o2 reads x by walking up the prototype chain to o1. So whatever o1.x is, o2.x reflects it
 - <span class="orange">unless assigning o2.prop = ... creates an own property on o3</span>
 
-#### <a name="extended-obj-literal-syntax" id="extended-obj-literal-syntax">6.10 Extended Object Literal Syntax</a>
+#### <a name="610-extended-object-literal-syntax" id="610-extended-object-literal-syntax">6.10 Extended Object Literal Syntax</a>
 
-##### <a name="extended-obj-literal-syntax-shorthand-prop-method" id="extended-obj-literal-syntax-shorthand-prop-method">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
+##### <a name="6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods" id="6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
 
 ##### Shorthand Properties
 
@@ -1633,7 +1635,7 @@ square.area(); // 100
 ```
 - object里的function必须用this.prop
 
-##### <a name="extended-obj-literal-syntax-spread" id="extended-obj-literal-syntax-spread">6.10.4 Spread Operator + Rest Parameters</a>
+##### <a name="6104-spread-operator-rest-parameters" id="6104-spread-operator-rest-parameters">6.10.4 Spread Operator + Rest Parameters</a>
 
 ##### Spread Syntax
 
@@ -1825,7 +1827,7 @@ console.log(sortArguments(5,3,7,1)); // TypeError: arguments.sort is not a funct
   - `[...arguments]`
   - `Array.from(arguments)`
 
-#### <a name="destructuring-assignment" id="destructuring-assignment">3.10.4 Destructuring Assignment</a>
+#### <a name="3104-destructuring-assignment" id="3104-destructuring-assignment">3.10.4 Destructuring Assignment</a>
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#object_destructuring)
 
@@ -2022,118 +2024,199 @@ let name = user?.profile.name;  // undefined
 ```
 - user is null, the right side `.profile.name` is skipped and the whole expression returns undefined. It <u>never tries to access `.profile` at all</u>.
 
-#### <a name="3106-objectentries" id="3106-objectentries">3.10.6 Object.entries()</a>
+#### <a name="3106-objectentriesobjarry" id="3106-objectentriesobjarry">3.10.6 Object.entries(obj/arry)</a>
 
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries)
 
-```Object.entries(obj)```返回的是array of [key, val]  pairs. 注意[key, val]是array的形式, 不是object.
+```Object.entries(obj)```返回的是array of [key, val]  pairs, <u>没有inherited properties</u>.
+- 也适用于array: <span class="orange">Object.entries(arry)</span>返回的是arry of [index, val] pairs
 
-并且注意```Object.entries```返回的<span class="red">没有inherited properties</span>.
+Ex1. 
 
 ```javascript
-const obj1 = {
-    a: "aaa",
-    b: 42
-};
-// 注意entries returns [["a", "aaa"], ["b", 42]] 
-for(let [key, val] of Object.entries(obj1)) {
-    console.log(`key = ${key}, val = ${val}`);
-}
-// key = a, val = aaa
-// key = b, val = 42
+// key没有双引号, value才有
+const obj1 = { a: "aaa", b: 42 };
+Object.entries(obj1); // [["a", "aaa"], ["b", 42]], string都是双引号
+
+// 勿忘arrow function的括号!! ([key,val]) => {...}
+Object.entries(obj1).forEach(([key, val]) => { 
+  console.log(`${key}: ${val}`);
+});
+// a: aaa
+// b: 42
+```
+- 注意Object.entries(obj1)的结果
+- 作为arrow function的param, 和object destructuring一样, array destructuring也要用括号括起来: <span class="red">**(**<span>{ key, val }<span class="red">**)**</span> => {...}, <span class="red">**(**</span>[key, val]<span class="red">**)**</span> => {...}
+- template literal里的javascript要用`${...}`, 直接的string不用-这里的冒号
+
+Ex2. Object.entries(arry)
+
+```javascript
+const arry = [..."ab"];
+// 勿忘destructuring的括号
+Object.entries(arry).forEach(([index, val]) => {
+  console.log(`${index}: ${val}`);
+});
+// 0: a
+// 1: b
 ```
 
-同样适用于array
+#### <a name="544-forof" id="544-forof">5.4.4 for...of</a>
+
+`for...of` iterate **values** from **iterable objects**, `for(const item of arry)` 
+- **Iterable** objects — <span class="red">Arrays, Strings, Sets, and Maps</span>. 
+- Plain objects are **not** iterable; `for...of` throws a <span class="red">TypeError</span>. 
+  - To iterate an object, `for...of` + `Object.keys()`, `Object.values()`, or `Object.entries()`.
+- `forEach` <u>只能</u>用于array: `[...arguments].forEach(...)`
 
 ```javascript
-let letters = [..."abc"];
-for(let [index, val] of letters.entries()) {
-	console.log(`index = ${index}, letter = ${val}`);
-}
-// index = 0, letter = a
-// index = 1, letter = b
-// index = 2, letter = c
-```
-
-#### <a name="for-of" id="for-of">5.4.4 for/of</a>
-
-The `for/of` loop works with <span class="bold">iterable</span> objects. <span class="red">Arrays, strings, sets, and maps</span> are iterable: they represent a sequence or set of elements that you can loop or iterate through using a for/of loop.
-
-- ```for/of``` <span class="red">不能用于object</span>
-  - <b>Objects</b> are <b>not</b> (by default) iterable. Attempting to use ```for/of``` on a regular object throws a <span class="red">TypeError</span> at runtime.
-- ```for/in``` 可以loop thru object, 但是包括enumerable <u>inherited</u> props. 所以一般用Object.keys(obj) + for/of
-- ```for/in``` with array will loop through <b>index</b> 
-  - ```for(const index in str) { str[index] }```
-- ```forEach```<u>只能</u>用于array
-
-```javascript
-let arry = [1,2,3], sum = 0;
-for (let num of arry) {
-	// (let i=0,size=arry.length; i<size; ++i)
-	sum += num;
+const arry = [1, 2, 3];
+let sum = 0;
+for (const num of arry) {
+    sum += num; // iterates values: 1, 2, 3
 }
 ```
 
-- ```for/of``` with strings
+`for...of` with strings — iterates characters, not indices:
 
 ```javascript
-let getFreq = (str) => {
+const getFreq = (str) => {
     const freq = {};
-    
-    for(let char of str) { //不能用str.forEach, forEach只能用于array
-        if(!freq[char]) { //注意不是str[char]了, 区别于for/in才是index
-            freq[char] = 0;
-        }
+    for (const char of str) {
+        if (!freq[char]) freq[char] = 0;
         freq[char]++;
     }
-
     Object.keys(freq).forEach((key) => console.log(key, freq[key]));
 };
 
 getFreq("mississippi");
-// "m: 1"
-// "i: 4"
-// "s: 4"
-// "p: 2"
+// m: 1, i: 4, s: 4, p: 2
 ```
 
-#### <a name="for-in" id="for-in">5.4.5 for/in</a>
+#### <a name="545-forin" id="545-forin">5.4.5 for...in</a>
 
-While a ```for/of``` loop requires an <b>iterable</b> object after the of, a ```for/in``` loop works with any object after the in. 
+`for...in` iterate **property names** from **objects**, `for(const key in obj)`
+- Works with **any object**
+- With arrays, `for...in` loops over **index** (as strings): `for (const i in arr) { arr[i] }`
+- Loops over enumerable property names (keys), including <span class="red">inherited</span> ones from the prototype chain. 
+  - Prefer `Object.keys()` + `for...of` to stay on own properties only.
 
-但是```for/in```会loop through <span class="red">enumerable <u>inherited</u> properties</span>. For this reason, many programmers prefer to use a ```for/of``` loop with ```Object.keys()``` instead of a ```for/in``` loop.
+  ```javascript
+  let o = { x: 1 };
+  "x" in o         // true — own property
+  "y" in o         // false
+  "toString" in o  // true — inherited from Object.prototype
+  ```
 
-Loop through Object的方法:
+### <a name="5451-objecthasown" id="5451-objecthasown">5.4.5.1 Object.hasOwn(prop)</a>
 
-<u>相较于for/in, 更常用for/of + Object.keys/values/entries</u>, 避免inherited properties
+- `Object.hasOwn` (ES2022, **Preferred**) — same as `hasOwnProperty`:  
+  - Checks own only, no prototype chain. 
+  - Safer — static: `hasOwnProperty` lives on `Object.prototype` and can be overridden or shadowed on the object itself
 
-- ```Object.keys(obj)```, ```Object.values(obj)```, ```Object.entries(obj)``` returns an array of a given object's <span class="red bold">own</span> <b>enumerable</b> key, value, [key, val] pair, <span class="red bold">no inherited</span> ones, 区别于```for/in```.
+```javascript
+const obj = { x: 1 };
 
-	```javascript
-	let obj = {x: 1, y: 2};
-	console.log(Object.keys(obj).join('')) // "xy"
-	
-  console.log(Object.keys(obj).reduce((acc, cur) => acc + obj[cur], 0)); // 这里是obj[cur], cur是key
-	
-	Object.entries(obj).forEach(([key, val]) => console.log(key, val)) // 勿忘括号([key, val])
-	// "x 1"
-	// "y 2"
-	``` 
-	
--  ```for(let key in obj)``` will loop enumerates properties <span class="red">in the prototype chain</span> as well. 可以用```for/in``` test if property exists (both its own + inherited).
+console.log(Object.hasOwn(obj, "x")); // true
+console.log(Object.hasOwn(obj, "toString")); // false
+```
 
-	```javascript
-	let o = { x: 1 };
-	"x" in o // => true: o has an own property "x"
-	"y" in o // => false: o doesn"t have a property "y" 
-	"toString" in o // => true: o inherits a toString property
-	```
+Use inside `for...in` to guard against inherited props:
 
-#### <a name="extending-obj" id="extending-obj">6.7 Extending Objects</a>
+```javascript
+const proto = { inherited: "yes" };
+const obj = Object.create(proto);
+obj.x = 1;
+
+for (const key in obj) {
+    if (Object.hasOwn(obj, key)) {
+        console.log(key); // "x" only, skips "inherited"
+    }
+}
+```
+
+Polyfill for environments without `Object.hasOwn`:
+
+```javascript
+if (!Object.hasOwn) {
+    Object.hasOwn = function hasOwn(obj, propName) {
+        return Object.prototype.hasOwnProperty.call(obj, propName);
+    };
+}
+```
+
+### <a name="546-forof-vs-forin" id="546-forof-vs-forin">5.4.6 for...of vs for...in</a>
+
+| Feature | `for...of` | `for...in` |
+|---------|-----------|-----------|
+| Iterates over | Values<br> `for(const val of arry)` | Keys (property names)<br> `for(const index in arry)`|
+| Requires iterable | ✅ Yes<br> Array, String, Map, Set, etc | ❌ No<br> works with any object |
+| Works with plain object (`{}`) | ❌ TypeError | ✅ Yes |
+| Includes inherited enumerable props | ❌ No | ✅ Yes |
+| Ordered Iteration | Integer-like keys ascending (array, string), then string keys in insertion order | Same as `for...of`, <u>then inherited enumerable props</u> |
+
+```javascript
+const proto = { inherited: "yes" };
+const obj = Object.create(proto);
+obj.b = 2;
+obj.a = 1;
+
+for (const val of Object.values(obj)) console.log(val);
+// 2  (b)
+// 1  (a)
+
+for (const key in obj) console.log(key);
+// "b"
+// "a"
+// "inherited"  ← from prototype
+```
+
+Ex1. **Array**:
+
+```javascript
+const arry = [1, 2, 3];
+for (const num of arry) {
+    console.log(num); // 1  2  3  (values)
+}
+for (const index in arry) {
+    console.log(index); // "0"  "1"  "2"  (indices as strings)
+}
+```
+
+Ex2. **String**:
+
+```javascript
+for (const char of "cat") {
+    console.log(char); // "c"  "a"  "t"  (characters)
+}
+for (const index in "cat") {
+    console.log(index, "cat"[index]); // "0 c"  "1 a"  "2 t"  (indices)
+}
+```
+
+Ex3. **Object**:
+
+```javascript
+const obj = { x: 1, y: 2 };
+
+for (const entry of obj) { }              // TypeError: obj is not iterable
+
+for (const key in obj) {
+    console.log(key, obj[key]);           // "x 1"  "y 2"
+}
+for (const [key, val] of Object.entries(obj)) {
+    console.log(key, val);               // "x 1"  "y 2"
+}
+
+// 注意acc是sum, 但是cur是index! 要用acc + obj[cur], 不是acc+cur
+Object.keys(obj).reduce((acc, cur) => acc + obj[cur], 0); // 3
+```
+
+#### <a name="67-extending-objects" id="67-extending-objects">6.7 Extending Objects</a>
 
 Extend object的方法有如下几种
 
-- 最原始的copy it over. 注意这里用的不是for/in, 而是<b>for/of + Object.keys</b>, 避免了inherited properties
+- 最原始的copy it over. 注意这里用的不是for...in, 而是<b>for...of + Object.keys</b>, 避免了inherited properties
 
 	```javascript
   // copy source into target
@@ -2209,7 +2292,7 @@ Extend object的方法有如下几种
   }; 
 	```
 	
-#### <a name="obj-method" id="obj-method">6.9 Object Methods</a>
+#### <a name="69-object-methods" id="69-object-methods">6.9 Object Methods</a>
 
 ```Object.create()```, ```Object.keys()```, etc, they are all static functions defined on the <b>Object constructor</b>.
 
@@ -2248,7 +2331,7 @@ console.log(Number(point)); // 5, valueOf is called
 console.log(point < 4); // false, 因为convert to Number以后point=5
 ```
 
-#### <a name="create-arry" id="create-arry">7.1 Creating Arrays (`Array.of`, `Array.from`)</a>
+#### <a name="71-creating-arrays-arrayof-arrayfrom" id="71-creating-arrays-arrayof-arrayfrom">7.1 Creating Arrays (`Array.of`, `Array.from`)</a>
 
 Javascript array is a type of object, it's a collection of data. Each value gets numeric index and may be any data type. 
 
@@ -2283,7 +2366,7 @@ console.log(arry); // ["cat", "mouse", favoriteFood: "pizza", -1: -1], 注意添
 	
 	<b>String / Array-like object / Set / Map to Array</b>. `[...string]`, `[...arguments]`, `[...set]`
 
-	Spread operator works on any iterable objects (<span class="orange">任何可以用`for/of`的都是iterable</span>). 因为string is iterable, 所以可以用spread operator把它unpack.
+	Spread operator works on any iterable objects (<span class="orange">任何可以用`for...of`的都是iterable</span>). 因为string is iterable, 所以可以用spread operator把它unpack.
 	
 	<span class="orange">Set objects are iterable, 但是objects本身并不是iterable.</span>
 	
@@ -2444,9 +2527,9 @@ console.log(arry); // ["cat", "mouse", favoriteFood: "pizza", -1: -1], 注意添
   * `Array.from({length: 5})`返回的是[undefined, undefined, undefined, undefined, undefined]. 
   * 后面的(elem, index) => index等同于 `(elem, index) => { return elem = index; }`, 加了{}后勿忘return.
 
-#### <a name="arry-methods" id="arry-methods">7.8 Array Methods</a>
+#### <a name="78-array-methods" id="78-array-methods">7.8 Array Methods</a>
 
-`arry.forEach`, `for/of`<br>
+`arry.forEach`, `for...of`<br>
 `arry.map`, `arry.filter`, <br>
 `arry.find`, `arry.findIndex`, `arry.indexOf`, `arry.lastIndexof`, `arry.includes`, <br>
 `arry.every`, `arry.some`, <br>
@@ -2466,9 +2549,9 @@ console.log(arry); // ["cat", "mouse", favoriteFood: "pizza", -1: -1], 注意添
   - `arry.find` will loop thru nonexistent elements as well.
   - `arry.flat` is similar to `filter`, will remove empty elem/slot, but it will also remove one level empty [].
 
-##### <a name="arry-iterator" id="arry-iterator">7.8.1 Array Iterator Methods</a>
+##### <a name="781-array-iterator-methods" id="781-array-iterator-methods">7.8.1 Array Iterator Methods</a>
 
-##### <span class="white-on-black">forEach(for/of)</span>
+##### <span class="white-on-black">forEach(for...of)</span>
 
 ```javascript
 // Arrow function
@@ -2483,9 +2566,9 @@ arry.forEach((element, index, array) => { ... } )
 
 适用于只对arry中的每个elem操作, <u>区别于`map`: `map`的意义在于returned arry</u>.
 
-注意There is no equivalent of the `break` statement in `forEach` you can use with a regular `for` or `for/of` loop.
+注意There is no equivalent of the `break` statement in `forEach` you can use with a regular `for` or `for...of` loop.
 
-`arry.forEach`和`for/of`一样, 都是<span class="orange">sequential order</span>
+`arry.forEach`和`for...of`一样, 都是<span class="orange">sequential order</span>
 
 Ex1. arry.forEach(elem) where elem is a <span class="orange">shallow</span> copy of original arry
 
@@ -2871,7 +2954,7 @@ console.log(`isSubset = ${isSubset([1, 2, 3, 4, 5, 6, 7], [5, 7, 6])}`); // true
 console.log(`isSubset = ${isSubset([1, 2, 3, 4, 5, 6, 7], [5, 8, 7])}`); // false
 ```
 
-- 注意`arry.every`和`for/of`在上面的应用, isSubset中arry2.every一旦有一个不includes了, every就结束了. 和isSubset2的for/of的break一样
+- 注意`arry.every`和`for...of`在上面的应用, isSubset中arry2.every一旦有一个不includes了, every就结束了. 和isSubset2的for...of的break一样
 
 ##### <span class="white-on-black">reduce and reduceRight</span>
 
@@ -3182,7 +3265,7 @@ Ex8和Ex9都是<b>pipeline</b>. Ex8是pipeline arry of promise, Ex9是pipeline a
 	console.log(multiply18(2)); // 36, 2*2*3*3
 	```
 
-##### <a name="arry-flat" id="arry-flat">7.8.2 Flattening arrays with `flat()` and `flatMap()`</a>
+##### <a name="782-flattening-arrays-with-flat-and-flatmap" id="782-flattening-arrays-with-flat-and-flatmap">7.8.2 Flattening arrays with `flat()` and `flatMap()`</a>
 
 ```javascript
 let flattened = arry.flat(); // default depth = 1;
@@ -3299,7 +3382,7 @@ console.log([1, 2, , 4, [[]], 6].flat()); // [1, 2, 4, [], 6]
 		console.log(flatDeep(a)); // [1, 2, 3, 4]
 		```
 		
-##### <a name="arry-concat" id="arry-concat">7.8.3 Adding arrays with `concat()`</a>
+##### <a name="783-adding-arrays-with-concat" id="783-adding-arrays-with-concat">7.8.3 Adding arrays with `concat()`</a>
 
 ```javascript
 const newArry = arry.concat(value0, value1, ... , valueN);
@@ -3337,7 +3420,7 @@ num1[0].push(5);
 console.log(nums); // [[1, 5], 2, [3]]; 但是这里nums变了
 ```
 
-##### <a name="arry-stack-queue" id="arry-stack-queue">7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`</a>
+##### <a name="784-stacks-and-queues-with-push-pop-shift-and-unshift" id="784-stacks-and-queues-with-push-pop-shift-and-unshift">7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`</a>
 
 `push`, `pop`, `shift`, `unshift` are all <span class="orange">in-place</span> methods. 并且他们的returned都不是本身的arry, 要么是新的length, 要么是removed element.
 
@@ -3405,7 +3488,7 @@ console.log(nums); // [[1, 5], 2, [3]]; 但是这里nums变了
 	console.log(arry); // [5, 4, 1, 2, 3]. 5被插到了4的前面
 	```
 	
-##### <a name="arry-subarry" id="arry-subarry">7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`</a>
+##### <a name="785-subarrays-with-slice-splice-fill-and-copywithin" id="785-subarrays-with-slice-splice-fill-and-copywithin">7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`</a>
 
 ##### <span class="white-on-black">slice</span>
 
@@ -3468,7 +3551,7 @@ console.log(arry.splice(2, 2, ["test3","test4"], "test5")); // ["test1", "test2"
 console.log(JSON.stringify(arry)); // ["a","b",["test3","test4"],"test5","c","d","e"]
 ```
 
-##### <a name="arry-sort" id="arry-sort">7.8.6 Array Sorting Methods (`sort`, `reverse`)</a>
+##### <a name="786-array-sorting-methods-sort-reverse" id="786-array-sorting-methods-sort-reverse">7.8.6 Array Sorting Methods (`sort`, `reverse`)</a>
 
 ##### <span class="white-on-black">sort</span>
 
@@ -3536,7 +3619,7 @@ arry.reverse(); // returns reversed arry, in-place
 
 <span class="orange">In-Place</span>. <u>Original arry will be changed.</u>
 
-##### <a name="arry-to-string" id="arry-to-string">7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)</a>
+##### <a name="787-array-to-string-conversions-jsonstringify-join-tostring" id="787-array-to-string-conversions-jsonstringify-join-tostring">7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)</a>
 ##### <span class="white-on-black">JSON.stringify</span>
 
 如果想保持arry的样子(带bracket)以便今后再用, serialize the array with `JSON.stringify(arry)`. 这样以后可以用`JSON.parse(str)`把它变回array.
@@ -3602,7 +3685,7 @@ console.log(arry.toString()); // a,b,c; 注意没有bracket
 [1, [2,"c"]].toString(); // 1,2,c; 注意里面的bracket也拆了
 ```
 
-#### <a name="arrylike-obj)" id="arrylike-obj)">7.9 Array-Like Objects</a>
+#### <a name="79-array-like-objects" id="79-array-like-objects">7.9 Array-Like Objects</a>
 
 An <b>array-like object</b> is an <u>object</u> that has <u>indexed properties</u> and <u>a non-negative length property</u>.
 
@@ -3649,7 +3732,7 @@ for(let i in arr){
 ```
 
 - `arry.two`并不影响length, 只有numbered index才会算到length里
-- arry本质还是object, 用for/in可以loop所有的key, 无论numbered还是non-numbered
+- arry本质还是object, 用for...in可以loop所有的key, 无论numbered还是non-numbered
 
 Ex3. both <u>array</u> and <u>arry-like</u> are object (<span class="orange">instanceof</span>)
 
@@ -3703,7 +3786,7 @@ console.log(a instanceof Object); // true
 			<b>Set</b>和<b>Map</b>都是iterable object.
 			<ul>
 				<li>都可以用<b>`[...]`</b>或者<b>`Array.from()`</b>变成array</li>
-				<li>都可以用<b>for/of</b>循环</li>
+				<li>都可以用<b>for...of</b>循环</li>
 			</ul>
 		</li>
 		<li>
@@ -3717,7 +3800,7 @@ console.log(a instanceof Object); // true
 	</ul>
 </div>
 
-#### <a name="set" id="set">11.1.1 The Set Class</a>
+#### <a name="1111-the-set-class" id="1111-the-set-class">11.1.1 The Set Class</a>
 
 <b>Set</b> is a collection of <b>unique</b> values, like an array is, but it's not ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. However, <b>set</b> can be iterated in insertion order.
 
@@ -3871,7 +3954,7 @@ console.log(s.size); // 0
 ```
 
 ##### Iteration Methods
-- for/of
+- for...of
 - <b>Set.prototype.forEach()</b>
 	
 	```javascript
@@ -4084,7 +4167,7 @@ console.log(s.size); // 0
 	
 	-  注意delete不需要对_difference循环然后看otherSet是否有这个elem. 可以直接用otherSet循环, 并且直接delete otherSet里的每一个elem, 不需要考虑_difference里是否有otherSet的elem, 即使没有就是return false而已
 
-#### <a name="map" id="map">11.1.2 The Map Class</a>
+#### <a name="1112-the-map-class" id="1112-the-map-class">11.1.2 The Map Class</a>
 
 <b>Map</b> is a collection of `[key, value]` pairs, where <u>`key` is unique</u>. <b>Map</b> can be iterated in insertion order (后来的update不会改变loop的顺序, 永远根据的是初始insert的顺序)
 
@@ -4207,7 +4290,7 @@ console.log(m.entries()); // [["one", 1], ["two", 2]], 和变arry类似,但不�
 | <b>Keys</b>      | A Map does not contain any keys by default.  | An Object has a `prototype`, so it contains default keys.     |
 | <b>Key Types</b>      | A Map's keys can be any value, including functions, objects, or any primitive. | The keys of an Object must be either a `String` or a `Symbol`.    |
 | <b>Size</b>      | `map.size`  | The number of items in an Object must be determined manually.    |
-| <b>Iteration</b>      | A Map is iterable (`for/of`, `forEach((val, key)=>{...})`), by its first insertion order. 可以用在`for(let [key,val] of map)`, 也可以用在`m.entries()`, `m.keys()`, `m.values()`. <span class="underline-orange">区别于Object的三个对应function, map的这三个返回的都不是arry, 是iterable object</span>.	| Object has to use `for/of` on `Object.keys()`, `Object.values()`, `Object.entries()`, no order guranteed.   |
+| <b>Iteration</b>      | A Map is iterable (`for...of`, `forEach((val, key)=>{...})`), by its first insertion order. 可以用在`for(let [key,val] of map)`, 也可以用在`m.entries()`, `m.keys()`, `m.values()`. <span class="underline-orange">区别于Object的三个对应function, map的这三个返回的都不是arry, 是iterable object</span>.	| Object has to use `for...of` on `Object.keys()`, `Object.values()`, `Object.entries()`, no order guranteed.   |
 | <b>Performance</b>      | Map performs better in scenarios involving <span class="underline-orange">frequent additions and removals (set/get/delete)</span> of key-value pairs.  | Object is NOT optimized for frequent additions and removals of key-value pairs.    |
 
 Map和Object都有key,但是如果用`obj[key]=val`的方式set Map, will cause confusion.
@@ -4297,7 +4380,7 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 ##### Iteration Methods
 
 - 以下三个返回的都<b>不是array</b>, 得用<b>`[...m.keys()]`</b>或者<b>`Array.from(m.keys())`</b	>变成array. 区别于<u>obj.keys(), obj.values(), obj.entries()</u>返回的都是array
-- 以下三个<b>都可以用for/of循环</b>, 因为返回的都是iterable obj
+- 以下三个<b>都可以用for...of循环</b>, 因为返回的都是iterable obj
 	- `Map.prototype.keys()`: returns <u>iterable objects</u> that iterate keys
 	- `Map.prototype.values()`: returns <u>iterable objects</u> that iterate values
 	- `Map.prototype.entries()`: returns <u>iterable objects</u> that iterate [key,value] pairs
@@ -4321,7 +4404,7 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 	// {} "baz"
 	
 	for(let [key, val] of m) {
-		console.log(key, val); // 和for/of m.entries()完全一样
+		console.log(key, val); // 和for...of m.entries()完全一样
 	}
 	
 	for(let entry of m.entries()) {
@@ -4341,12 +4424,12 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 	- 注意`m.keys()`, `m,values()`, `m.entries()`返回的都<b>不是array</b>, 要用<b>`[...iterable]`</b>或者<b>`Array.from(iterable)`</b>变成array
 	- 注意`[...m.entries()]`等同于`[...m]`
 	- <span class="underline-orange">`for(let [key, val] of m)`和`for(let [key, val] of m.entries())`完全一样</span>
-	- for/of
+	- for...of
 		- 注意`for(let entry of m.entries())`, 虽然<u>m.entries()不是array, 但是entry是array</u>
 		- 类似的, <u>`for(let entry of m)`的entry也是array</u>
 			- 注意查是不是array的方法不是`typeof` (<u>`typeof []` 是object</u>). 要用<span class="underline-orange">`Array.isArray(arry)`</span>
 
-- for/of: `for(let [key, val] of m)`
+- for...of: `for(let [key, val] of m)`
 - `Map.prototype.forEach()`
 
 	```javascript
@@ -4384,7 +4467,7 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 	- m.entries()不是array, 要用arry.forEach()要先变成array
 	- 区别于m.forEach是先val后key, m.entries()的forEach返回的是[key, val]不是val/key
 
-#### <a name="class-constructor" id="class-constructor">9.2 Classes and Constructors</a>
+#### <a name="92-classes-and-constructors" id="92-classes-and-constructors">9.2 Classes and Constructors</a>
 
 - Constructor-Less Class (<u>所有regular function都可以看作一种class</u>)
 	
@@ -4509,7 +4592,7 @@ console.log(m); // Map {"ref" => ["a", "b"]}
 		}
 		```
 
-#### <a name="class-with-class-keyword" id="class-with-class-keyword">9.3 Classes with the class Keyword</a>
+#### <a name="93-classes-with-the-class-keyword" id="93-classes-with-the-class-keyword">9.3 Classes with the class Keyword</a>
 
 用`class`定义的class本质和9.2的`function Range(from, to)`是一样的, 只是`class`是ES6新的syntax, 简化了用function定义class
 
@@ -5083,7 +5166,7 @@ console.log(Complex.ZERO.toString()); // 0 + 0i
 - 注意equals里<u>先查`that instanceof Complex`</u>, 再查相等
 - 注意factory functions used as predefined complex numbers (<u>Constants所以大写</u>): <u>`Complex.ZERO`, `Complex.ONE`, `Complex.I`</u>
 
-#### <a name="add-method-to-existing-class" id="add-method-to-existing-class">9.4 Adding Methods to Existing Classes</a>
+#### <a name="94-adding-methods-to-existing-classes" id="94-adding-methods-to-existing-classes">9.4 Adding Methods to Existing Classes</a>
 
 If the new String method `startsWith()` is not already defined
 
@@ -5094,7 +5177,7 @@ String.prototype.startsWith = String.prototype.startsWith || function(str) {
 console.log("abc".startsWith("ab")); // true
 ```
 
-#### <a name="subclass" id="subclass">9.5 Subclasses</a>
+#### <a name="95-subclasses" id="95-subclasses">9.5 Subclasses</a>
 
 - Subclasses in old way
 
@@ -5286,8 +5369,8 @@ console.log("abc".startsWith("ab")); // true
 
 
  
-#### <a name="func-prop-method-constructor" id="func-prop-method-constructor">8.7 Function Properties, Methods, and Constructor</a>
-##### <a name="func-prop" id="func-prop">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
+#### <a name="87-function-properties-methods-and-constructor" id="87-function-properties-methods-and-constructor">8.7 Function Properties, Methods, and Constructor</a>
+##### <a name="871-funclength-funcname-funcprototype" id="871-funclength-funcname-funcprototype">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
 
 <span class="white-on-black">Function.length</span>
 
@@ -5358,7 +5441,7 @@ console.log(b.constructor.name); // a, 注意不是Foo了
 All functions, except arrow functions, have a `prototype` property that refers to an object known as the prototype object. <u>Every function
 has a <b>different</b> prototype object</u>. 即使看上去一样也不相等.
 
-##### <a name="func-apply-call-bind" id="func-apply-call-bind">8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods</a>
+##### <a name="874-5-the-funcapply-funccall-and-funcbind-methods" id="874-5-the-funcapply-funccall-and-funcbind-methods">8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods</a>
 
 `apply()`和`call()`基本一样, 除了`apply` accepts <u>an array of arguments</u>, `call` accepts <u>an argument list</u>.
 
@@ -5623,7 +5706,7 @@ Unlike the call() and apply() methods, the bind() method <u>doesn’t immediatel
     num.delayPrint(); // after 1sec, random number generated: 3
 	```
 	
-##### <a name="higher-order-func" id="higher-order-func">8.8.2 Higher-Order Functions</a>
+##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
 
 <b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments or by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument or returns the function as output.
 
@@ -5694,7 +5777,7 @@ Unlike the call() and apply() methods, the bind() method <u>doesn’t immediatel
 	- compose里`...args`是执行时传进来的2,3
 	- 注意fn2用apply的原因是`...args`是array, fn1用call的原因是fn2的结果是一个数
 
-#### <a name="typeof-instanceof" id="typeof-instanceof">4.13.3 The `typeof` and `instanceof` Operator</a>
+#### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
 
 <span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
 
@@ -5771,7 +5854,7 @@ const dur = Number(durationMinutes) / 60;
 
 Contrast: **implicit coercion** — JS converts automatically without you asking. See: `x < y; // true!! string compare, no number coerce` in [§11.1.1](#set).
 
-#### <a name="assignment-with-operation" id="assignment-with-operation">4.11.1 Assignment with Operation</a>
+#### <a name="4111-assignment-with-operation" id="4111-assignment-with-operation">4.11.1 Assignment with Operation</a>
 
 注意L1, the expression <span class="red">a is evaluated once</span>. 但是L2, it is <span class="red">evaluated twice</span>.
 
@@ -5801,7 +5884,7 @@ let a=1, b=a++;
 console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1
 ```
 
-### <a name="async-await" id="async-await">async/await</a>
+### <a name="asyncawait" id="asyncawait">async/await</a>
 
 ```javascript
 async function task1() {
@@ -5838,7 +5921,7 @@ JavaScript uses an event loop and a mircrotask queue to handle asynchronous beha
 - That Promise is returned up to task1, which is also awaiting it. So now task1 suspends as well, because it’s waiting for the result of task2.
 - log outside
 
-### <a name="input-debounce" id="input-debounce">input change debounce</a>
+### <a name="input-change-debounce" id="input-change-debounce">input change debounce</a>
 
 [debounce/throttle](./debounce.html)
 
@@ -5889,7 +5972,7 @@ setTimeout(callback(...args), delay);
 setTimeout(() => callback(...args), delay);
 // giving setTimeout the arrow function to call later
 ```
-### <a name="virtualization-windowing" id="virtualization-windowing">Big data with virtualization</a>
+### <a name="big-data-with-virtualization" id="big-data-with-virtualization">Big data with virtualization</a>
 
 The scrolling list that only renders a subset of items (recycling a fixed pool of rows) — is called <b>virtualization</b> or <b>windowing</b> or <b>DOM virtualization</b>, not "Virtual DOM".
 
@@ -5930,7 +6013,7 @@ Don't cache rendered nodes
 Instead, recycles a pool of DOM nodes and renders only the visible window. Uses `transform: translateY(...)` to move nodes (cheap for the browser), `requestAnimationFrame` to throttle scroll updates, and supports `OVERSCAN` for smoothness.
 
 
-### <a name="html-css-gotcha" id="html-css-gotcha">HTML and CSS gotcha</a>
+### <a name="html-and-css-gotcha" id="html-and-css-gotcha">HTML and CSS gotcha</a>
 
 - flexbox: left with fixed width, right takes up rest of space
 
