@@ -1595,10 +1595,34 @@ console.log(o2.hasOwnProperty("x")); // true
 o2.z.push(3);
 console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 ```
-
 - `object.create(o1)` <span class="orange">creates an empty o2</span> - no own properties at all
 - o2 reads x by walking up the prototype chain to o1. So whatever o1.x is, o2.x reflects it
 - <span class="orange">unless assigning o2.prop = ... creates an own property on o3</span>
+
+##### `null` vs nullable object `Object.create(null)`
+
+| Feature | `null` | `Object.create(null)` |
+|---------|--------|------------------------|
+| What is it? | Primitive value representing "no value" | Object with no prototype |
+| Type | Primitive | Object |
+| `typeof` | `"object"` (historical bug) | `"object"` |
+| Can have props? | ❌ No | ✅ Yes |
+| Has a prototype? | N/A | ❌ No (`[[Prototype]]` is `null`) |
+| Inherits `Object.prototype`? <br> eg: `toString()`, `hasOwnProperty`| ❌ No | ❌ No |
+
+```javascript
+null.name = "Alice"; // Uncaught TypeError: Cannot set properties of null (setting 'name')
+
+const obj = Object.create(null);
+console.log(typeof obj); // object, behave like an object
+
+obj.name = "Alice"; // nullable object可以set props
+console.log(obj.name); // Alice
+
+console.log(obj.toString); // undefined, no inherit from Object.prototype
+console.log(obj.hasOwnProperty); // undefined
+```
+- `Object.create(null)` creates a special kind of object that's useful when you want <u>a clean key-value store without inherited properties</u>.
 
 #### <a name="610-extended-object-literal-syntax" id="610-extended-object-literal-syntax">6.10 Extended Object Literal Syntax</a>
 
@@ -1697,37 +1721,54 @@ coloredCircle.style.background = "yellow";
 console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
 ```
 
-Ex3.2 Recursive merge - assume type mismatches fall through to source-wins overwrite (as ref)
+Ex3.2 Recursive merge (merge source into target) - assume type mismatches fall through to source-wins overwrite (as ref), assume target and source are plain object (not null)
 
 ```javascript
-// target: { "name": "a", "about": { "items": [{ "name": "MacBook" }] } }
-// source: { "name": "b", "about": { "items": [{ "name": "Dell" }] } }
-// result: { "name": "b", "about": { "items": [{ "name": "MacBook" }, { "name": "Dell" }] } }
+const target = { 
+  "name": "a", 
+  "about": { 
+    "items": [{ "name": "MacBook" }] 
+  } 
+};
+const source = { 
+  "name": "b", 
+  "about": { 
+    "name": "brand",
+    "items": [{ "name": "Dell" }] 
+  } 
+};
 
 const shallowCopy = { ...target, ...source };
-// { "name": "b", "about": { "items": [{ "name": "Dell" }] } } 
-// 注意source.about overwrites target's about entirly
+console.log(JSON.stringify(shallowCopy)); 
+// {"name":"b","about":{"name":"brand","items":[{"name":"Dell"}]}}
+// 注意source.about overwrites target's about entirly, no merge
 
-// 区别于下面的recursiveMerge, object/array都会merge
+// 区别于shallowCopy, 下面的recursiveMerge, object/array都会merge
 function recursiveMerge(target, source) {
-  Object.keys(source).forEach(key => {
-    const targetVal = target[key];
+  Object.keys(source).forEach(key => { // assume target|source are all plain objects
+    const targetVal = target[key]; 
     const sourceVal = source[key];
 
-    /** 不能用targetVal = ... 
-     * (arrays) — [...targetVal, ...sourceVal] creates a new array and assigns it to targetVal. target[key] still points to the old array.
+    /** 
+     * 不能用targetVal = ... fail at array and primitive (obj works) 
+     * (arrays)— [...targetVal, ...sourceVal] creates a new array and assigns it to targetVal. target[key] still points to the old array.
+     * 用targetVal.push(...sourceVal)就对了, 此时targetKey|targetVal指向同一个地址
      * (object) - mutate in place, 不需要target[key] = ... 有没有都对
-     * (primitive) - target[key] is unchanged
+     * (primitive) - targetVal changed but target[key] is unchanged
      * */
     if (Array.isArray(targetVal) && Array.isArray(sourceVal)) {
       target[key] = [...targetVal, ...sourceVal];
     } else if (isPlainObject(targetVal) && isPlainObject(sourceVal)) {
       recursiveMerge(targetVal, sourceVal);
     } else {
+      /** 两种情况 
+       * 1. target[key]=undefined 
+       * 2. target[key]和source[key]都存在但type mismatch
+       * */
       target[key] = sourceVal;
     }
   });
-  return target;
+  return target; // 勿忘return, recursive才成立
 }
 
 // 这里check的是plain object, null不是plain object. 
@@ -1735,8 +1776,15 @@ function recursiveMerge(target, source) {
 function isPlainObject(obj) {
   return !!obj && typeof obj === "object" && !Array.isArray(obj);
 }
+console.log(JSON.stringify(recursiveMerge(target, source)));
+// {"name":"b","about":{"items":[{"name":"MacBook"},{"name":"Dell"}],"name":"brand"}}
 ```
 — `{ ...target, ...source }` is shallow: nested objects are overwritten entirely, not merged. 
+- `JSON.stringify(obj)` is recursive stringify, nested obj inside will be stringified as well
+- `Object.keys(null)` throw Uncaught **TypeError**: Cannot convert undefined or null to object
+- for recursive function, 
+  - If the <span class="orange">recursive computes and produces a value, you almost **always need return**</span> (比如这里)
+  - If the recursive performs an action, you often don't.
 
 > **Spread copies only own enumerable props/arrow functions — inherited props and prototype methods are not included.**
 
@@ -2107,7 +2155,7 @@ Object.entries(arry).forEach(([index, val]) => {
 
 `for...of` iterate **values** from **iterable objects**, <span class="orange">for(const val of arry)</span>
 - An object is **iterable** if it has a `Symbol.iterator` method — <span class="red">Arrays, Strings, Sets, and Maps</span>.
-- Plain objects are **not** iterable; `for...of` throws a <span class="red">TypeError</span>. 
+- Plain objects are **not** iterable; `for...of` throws a <span class="red">TypeError</span>: obj is not iterable. 
   - To iterate an object, `for...of` + `Object.keys()`, `Object.values()`, or `Object.entries()`.
 - `forEach` <u>只能</u>用于array: `[...arguments].forEach(...)`, `Array.from(arguments).forEach(...)`
 
@@ -2211,9 +2259,9 @@ Ex3. <span class="orange">Polyfill for `Object.hasOwn`</span>:
 
 ```javascript
 if (!Object.hasOwn) {
-    Object.hasOwn = (obj, key) => {
-        return Object.prototype.hasOwnProperty.call(obj, key);
-    };
+  Object.hasOwn = function(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  };
 }
 
 /**
@@ -2304,41 +2352,33 @@ for(const key of Object.keys(obj)) {
 
 #### <a name="69-object-methods" id="69-object-methods">6.9 Object Methods</a>
 
-```Object.create()```, ```Object.keys()```, etc, they are all static functions defined on the <b>Object constructor</b>.
+- Methods defined on **Object constructor**: 
+  - **Static** - safer, cannot be override
+  - eg: `Object.create()`, `Object.keys()`, `Object.hasOwn()` etc,
 
-Here, we introduce some universal object methods that are defined on <b>Object.prototype</b>: 
-
-- ```obj.toString()```: 如果不override, output永远是"[object Object]"
-- ```obj.valueOf()```: will be called when convert to Number is needed (eg: 比较大小的时候 >, <). eg: 下面的Number(point)和point < 4
-
-	```javascript
-	let o = {x: 1};
-	o.valueOf(); // {x: 1}
-	Number(o); // NaN
-	```
-
-- ```obj.toJSON()```: will be invoked when ```JSON.stringify()``` is called
+- Methods defined on **Object.prototype**
+  - `Object.prototype.toString()`: will be invoked when `String(obj)`, 并且如果不override, output永远是"[object Object]"
+  - `Object.prototype.toJSON()`: will be invoked when ```JSON.stringify()``` is called
 
 
 ```javascript
+const point1 = { x: 3, y: 4 };
+console.log(String(point1)); // [object Object]
+console.log(JSON.stringify(point1)) // {"x":3,"y":4}
+
 // override original Object.prototype.method
-let point = {
-    x: 3, 
-    y: 4,
-    toString() { // 注意this的用法
-        return `(${this.x}, ${this.y})`;
-    },
-    valueOf() { 
-    	return Math.hypot(this.x, this.y);
-    },
-    toJSON() {
-    	return this.toString();
-    }
+const point2 = {
+  x: 3,
+  y: 4,
+  toString() {
+    return `(${this.x}, ${this.y})`;
+  },
+  toJSON() {
+    return this.toString(); // 勿忘return!! 否则log是undefined
+  }
 };
-console.log(point.toString()); // (3, 4)
-console.log(JSON.stringify(point)); // "(3, 4)"
-console.log(Number(point)); // 5, valueOf is called
-console.log(point < 4); // false, 因为convert to Number以后point=5
+console.log(String(point2)); // (3, 4), toString is called
+console.log(JSON.stringify(point2)); // "(3, 4)", toJSON is called
 ```
 
 #### <a name="71-creating-arrays-arrayof-arrayfrom" id="71-creating-arrays-arrayof-arrayfrom">7.1 Creating Arrays (`Array.of`, `Array.from`)</a>
