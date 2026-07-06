@@ -4,8 +4,8 @@
 	* [1.5 Compile vs Runtime: A Recurring Pattern](#15-compile-vs-runtime-a-recurring-pattern)
 	* [1.6 Build Pipeline](#16-build-pipeline-brwweb)
 * [3.10 Lexical Scope, Global vs Local](#310-lexical-scope-global-vs-local)
-* [3.10.1 `var` + Hoisting](#3101-var-hoisting)
-* [3.10.2 `let`/`const` + TDZ](#3102-letconst-tdz)
+* [3.10.1 `var` + Hoisting](#3101-var--hoisting)
+* [3.10.2 `let`/`const` + TDZ](#3102-letconst--tdz)
 * [3.10.3 `catch` Block Scope](#3103-catch-block-scope)
 * [8.1 Defining Functions](#81-defining-functions)
 * [8.2 Invoking Functions](#82-invoking-functions)
@@ -16,8 +16,8 @@
 * [8.6.3 Module Systems: IIFE, CJS, AMD, UMD, ESM](#863-module-systems-iife-cjs-amd-umd-esm)
 * [6.2 Creating Objects](#62-creating-objects)
 * [6.10 Extended Object Literal Syntax (更多的object literal的定义方法)](#610-extended-object-literal-syntax)
-	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods)
-	* [6.10.4 Spread Operator + Rest Parameters](#6104-spread-operator-rest-parameters)
+	* [6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods](#6101-shorthand-properties--6102-computed-property-names--6105-shorthand-methods)
+	* [6.10.4 Spread Operator + Rest Parameters](#6104-spread-operator--rest-parameters)
 * [3.10.4 Destructuring Assignment](#3104-destructuring-assignment)
 * [3.10.5 Object Optional Chaining](#3105-object-optional-chaining)
 * [3.10.6 `Object.entries()`](#3106-objectentriesobjarry)
@@ -25,7 +25,6 @@
 * [5.4.5 for...in](#545-forin)
 	* [5.4.5.1 Object.hasOwn](#5451-objecthasown)
 * [5.4.6 for...of vs for...in](#546-forof-vs-forin)
-* [6.7 Extending Objects](#67-extending-objects)
 * [6.9 Object Methods](#69-object-methods)
 * [7.1 Creating Arrays (`Array.of`, `Array.from`)](#71-creating-arrays-arrayof-arrayfrom)
 * [7.8 Array Methods](#78-array-methods)
@@ -305,7 +304,7 @@ console.log(window.notThree);  // undefined
 ```
 - `window.x` global只能access `var/function`, `let/const/class`都不行
 
-#### <a name="3101-var-hoisting" id="3101-var-hoisting">3.10.1 `var` + Hoisting</a>
+#### <a name="3101-var--hoisting" id="3101-var--hoisting">3.10.1 `var` + Hoisting</a>
 
 - `var` is scoped to the **nearest function block**. Declaration is hoisted to the top of its function scope.
 
@@ -411,7 +410,7 @@ setName(person);
 console.log(person.name);    // "Nicholas", 不是Greg!!
 ```
 
-#### <a name="3102-letconst-tdz" id="3102-letconst-tdz">3.10.2 `let`/`const` + TDZ</a>
+#### <a name="3102-letconst--tdz" id="3102-letconst--tdz">3.10.2 `let`/`const` + TDZ</a>
 
 - `let` is scoped to the **nearest enclosing block** `{ }` (can be smaller than a function block)
 - 对于`let`, 可以不付初始值, the value will be undefined
@@ -1603,7 +1602,7 @@ console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 
 #### <a name="610-extended-object-literal-syntax" id="610-extended-object-literal-syntax">6.10 Extended Object Literal Syntax</a>
 
-##### <a name="6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods" id="6101-shorthand-properties-6102-computed-property-names-6105-shorthand-methods">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
+##### <a name="6101-shorthand-properties--6102-computed-property-names--6105-shorthand-methods" id="6101-shorthand-properties--6102-computed-property-names--6105-shorthand-methods">6.10.1 Shorthand Properties + 6.10.2 Computed Property Names + 6.10.5 Shorthand Methods</a>
 
 ##### Shorthand Properties
 
@@ -1635,7 +1634,7 @@ square.area(); // 100
 ```
 - object里的function必须用this.prop
 
-##### <a name="6104-spread-operator-rest-parameters" id="6104-spread-operator-rest-parameters">6.10.4 Spread Operator + Rest Parameters</a>
+##### <a name="6104-spread-operator--rest-parameters" id="6104-spread-operator--rest-parameters">6.10.4 Spread Operator + Rest Parameters</a>
 
 ##### Spread Syntax
 
@@ -1698,9 +1697,50 @@ coloredCircle.style.background = "yellow";
 console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yellow"}}
 ```
 
+Ex3.2 Recursive merge - assume type mismatches fall through to source-wins overwrite (as ref)
+
+```javascript
+// target: { "name": "a", "about": { "items": [{ "name": "MacBook" }] } }
+// source: { "name": "b", "about": { "items": [{ "name": "Dell" }] } }
+// result: { "name": "b", "about": { "items": [{ "name": "MacBook" }, { "name": "Dell" }] } }
+
+const shallowCopy = { ...target, ...source };
+// { "name": "b", "about": { "items": [{ "name": "Dell" }] } } 
+// 注意source.about overwrites target's about entirly
+
+// 区别于下面的recursiveMerge, object/array都会merge
+function recursiveMerge(target, source) {
+  Object.keys(source).forEach(key => {
+    const targetVal = target[key];
+    const sourceVal = source[key];
+
+    /** 不能用targetVal = ... 
+     * (arrays) — [...targetVal, ...sourceVal] creates a new array and assigns it to targetVal. target[key] still points to the old array.
+     * (object) - mutate in place, 不需要target[key] = ... 有没有都对
+     * (primitive) - target[key] is unchanged
+     * */
+    if (Array.isArray(targetVal) && Array.isArray(sourceVal)) {
+      target[key] = [...targetVal, ...sourceVal];
+    } else if (isPlainObject(targetVal) && isPlainObject(sourceVal)) {
+      recursiveMerge(targetVal, sourceVal);
+    } else {
+      target[key] = sourceVal;
+    }
+  });
+  return target;
+}
+
+// 这里check的是plain object, null不是plain object. 
+// null会fail在Object.key上(TypeError) - recursiveMerge(null, null)
+function isPlainObject(obj) {
+  return !!obj && typeof obj === "object" && !Array.isArray(obj);
+}
+```
+— `{ ...target, ...source }` is shallow: nested objects are overwritten entirely, not merged. 
+
 > **Spread copies only own enumerable props/arrow functions — inherited props and prototype methods are not included.**
 
-Ex3.2
+Ex3.3.1 spread没有inherited props
 
 ```javascript
 const o1 = { x: 1 };
@@ -1710,7 +1750,7 @@ console.log(o3.x); // undefined
 ```
 - 注意Object.create只是create了一个empty object, o2没有自己的x, unless do o2.x=10
 
-Ex3.3.1 spread没有inherited functions
+Ex3.3.2 spread没有inherited functions
 
 ```javascript
 class BaseClass {
@@ -1749,7 +1789,7 @@ console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
 | Mutates target | No — new object created | Yes — modifies target in place. Use `Object.assign({}, target, source)` to avoid mutation (legacy, prefer spread) |
 | Common use case | Clone / merge without mutation | Merge into existing object |
 
-Ex3.3.2 class里的function VS arrow function
+Ex3.3.3 class里的function VS arrow function
 
 ```javascript
 class Button {
@@ -2030,6 +2070,8 @@ let name = user?.profile.name;  // undefined
 
 ```Object.entries(obj)```返回的是array of [key, val]  pairs, <u>没有inherited properties</u>.
 - 也适用于array: <span class="orange">Object.entries(arry)</span>返回的是arry of [index, val] pairs
+- `Object.keys()`, `Object.values()`, and `Object.entries()` all return an <span class="orange">object's **own enumerable**</span> properties
+  - Iterate object: <span class="orange">和`for...of`一起</span>, obj本身not iterable.
 
 Ex1. 
 
@@ -2063,123 +2105,169 @@ Object.entries(arry).forEach(([index, val]) => {
 
 #### <a name="544-forof" id="544-forof">5.4.4 for...of</a>
 
-`for...of` iterate **values** from **iterable objects**, `for(const item of arry)` 
-- **Iterable** objects — <span class="red">Arrays, Strings, Sets, and Maps</span>. 
+`for...of` iterate **values** from **iterable objects**, <span class="orange">for(const val of arry)</span>
+- An object is **iterable** if it has a `Symbol.iterator` method — <span class="red">Arrays, Strings, Sets, and Maps</span>.
 - Plain objects are **not** iterable; `for...of` throws a <span class="red">TypeError</span>. 
   - To iterate an object, `for...of` + `Object.keys()`, `Object.values()`, or `Object.entries()`.
-- `forEach` <u>只能</u>用于array: `[...arguments].forEach(...)`
+- `forEach` <u>只能</u>用于array: `[...arguments].forEach(...)`, `Array.from(arguments).forEach(...)`
+
+Ex1. `for...of` + array
 
 ```javascript
 const arry = [1, 2, 3];
-let sum = 0;
-for (const num of arry) {
-    sum += num; // iterates values: 1, 2, 3
+let sum = 0; // 要和const分行写
+for (const val of arry) {
+    sum += val;
 }
 ```
 
-`for...of` with strings — iterates characters, not indices:
+Ex2. `for...of` + string
 
 ```javascript
-const getFreq = (str) => {
-    const freq = {};
-    for (const char of str) {
-        if (!freq[char]) freq[char] = 0;
-        freq[char]++;
-    }
-    Object.keys(freq).forEach((key) => console.log(key, freq[key]));
-};
-
+function getFreq(str) {
+  const map = {};
+  for(const char of str) {
+    if (map[char] === undefined) map[char] = 0;
+    map[char]++;
+  }
+  Object.entries(map).forEach(([char, count]) => {
+    console.log(`${char}: ${count}`);
+  });
+}
 getFreq("mississippi");
 // m: 1, i: 4, s: 4, p: 2
 ```
 
 #### <a name="545-forin" id="545-forin">5.4.5 for...in</a>
 
-`for...in` iterate **property names** from **objects**, `for(const key in obj)`
+`for...in` iterate **property names** from **objects**, <span class="orange">for(const key in obj)</span>
 - Works with **any object**
-- With arrays, `for...in` loops over **index** (as strings): `for (const i in arr) { arr[i] }`
-- Loops over enumerable property names (keys), including <span class="red">inherited</span> ones from the prototype chain. 
+- With arrays, `for...in` loops over **index** (as strings): `for(const index in arry) { arry[i] }`
+- Loops over **enumerable** property names (keys), including <span class="orange">inherited</span> ones from the prototype chain. 
   - Prefer `Object.keys()` + `for...of` to stay on own properties only.
+  - <span class="orange">或者`for...in` + `Object.hasOwn(obj, "someKey")`</span>, 只loop thru non-inherited
 
   ```javascript
-  let o = { x: 1 };
-  "x" in o         // true — own property
-  "y" in o         // false
-  "toString" in o  // true — inherited from Object.prototype
+  const obj = { x: 1 };
+  "x" in obj         // true, 勿忘双引号!!
+  "y" in obj        // false
+  "toString" in obj  // true — inherited from Object.prototype
   ```
+  - `x in o; // Uncaught ReferenceError: x is not defined`: <span class="orange">勿忘key的双引号</span>
 
-### <a name="5451-objecthasown" id="5451-objecthasown">5.4.5.1 Object.hasOwn(prop)</a>
+### <a name="5451-objecthasown" id="5451-objecthasown">5.4.5.1 Object.hasOwn</a>
 
-- `Object.hasOwn` (ES2022, **Preferred**) — same as `hasOwnProperty`:  
+- `Object.hasOwn(obj, "someKey")` (ES2022, **Preferred**) — same as `obj.hasOwnProperty("someKey")`:  
   - Checks own only, no prototype chain. 
   - Safer — static: `hasOwnProperty` lives on `Object.prototype` and can be overridden or shadowed on the object itself
+
+Ex1.
 
 ```javascript
 const obj = { x: 1 };
 
-console.log(Object.hasOwn(obj, "x")); // true
-console.log(Object.hasOwn(obj, "toString")); // false
+console.log(Object.hasOwn(obj, "x")); // true, key勿忘双引号!!
+console.log(Object.hasOwn(obj, "toString")); // false, key勿忘双引号!!
 ```
+- key是string, 勿忘双引号!!
+- 勿忘 Object.hasOwn(<span class="orange">obj</span>, "somekey")的obj
 
-Use inside `for...in` to guard against inherited props:
+Ex2. `for...in` + `Obejct.hasOwn` to guard against inherited props:
 
 ```javascript
-const proto = { inherited: "yes" };
-const obj = Object.create(proto);
-obj.x = 1;
+const proto = { x: 1 };
+const obj1 = Object.create(proto); // Object.create create的是一个empty object
+obj1.b = 2; // 先b后a
+obj1.a = 1;
 
-for (const key in obj) {
-    if (Object.hasOwn(obj, key)) {
-        console.log(key); // "x" only, skips "inherited"
-    }
+for(const key in obj1) {
+  if (Object.hasOwn(obj1, key)) {
+    console.log(`${key}: ${obj1[key]}`); // x skip了
+  }
 }
-```
+// b: 2 ← 先b后a
+// a: 1
 
-Polyfill for environments without `Object.hasOwn`:
+const obj2 = { ...proto, y: 2 }; // 区别于Object.create, spread是shallow copy
+console.log(Object.hasOwn(obj2, "x")); // true
+
+const obj3 = Object.assign({}, proto, {y: 2}); // 和spread一样
+console.log(Object.hasOwn(obj3, "x")); // true
+```
+- `for...of`和`for...in` <span class="orange">loop的order都是insert的order, 先b后a</span>
+  - `for...in`先loop its own keys, then loop inherited
+
+  ```javascript
+  for(const val of Object.values(obj1)) { // x skip了, 只loop its own
+    console.log(val); // 2 1 ← insert order
+  }
+
+  for(const key in obj1) {
+    console.log(key); // b a x ← from prototype
+  }
+  ```
+
+Ex3. <span class="orange">Polyfill for `Object.hasOwn`</span>:
 
 ```javascript
 if (!Object.hasOwn) {
-    Object.hasOwn = function hasOwn(obj, propName) {
-        return Object.prototype.hasOwnProperty.call(obj, propName);
+    Object.hasOwn = (obj, key) => {
+        return Object.prototype.hasOwnProperty.call(obj, key);
     };
 }
+
+/**
+ * Ex3.1的写法是错的. 他miss了两种情况
+ * 1. Object.hasOwn解决了hasOwnProperty被overwrite的情况: Ex3.1.1
+ * 2. 对于nullable, Object.hasOwn 和 obj.hasOwnProperty都应该throw
+ * Uncaught TypeError: Cannot convert undefined or null to object: Ex3.1.2
+ * */
+// Ex3.1
+if (!Object.hasOwn) {
+  Object.hasOwn = (obj, key) => {
+    return obj.hasOwnProperty(key); // missing when it's nullable object
+  }
+}
+
+// Ex3.1.1
+const obj1 = {
+  x: 1,
+  hasOwnProperty() {
+    return false;
+  }
+};
+console.log(obj1.hasOwnProperty("x"));  // 永远都是false
+
+// Ex3.1.2
+const obj2 = null; // Object.create(null)也一样
+console.log(obj2.hasOwnProperty("x")); // Uncaught TypeError: Cannot read properties of null (reading 'hasOwnProperty')
+console.log(Object.hasOwn(obj2, "x")); // Uncaught TypeError: Cannot convert undefined or null to object
+console.log(Object.prototype.hasOwnProperty.call(obj2, "x")); // Uncaught TypeError: Cannot convert undefined or null to object
 ```
+- 注意polyfill的写法 `if (!Object.hasOwn) { Object.hasOwn = ... }`
+- 如果用Ex3.1的写法
+  - 对于3.1.1, hasOwnProperty被overwrite了, 永远返回false
+  - 对于3.1.2, throw的是Uncaught TypeError: Cannot read properties of null (reading 'hasOwnProperty'). 但是Object.hasOwn要求的是throw Uncaught TypeError: Cannot convert undefined or null to object. 必须要用`Object.prototype.hasOwnProperty.call(null, "x")`才一样
 
 ### <a name="546-forof-vs-forin" id="546-forof-vs-forin">5.4.6 for...of vs for...in</a>
 
 | Feature | `for...of` | `for...in` |
 |---------|-----------|-----------|
-| Iterates over | Values<br> `for(const val of arry)` | Keys (property names)<br> `for(const index in arry)`|
+| Iterates over | Values<br> `for(const val of arry)` | Keys (property names)<br> `for(const key in obj)`|
 | Requires iterable | ✅ Yes<br> Array, String, Map, Set, etc | ❌ No<br> works with any object |
-| Works with plain object (`{}`) | ❌ TypeError | ✅ Yes |
-| Includes inherited enumerable props | ❌ No | ✅ Yes |
+| Works with plain object (`{}`) | ❌ TypeError<br> `for...of`+`Object.keys()` | ✅ Yes |
+| Includes inherited enumerable props | ❌ No | ✅ Yes<br> `for...in`+`Object.hasOwn(obj, "some key")` |
 | Ordered Iteration | Integer-like keys ascending (array, string), then string keys in insertion order | Same as `for...of`, <u>then inherited enumerable props</u> |
-
-```javascript
-const proto = { inherited: "yes" };
-const obj = Object.create(proto);
-obj.b = 2;
-obj.a = 1;
-
-for (const val of Object.values(obj)) console.log(val);
-// 2  (b)
-// 1  (a)
-
-for (const key in obj) console.log(key);
-// "b"
-// "a"
-// "inherited"  ← from prototype
-```
 
 Ex1. **Array**:
 
 ```javascript
 const arry = [1, 2, 3];
-for (const num of arry) {
-    console.log(num); // 1  2  3  (values)
+for (const val of arry) {
+    console.log(val); // 1  2  3  (values)
 }
 for (const index in arry) {
-    console.log(index); // "0"  "1"  "2"  (indices as strings)
+    console.log(index); // "0"  "1"  "2"  (index as strings)
 }
 ```
 
@@ -2187,111 +2275,33 @@ Ex2. **String**:
 
 ```javascript
 for (const char of "cat") {
-    console.log(char); // "c"  "a"  "t"  (characters)
+    console.log(char); // "c"  "a"  "t"
 }
 for (const index in "cat") {
-    console.log(index, "cat"[index]); // "0 c"  "1 a"  "2 t"  (indices)
+    console.log(index, "cat"[index]); // "0 c"  "1 a"  "2 t"  (index)
 }
 ```
+- 注意写法`"cat"[index]`: 双引号的cat, variable的index
 
 Ex3. **Object**:
 
 ```javascript
 const obj = { x: 1, y: 2 };
 
-for (const entry of obj) { }              // TypeError: obj is not iterable
-
 for (const key in obj) {
-    console.log(key, obj[key]);           // "x 1"  "y 2"
-}
-for (const [key, val] of Object.entries(obj)) {
-    console.log(key, val);               // "x 1"  "y 2"
+  console.log(key, obj[key]); // "x 1"  "y 2"
 }
 
-// 注意acc是sum, 但是cur是index! 要用acc + obj[cur], 不是acc+cur
-Object.keys(obj).reduce((acc, cur) => acc + obj[cur], 0); // 3
+for (const entry of obj) { 
+  // TypeError: obj is not iterable
+}
+
+// 注意是 for...of
+for(const key of Object.keys(obj)) {
+  console.log(`${key}: ${obj[key]}`); // x: 1 y: 2
+}
 ```
 
-#### <a name="67-extending-objects" id="67-extending-objects">6.7 Extending Objects</a>
-
-Extend object的方法有如下几种
-
-- 最原始的copy it over. 注意这里用的不是for...in, 而是<b>for...of + Object.keys</b>, 避免了inherited properties
-
-	```javascript
-  // copy source into target
-	let target = {x: 1}; // target后面被赋值, 必须用let, 不能const
-  const source = {x: 2, y: 3};
-	Object.keys(source).forEach((key) => {
-      target[key] = source[key];
-  });
-	target; // {x: 2, y: 3}
-	```
-- ```Object.assign(targetObj, sourceObj1, sourceObj2,...)```, 这里后面sourceObjs会override前面obj的properties. <span class="orange">Object.assign会trigger targetObj的setter</span>.
-
-	```javascript
-	// 如果想用defaults补齐o中没有default val的properties, 这个做法会override o中本身有的property的val
-	Object.assign(o, defaults)
-	
-	//这个做法解决了上面的问题, 复制了defaults给{}
-	Object.assign({}, defaults, o); 
-	```
-- 自己写一个merge function, escape已有的properties
-
-	```javascript
-	// 注意spread operator
-	function merge(target, ...sources) {
-      // 注意sources是个array, 区别于arguments要Array.from(arguments)
-      sources.forEach((source) => {
-          target = {
-              ...target,
-              ...source
-          };
-      });
-      return target; // 勿忘, 否则console没有输出
-  }
-  // {"x":2,"y":3,"z":4}
-  console.log(`mergedObj = ${JSON.stringify(merge({x: 1}, {x: 2, y: 2}, {y: 3, z: 4}))}`); 
-	```
-- Deep merge — the above is shallow, so nested objects get overwritten rather than merged. For recursive merge where arrays concatenate and objects recurse:
-
-	```typescript
-	// target: { "name": "Laptops & Netbooks", "about": { "offers": { "itemOffered": [{ "name": "MacBook Pro" }] } } }
-	// source: { "name": "Best Selling Laptops", "about": { "offers": { "itemOffered": [{ "name": "Dell XPS" }] } } }
-	// result: { "name": "Best Selling Laptops", "about": { "offers": { "itemOffered": [{ "name": "MacBook Pro" }, { "name": "Dell XPS" }] } } }
-
-	const isObject = (v: unknown): v is Record<string, unknown> =>
-	  !!v && typeof v === "object" && !Array.isArray(v);
-
-	const deepMerge = (
-	  target: Record<string, unknown>,
-	  source: Record<string, unknown>,
-	): Record<string, unknown> => {
-	  const result = { ...target };
-	  for (const [key, val] of Object.entries(source)) {
-	    const existing = result[key];
-	    if (Array.isArray(existing) && Array.isArray(val)) {
-	      result[key] = [...existing, ...val]; // arrays: concat
-	    } else if (isObject(existing) && isObject(val)) {
-	      result[key] = deepMerge(existing, val); // objects: recurse
-	    } else {
-	      result[key] = val; // primitives: source wins
-	    }
-	  }
-	  return result;
-	};
-	```
-- Use spread operator, see [6.10.4 Spread Operator + Rest Parameters](#extended-obj-literal-syntax-spread).
-
-
-	```javascript
-	// source的properties会overwrite target的
-	target = {
-      ...target,
-      ...source
-  }; 
-	```
-	
 #### <a name="69-object-methods" id="69-object-methods">6.9 Object Methods</a>
 
 ```Object.create()```, ```Object.keys()```, etc, they are all static functions defined on the <b>Object constructor</b>.
