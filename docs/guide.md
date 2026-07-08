@@ -26,7 +26,7 @@
 	* [5.4.5.1 Object.hasOwn](#5451-objecthasown)
 * [5.4.6 for...of vs for...in](#546-forof-vs-forin)
 * [6.9 Object Methods](#69-object-methods)
-* [7.1 Creating Arrays (`Array.of`, `Array.from`)](#71-creating-arrays-arrayof-arrayfrom)
+* [7.1 Creating Arrays](#71-creating-arrays)
 * [7.8 Array Methods](#78-array-methods)
 	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#781-array-iterator-methods)
 	* [7.8.2 Flattening arrays with `flat()` and `flatMap()`)](#782-flattening-arrays-with-flat-and-flatmap)
@@ -758,8 +758,27 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
 	- arrow function<span class="orange">没有`arguments`</span>
 	- <span class="yellowBG">Arrow Functions **do not have their own this**</span>, 所以无法用于calculator.arrowThis(Ex1), 也无法通过apply/call/bind改变scope addArrow.call(obj, 1, 2)(Ex2).
 		- Arrow functions inherit "this" based on the scope where the arrow function is defined: <span class="orange">arrow的this取决于进入arrow function之前, where "this" is bind to</span>.
-			
+
     Ex1.
+
+    ```javascript
+    const f1 = () => {
+      console.log(arguments); // Uncaught ReferenceError: arguments is not defined
+      console.log([...arguments]); // Uncaught ReferenceError: arguments is not defined
+    };
+    f1(4,5);
+
+    function f2() {
+      console.log(arguments); // [4, 5, callee: ƒ, Symbol(Symbol.iterator): ƒ]
+      console.log(Array.from(arguments)); // [4, 5]
+    }
+    f2(4,5); // [4, 5]
+    ```  
+    - 注意f1的arrow function是没有arguments.
+    - 定义f2()时不用写f2(x, y), 直接用arguments
+			
+    Ex2.
+
     ```javascript
     let calculator = {
       operand1: 1,
@@ -805,7 +824,7 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
       - 换成arrow function, 但是注意nestedFuncArrow要用在定义之后, 因为区别于nestedFunc是function declaration, `const nestedFuncArrow = ...`没有hoist
       - 用bind, 勿忘bind(this)<span class="red">()</span>, 多出来的()是执行
 			
-    Ex2. 
+    Ex3. 
 
     ```javascript
     let obj = { num: 10 };
@@ -828,7 +847,7 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
     ```
     - <span class="orange">Arrow function is not suitable for `call`, `apply` and `bind` methods</span>, which generally rely on establishing a scope. **Arrow functions establish/inherit "this" based on the scope where the arrow function is defined**.
 			
-    Ex3. 
+    Ex4. 
     
     ```javascript
     let obj = {
@@ -2358,7 +2377,12 @@ for(const key of Object.keys(obj)) {
 
 - Methods defined on **Object.prototype**
   - `Object.prototype.toString()`: will be invoked when `String(obj)`, 并且如果不override, output永远是"[object Object]"
-  - `Object.prototype.toJSON()`: will be invoked when ```JSON.stringify()``` is called
+  - `Object.prototype.toJSON()`: will be invoked when `JSON.stringify()` is called
+    - `JSON.stringify(arry)`, works for array
+    ```javascript
+    const arry = [1,2,3];
+    console.log(JSON.stringify(arry)); // '[1,2,3]'
+    ```
 
 
 ```javascript
@@ -2381,201 +2405,109 @@ console.log(String(point2)); // (3, 4), toString is called
 console.log(JSON.stringify(point2)); // "(3, 4)", toJSON is called
 ```
 
-#### <a name="71-creating-arrays-arrayof-arrayfrom" id="71-creating-arrays-arrayof-arrayfrom">7.1 Creating Arrays (`Array.of`, `Array.from`)</a>
+#### <a name="71-creating-arrays" id="71-creating-arrays">7.1 Creating Arrays</a>
 
-Javascript array is a type of object, it's a collection of data. Each value gets numeric index and may be any data type. 
-
-Array has a `length` property that tells how many items are in the array and is automatically updated when you add or remove items to the array.
-
-Ex. 
-
-- 注意只有以non-negtive integer的方式添加才会改变`length`. 否则都是添加到object上了, 类似obj的key.
-- 注意以不是non-negtive integer加进去的, 在`JSON.stingify`时不会显示出
-  - JSON.stringify(arry)得到的没有index/key, 就是本身arry. eg: ["cat", "mouse"]
+Ex1. `arry.length` 
 
 ```javascript
 let arry = [];
-arry[0] = "cat";
-arry[1] = "mouse";
+arry[0] = "a";
+arry[1] = "b";
 console.log(arry.length); // 2
 
-arry["favoriteFood"] = "pizza"; // this DOES NOT add to the array. Setting a string parameter adds to the underlying object
-console.log(arry.length); // 2, 不是3
+arry["favoriteFood"] = "pizza"; // not affecting arry.length, but setting a string parameter adds to the underlying object
+console.log(arry.length); // 还是2, 不是3
 
 arry[-1] = -1;
-console.log(arry.length); // 2, negative也不会影响arry.length
+console.log(arry.length); // 还是2, negative也不会影响arry.length
 
-console.log(JSON.stringify(arry)); //["cat","mouse"], 只有non-negatvie integer加进去的两个
-console.log(arry); // ["cat", "mouse", favoriteFood: "pizza", -1: -1], 注意添加的最后两个
+console.log(JSON.stringify(arry)); // '["a","b"]', 只有non-negatvie integer加进去的两个
+console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的最后两个
 ```
+- 只有arry[key]的key是**non-negtive**且**integer**时才会改变`length`. 否则都是添加到object上了, 类似obj的key.
+- `JSON.stringify(arry)`
+  - 只return本身arry, eg: ["a", "b"]. 没有index/key.
+  - key不是non-negtive integer的, 在`JSON.stingify`时不会show up
+- `console.log(arry)`
+  - 区别于JSON.stringify, log会看到所有的. 对于不是non-negative integer的index, 会log key: val. eg: <span class="orange">["a", "b", favoriteFood: "pizza", -1: -1]</span>
 
-<b>Ways to create Array</b>
+##### Ways to create Array
 
-* Array literals `let arry = [1,2,3];`
-* The ... spread operator on an <u>iterable</u> object
-	
-	<b>String / Array-like object / Set / Map to Array</b>. `[...string]`, `[...arguments]`, `[...set]`
+- Array literals `const arry = [1,2,3];`
+- `...`spread operator on an **iterables**, <span class="orange">spread不能用在不能for index loop的object上!!</span>
+  - String / Array-like iterable object / Set / Map to Array: `[..."abc"]`, `[...arguments]`, `[...set]`
+  - spread的array-like只能是arguments, nodeList. <span class="orange">`{ length: 5 }`也是array-like, 但是不能iterable, spread不能用!</span>
+- `Array.from(iterable/array-like, mapFn)`: `Array.from(arguments)`, `Array.from("ab")`, `Array.from({ length: 5 })` - 区别于spread
 
-	Spread operator works on any iterable objects (<span class="orange">任何可以用`for...of`的都是iterable</span>). 因为string is iterable, 所以可以用spread operator把它unpack.
-	
-	<span class="orange">Set objects are iterable, 但是objects本身并不是iterable.</span>
-	
-	Ex. Remove dups in a string. 利用了set可以remove dups
-	
-	```javascript
-	let lettersArry = [..."hello world"];
-	console.log(lettersArry); // ["h", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"]
+> **Array-like objects** are objects with a **length** property
+> - `...`spread只能用于**iterable** array-like: arguments, nodeList(可以for index loop), { length: 5 }是不能用的
+> - `Array.from`可以用于any array-like, `Array.from({ length: 5 })`
 
-  function removeDup(str) {
-      const set = new Set([...str]); // 用array init set
-      return [...set].join(""); // 注意join default param是comma',' 这里要用""
-  }
-  console.log(removeDup("hello world")); // helo wrd
-	```
-* The `Array()` constructor. 
-
-	```javascript
-	// construct from array length
-	new Array(arrayLength)
-	
-	let fruits = new Array(2);
-	console.log(fruits.length); // 2
-	console.log(fruits[0]); // undefined
-	```
-	
-	```javascript
-	// construct from elements
-	new Array(element0, element1, ..., elementN)
-	
-	let fruits = new Array("Apple", "Banana");
-
-	console.log(fruits.length); // 2
-	console.log(fruits[0]); // "Apple"
-	```
-	
-	注意如果pass进的是a <b>single</b> argument, and that argument is a <b>number</b>, 都按arryLength处理. 而且number要处于[0, 2^32-1], 否则会报错.
-	
-	```javascrpt
-	let arry = new Array(1);
-	console.log(arry); // [undefined], arry.length=1;
-	
-	// 区别于[].length = 0, 和上面的arry不同
-	
-	arry = new Array(2);
-	console.log(arry); // [undefined, undefined], arry.length=2
-	
-	arry = new Array(-1); // Uncaught RangeError: Invalid array length
-	```
-
-* `Array.of(elementN)`
-	
-	The `Array.of()` method creates a new Array instance from a variable number of arguments, 无论是几个arguments. 区别于 `new Array(...)` created array取决于params是一个还是多个
-
-	```javascript
-	let arry1 = new Array(2); // arry1 is an array with 2 empty slots
-	let arry2 = new Array(1,2); // arry2 = [1,2]
-	
-	let arry3 = Array.of(2); // arry3 = [2]
-	let arry4 = Array.of(1,2,); // arry4 = [1,2], 和new Array(1, 2)一样
-
-	```
-
-	`Array.of(7)` creates an array with a single element, 7, whereas `new Array(7)` creates an empty array with a length property of 7
-* `Array.from()`
-	
-	```javascript
-	Array.from(arrayLike) // arguments, nodeList, string, set, map
-	
-	// Arrow function, 类似于arry.map(), return一个新arry
-	Array.from(arrayLike, (element) => { ... } )
-	Array.from(arrayLike, (element, index) => { ... } )
-	```
-
-	`Array.from()` lets you create Arrays from: <b>array-like</b> objects (string) or <b>iterable</b> objects.
-	
-  * <b>array-like</b> object: objects with a <span class="orange">length</span> property and <span class="orange">indexed elements</span> <br><br>
-
-    Ex1. `arguments`
-    
-    ```javascript
-    const f1 = () => {
-      console.log(arguments); // Uncaught ReferenceError: arguments is not defined
-      return Array.from(arguments); // aborted
-    };
-    console.log(f1(4,5));
-    
-    function f2() {
-      console.log(arguments); // [4, 5, callee: ƒ, Symbol(Symbol.iterator): ƒ]
-      console.log(arguments[0], arguments[1]); // 4, 5
-      return Array.from(arguments);
-    }
-    console.log(f2(4,5)); // [4, 5]
-    ```
-    
-    注意上面f1的arrow function是没有arguments, 但是<span class="yellowBG">Arrow functions do not have an own arguments binding in their scope</span>; no arguments object is created when calling them. <br><br>
-
-    Ex2. <span class="orange">NodeList</span>
-
-    ```javascript
-    const images = document.querySelectorAll("img"); // non-live NodeList
-    const unsecuredUrls = Array.from(images).filter(img => img.src.startsWith("http://")); // str.startsWith(str): boolean
-    const exLarges = Array.from(images).filter(img => img.src.includes("s-l1600")); // str.includes(str): boolean
-    ```
-
-    注意`str.startsWith()`和`str.includes()`
-
-    Ex3. <span class="orange">String</span>, 等同于`[...string]`
-
-    ```javascript
-    Array.from("foo"); // [ "f", "o", "o" ]
-
-    //等同于
-    [..."foo"]; // ["f", "o", "o"]
-    ```
-		
-  * <b>iterable</b> objects (eg: <span class="orange">Set</span> and <span class="orange">Map</span>).
-      
-    * Array from a Set
-    
-      ```javascript
-      // const set = new Set(["a", "b", "a"]);
-      const set = new Set([..."aba"]); // remove dup
-      Array.from(set); // [ "a", "b" ]
-      
-      // 等同于
-      [...set];
-      ```
-
-    * Array from a Map
-    
-      ```javascript
-      const map = new Map([[1, 2], [2, 4], [4, 8]]); // 类似于new Map(Object.entries(obj))
-      Array.from(map); // [[1, 2], [2, 4], [4, 8]] // 得到的是Object.entries(obj)
-      
-      const mapper = new Map([["1", "a"], ["2", "b"]]);
-      Array.from(mapper.values()); // ["a", "b"];
-      
-      Array.from(mapper.keys()); // ["1", "2"];
-      ```
-
-  Ex. Using arrow functions and Array.from(), 类似于`arry.map`, but it is more efficient to perform the mapping while the array is being built than it is to build the array and then map it to another new array.
+  Ex1.1 Array-like: arguments
 
   ```javascript
-  // Ex1
   function double() {
-    return Array.from(arguments, elem => elem*2);
+    return [...arguments].map(num => num*2);
   }
-  double(2,1,5); // [4,2,10]
-
-  // Ex2
-  const t2 = Array.from({length: 5}, (elem, index) => index);
-  console.log(t2); // [0, 1, 2, 3, 4]
+  console.log(double(2,1,5)); // [4, 2, 10]
   ```
-  注意上面Ex2
+  - 注意arguments的好处在于无所谓params有几个
+  
+  Ex1.2 Array-like: NodeList
 
-  * { length: 5 }满足了arry-like (有length prop). 
-  * `Array.from({length: 5})`返回的是[undefined, undefined, undefined, undefined, undefined]. 
-  * 后面的(elem, index) => index等同于 `(elem, index) => { return elem = index; }`, 加了{}后勿忘return.
+  ```javascript
+  const images = document.querySelectorAll("img"); // non-live NodeList
+  const unsecuredUrls = Array.from(images).filter(img => img.src.startsWith("http://")); // str.startsWith(str): boolean
+  const exLarges = Array.from(images).filter(img => img.src.includes("s-l1600")); // str.includes(str): boolean
+  ```
+
+  Ex1.3 Array-like: { length: 5 }
+
+  ```javascript
+  // Ex2
+  const arry1 = Array.from({length: 5}, (elem, index) => elem = index);
+  console.log(arry1); // [0, 1, 2, 3, 4]
+
+  const arry2 = Array.from({ length: 5 }).map((num, index) => num = index);
+  console.log(arry2); // [0, 1, 2, 3, 4]
+  ```
+  - `Array.from(items, mapFn)`, mapFn(elem, index): 先elem后index
+    - `arry.map((elem, index) => {...})`也是先elem后index
+  - { length: 5 }满足了arry-like (有length prop). 
+  - `Array.from({length: 5})`返回的是[undefined, undefined, undefined, undefined, undefined]. 
+  - 相较于arry2, arry1更efficient to perform the mapping while the array is being built than it is to build the array and then map it to another new array.
+  - `[...{ length: 5 }]; // Uncaught TypeError: {(intermediate value)} is not iterable` - <span class="orange">spread只能用于iterable, plain object is NOT iterable</span>, 和`for...of`一样
+
+  Ex2. Set
+
+  ```javascript
+  function removeDup(str) {
+    if (!str) return "";
+    const set = new Set([...str]); // 用array init set
+    return [...set].join(""); // 注意join default param是comma, 这里要用""
+  }
+  console.log(removeDup("hello world")); // helo wrd
+  ```
+  - `["a", "b"].join(); // 'a,b'` - <span class="orange">arry.join default是comma</span>
+- Use Array constructor
+  - `new Array(arrayLength)`
+
+    ```javascript
+    const arry = new Array(2);
+    console.log(arry.length); // 2
+    console.log(arry[0]); // undefined
+    ```
+  - `new Array(element0, element1, ..., elementN)` - (not common, error prone)
+
+    ```javascript
+    const arry1 = new Array("a", "b");
+
+    const arry2 = new Array(2); // 按length处理
+    console.log(arry2); // [undefined, undefined], arry.length=2
+
+    const arry3 = new Array(-1); // Uncaught RangeError: Invalid array length
+    ```
+    - 注意如果pass进的是a **single** argument, 并且that argument is a **number**, 都按arryLength处理. 而且number要处于[0, 2^32-1], 否则会`RangeError`.
 
 #### <a name="78-array-methods" id="78-array-methods">7.8 Array Methods</a>
 

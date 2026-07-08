@@ -42,7 +42,7 @@
 - [x] [§5.4.6 for...of vs for...in](../docs/guide.md#546-forof-vs-forin)
 - [x] [§6.9 Object Methods](../docs/guide.md#69-object-methods)
   - [x] [ch2.md — How Objects Work](objects-classes/ch2.md)
-- [ ] [§7.1 Creating Arrays](../docs/guide.md#71-creating-arrays-arrayof-arrayfrom)
+- [ ] [§7.1 Creating Arrays](../docs/guide.md#71-creating-arrays)
 - [ ] [§7.8 Array Methods](../docs/guide.md#78-array-methods)
   - [§7.8.1 Iterator Methods](../docs/guide.md#781-array-iterator-methods)
   - [§7.8.2 flat() / flatMap()](../docs/guide.md#782-flattening-arrays-with-flat-and-flatmap)
