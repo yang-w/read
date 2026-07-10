@@ -26,7 +26,7 @@
 	* [5.4.5.1 Object.hasOwn](#5451-objecthasown)
 * [5.4.6 for...of vs for...in](#546-forof-vs-forin)
 * [6.9 Object Methods](#69-object-methods)
-* [7.1 Creating Arrays](#71-creating-arrays)
+* [7.1 Array and Array-Like](#71-array-and-array-like)
 * [7.8 Array Methods](#78-array-methods)
 	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#781-array-iterator-methods)
 	* [7.8.2 Flattening arrays with `flat()` and `flatMap()`)](#782-flattening-arrays-with-flat-and-flatmap)
@@ -2405,7 +2405,7 @@ console.log(String(point2)); // (3, 4), toString is called
 console.log(JSON.stringify(point2)); // "(3, 4)", toJSON is called
 ```
 
-#### <a name="71-creating-arrays" id="71-creating-arrays">7.1 Creating Arrays</a>
+#### <a id="71-array-and-array-like"></a>7.1 Array and Array-Like
 
 Ex1. `arry.length` 
 
@@ -2434,14 +2434,17 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 ##### Ways to create Array
 
 - Array literals `const arry = [1,2,3];`
-- `...`spread operator on an **iterables**, <span class="orange">spread不能用在不能for index loop的object上!!</span>
-  - String / Array-like iterable object / Set / Map to Array: `[..."abc"]`, `[...arguments]`, `[...set]`
-  - spread的array-like只能是arguments, nodeList. <span class="orange">`{ length: 5 }`也是array-like, 但是不能iterable, spread不能用!</span>
+- `...`spread operator on an **iterables**, <span class="orange">spread只能用在可以for index loop的object上!!</span>
+  - String / Array-like **iterable** object / Set / Map to Array: `[..."abc"]`, `[...arguments]`, `[...set]`
+  - spread的array-like只能是arguments, nodeList. <span class="orange">`{ length: 5 }`也是array-like, 但是不能iterable, 不能spread!</span>
 - `Array.from(iterable/array-like, mapFn)`: `Array.from(arguments)`, `Array.from("ab")`, `Array.from({ length: 5 })` - 区别于spread
+  - <span class="orange">Array.from(arguments, **(item, index)** => ...)</span> 
+    - Array.from有自己的callback, 相较于Array.from().map更efficient, 只loop一次
+    - mapFn(item, index): 先item后index
 
 > **Array-like objects** are objects with a **length** property
-> - `...`spread只能用于**iterable** array-like: arguments, nodeList(可以for index loop), { length: 5 }是不能用的
-> - `Array.from`可以用于any array-like, `Array.from({ length: 5 })`
+> - `...`spread只能用于**iterable** array-like objects: arguments, nodeList(可以for index loop), { length: 5 }是不能用的
+> - `Array.from`可以用于any array-like objects, `Array.from({ length: 5 })`
 
   Ex1.1 Array-like: arguments
 
@@ -2456,10 +2459,15 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   Ex1.2 Array-like: NodeList
 
   ```javascript
-  const images = document.querySelectorAll("img"); // non-live NodeList
-  const unsecuredUrls = Array.from(images).filter(img => img.src.startsWith("http://")); // str.startsWith(str): boolean
-  const exLarges = Array.from(images).filter(img => img.src.includes("s-l1600")); // str.includes(str): boolean
+  const imgs = document.querySelectorAll("img"); // non-live NodeList
+  // array才能用filter, 必须[...nodeList]
+  const imgsWithUnsecuredUrs = [...imgs].filter(img => img.src.startsWith("http://"));
+  const imgsWithLargeSize = [...imgs].filter(img => img.src.includes("s-l1600"));  
   ```
+  - `document.querySelectorAll`返回的是nodeList: array-like objects, 不能直接用array的methods, 必须<span class="orange">[...document.querySelectorAll("img")]</span>
+    - `document.querySelector`返回的是element object, 不能iterable, 既不能用spread, 也不能用Array.from
+  - str.start<span class="orange">**s**</span>With
+  - str.include<span class="orange">**s**</span>
 
   Ex1.3 Array-like: { length: 5 }
 
@@ -2471,11 +2479,11 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   const arry2 = Array.from({ length: 5 }).map((num, index) => num = index);
   console.log(arry2); // [0, 1, 2, 3, 4]
   ```
-  - `Array.from(items, mapFn)`, mapFn(elem, index): 先elem后index
+  - `Array.from(items, mapFn)`, `mapFn(elem, index)`: 先elem后index
     - `arry.map((elem, index) => {...})`也是先elem后index
   - { length: 5 }满足了arry-like (有length prop). 
   - `Array.from({length: 5})`返回的是[undefined, undefined, undefined, undefined, undefined]. 
-  - 相较于arry2, arry1更efficient to perform the mapping while the array is being built than it is to build the array and then map it to another new array.
+  - 相较于arry2, <u>arry1更efficient只loop了一次</u>: to perform the mapping while the array is being built than it is to build the array and then map it to another new array.
   - `[...{ length: 5 }]; // Uncaught TypeError: {(intermediate value)} is not iterable` - <span class="orange">spread只能用于iterable, plain object is NOT iterable</span>, 和`for...of`一样
 
   Ex2. Set
@@ -2484,11 +2492,11 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   function removeDup(str) {
     if (!str) return "";
     const set = new Set([...str]); // 用array init set
-    return [...set].join(""); // 注意join default param是comma, 这里要用""
+    return [...set].join(""); // arry.join() default是comma, 这里要用""
   }
   console.log(removeDup("hello world")); // helo wrd
   ```
-  - `["a", "b"].join(); // 'a,b'` - <span class="orange">arry.join default是comma</span>
+  - `["a", "b"].join(); // 'a,b'` - <span class="orange">arry.join() default是comma连接</span>
 - Use Array constructor
   - `new Array(arrayLength)`
 
@@ -2511,7 +2519,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
 #### <a name="78-array-methods" id="78-array-methods">7.8 Array Methods</a>
 
-`arry.forEach`, `for...of`<br>
+`arry.forEach`, `for...of`, for...in (avoid, intended for obj)<br>
 `arry.map`, `arry.filter`, <br>
 `arry.find`, `arry.findIndex`, `arry.indexOf`, `arry.lastIndexof`, `arry.includes`, <br>
 `arry.every`, `arry.some`, <br>
@@ -2521,15 +2529,99 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 `arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`, <br>
 `arry.slice`, `arry.splice`, `arry.fill`, `arry.copyWithin`
 
-- Most of the methods above will <b>NOT modify</b> the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
+- `callbackFn(elem, index)`, <u>先elem后index</u>
+- Most of the methods above will **NOT modify the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
 	- `push`, `pop`, `shift`, `unshift`
 	- `splice`, `fill`, `copyWithin`
 	- `sort`, `reverse`
-- If the array is <span class="orange">sparse</span>, the function you pass is <b>not</b> invoked for nonexistent elements, but the returned array (if there is) will be <u>sparse in the same way</u> as the original array: it will have the same length and the same missing elements. <span class="orange">除了</span>
-  - `arry.forEach` will skip the empty slot.
-  - `arry.filter` will skip and return a densed array.
-  - `arry.find` will loop thru nonexistent elements as well.
-  - `arry.flat` is similar to `filter`, will remove empty elem/slot, but it will also remove one level empty [].
+- If the array is <span class="orange">sparse</span>, the function you pass is **not** invoked for nonexistent elements, but the returned array (if there is) will be <u>sparse in the same way</u> as the original array: it will have the same length and the same missing elements.
+  - If the iteration method <span class="orange">takes a callback, except `find*`</span>, they generally **skip holes** (`forEach`, `map`, `filter`, `some`, `every`, `reduce`, etc)
+  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), then it generally **visit holes** and treat them as undefined
+  - Search methods <b>`find*` visit hole</b> as well
+
+  ```javascript
+  // when hole matters: looking for the first undefined
+  const arry1 = [1,,3];
+  arry1.forEach((num, index) => { // hole不会visit
+    if (num === undefined) {
+      console.log(`arry1[${index}] is undefined`);
+    }
+  });
+  // no log
+
+  arry1.find((num, index) => { // hole is visited
+    if (num === undefined) {
+      console.log(`arry1[${index}] is undefined`);
+    }
+  });
+  // arry1[1] is undefined
+
+  // hole VS undefined
+  console.log(Object.keys(arry1)); // ['0', '2'], index没有1
+  const arry2 = [1, undefined, 3];
+  console.log(Object.keys(arry2)); // ['0', '1', '2'], index有1
+  ```
+  - `arry.forEach` skip holes VS `arry.find` visit holes
+  - 区别hole和undefined, <span class="orange">undefined不是hole</span>. hole is not a property. Arrays in JavaScript are just objects whose indexes are property names.
+  - `delete arry[index];`: <span class="orange">creates a hole</span>. 用`arry.splice(index, 1);`保持dense
+
+- `async/await`
+  - If the iteration method <span class="orange">takes a callback</span>, they generally **not async-aware**. eg: `arry.map` doesn't await, runs sync returns a promise immediately.
+  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop until the promise resolves**.
+
+  ```javascript
+  const arry = [1,2,3];
+  const asyncSum = async (a , b) => a + b; // async的位置
+  // function declartion
+  async function sumAsync(a, b) { return a + b; } // async的位置
+
+  let sum = 0;
+  arry.forEach(async (elem) => {
+    sum = await sumAsync(sum, elem); // arry.map will not wait for await
+  });
+  console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有pause在await等resolve, 直接结束了
+  // ...later, async work finishes
+
+
+  (async () => {
+    let sum = 0;
+    const promises = arry.map(async (elem) => {
+      sum = await sumAsync(sum, elem); // arry.map will not wait for await
+    });
+    console.log(`arry.map, sum = ${sum}`);
+    console.log(promises); // [Promise, Promise, Promise], 没有等resolve
+    
+    await Promise.all(promises); // async从这里开始, 先执行block外的done再回来
+    console.log(`arry.map, sum after settle = ${sum}`);
+  })();
+
+  console.log("A");
+
+  (async () => {
+    await Promise.resolve();
+    console.log("B");
+  })();
+  console.log("C");
+
+  // arry.forEach, sum = 0
+
+  // arry.map, sum = 0 <- async IIFE runs synchronously until it reaches its first await.
+  // A
+  // C
+  // B
+  // arry.map, sum after settle = 3
+
+  (async () => {
+    let sum = 0;
+
+    for (const elem of arry) {
+      sum = await sumAsync(sum, elem);
+    }
+
+    console.log(`for...of, sum = ${sum}`);
+  })();
+  // for...of, sum = 6
+  ```
 
 ##### <a name="781-array-iterator-methods" id="781-array-iterator-methods">7.8.1 Array Iterator Methods</a>
 
@@ -2542,23 +2634,21 @@ arry.forEach((element, index) => { ... } )
 arry.forEach((element, index, array) => { ... } )
 ```
 
-`forEach`<span class="orange">没有return</span>, 也不改变本身arry, 且<b>无法`break`</b>. 
+`forEach`<span class="orange">没有return</span>, 也不改变本身arry, 且<b>无法`break`</b>, 区别于普通for loop和`for...of`. 
 
-<span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
+<span class="orange">Not In-Place</span>.
 
 适用于只对arry中的每个elem操作, <u>区别于`map`: `map`的意义在于returned arry</u>.
 
-注意There is no equivalent of the `break` statement in `forEach` you can use with a regular `for` or `for...of` loop.
-
 `arry.forEach`和`for...of`一样, 都是<span class="orange">sequential order</span>
 
-Ex1. arry.forEach(elem) where elem is a <span class="orange">shallow</span> copy of original arry
+Ex1. 区别Ex1.1和Ex1.2
 
 ```javascript
 // Ex1.1
 const arry = [1,2,3];
 arry.forEach(num => {
-  num = num*2; // 这里的num是copy of arry elem
+  num = num*2; // num变了, 但不影响本身arry
   console.log(num); // 2, 4, 6
 }); 
 console.log(arry); // [1, 2, 3], 本身arry没有变
@@ -2566,10 +2656,10 @@ console.log(arry); // [1, 2, 3], 本身arry没有变
 // Ex1.2
 const arry = [1,2,3];
 arry.forEach((num, index, arry) => {
-  arry[index] = num * 2; // This modifies the array in place
-  console.log(num); // 1, 2, 3. 这里的num是本身arry里的copy, 没有double, 和arry[index]没关系
+  arry[index] = num * 2; // modifies array in place
+  console.log(num); // 1, 2, 3. num是本身arry里的copy, 没有double
 }); 
-console.log(arry); // [2, 4, 6], 用arry[index]修改了原arry
+console.log(arry); // [2, 4, 6], 本身arry变了
 
 // Ex1.3
 const arry = [{ a: 1 }, { b: 2 }];
@@ -2580,23 +2670,15 @@ console.log(arry); // [{ a: 1, c: 3 }, { b: 2, c: 3 }], 这里本身arry变了, 
 ```
 
 `arry.forEach(elem)`的<span class="orange">elem是本身arry的copy, 对elem的操作不改变原arry</span>
-- Ex1.1 虽然forEach里num double了, 但是num是a copy of arry elem, 本身arry不变 
+- `forEach`是为了对每个elem操作, 本身arry不变, 不是为了得到一个新的array
+- Ex1.1 虽然forEach里num double了, 但是本身arry不变 
 - Ex1.2区别于1.1, <span class="orange">用arry[index]改变原arry</span>, num是本身arry的copy, 没有double
 - Ex1.3区别于1.1, 本身arry变了, 因为这里的elem是object
 
-Ex2. arry.forEach with sparse array
+Ex2. add/remove elems from array when arry.forEach
 
 ```javascript
-let arry = [1,,3];
-arry.forEach(num => console.log(num)); // 1, 3
-```
-
-- arry.forEach callback is <u>Not invoked for empty slots</u> in sparse arrays.
-
-Ex3. add/remove elems from array when arry.forEach
-
-```javascript
-// Ex3.1
+// Ex2.1
 const arry = [1, 2, 3];
 arry.forEach(num => {
   console.log(num); // 1, 2, 3
@@ -2605,38 +2687,21 @@ arry.forEach(num => {
 });
 console.log(arry); // [1, 2, 3, 0, 0, 0]
 
-// Ex3.2
+// Ex2.2
 const arry = [1, 2, 3];
 arry.forEach(num => {
-  console.log(num); // 1, 1, 1
+  console.log(num); // 1 1 1, 不是1,2,3!!!
   num = num * 2;
   arry.unshift(0);
 });
 console.log(arry); // [0, 0, 0, 1, 2, 3]
 ```
 
-- <u>The number of elements to visit is determined <b>BEFORE</b> the callback</u>: ex1和ex2都只loop了本身arry.length=3次
-- 注意Ex3.1的push, 虽然arry有新的0加入, 但是loop只loop了原先arry.length=3次
-- 区别Ex3.2的unshift, 也有3个0加入, 虽然也只loop了3次, 但是每次loop的都是1
+- <u>The number of elements to visit is determined <span class="orange">**BEFORE**</span> the callback</u>: 就是index [0~length-1]. 如果arry变了, visit的index是不变的, 只是变成<span class="orange">当前arry的index[0~length-1]</span>. ex1和ex2都只loop了本身arry.length=3次
+  - 注意Ex2.1的push, 虽然arry有新的0加入, 但是loop只loop了当前arry.length=3次: arry[0], arry[1], arry[2]
+  - 区别Ex2.2的unshift, 在前面加了3个0, 虽然也只loop了3次, arry[0], arry[1], arry[2], 但是是每次新的arry的index 0,1,2: <u>[1,2,3]的index0</u> = 1 -> <u>[0,1,2,3]的index1</u> = 1 -> <u>[0,0,1,2,3]的index2</u> = 1, 总共3个1
 
-Ex4. arry.forEach with async
-
-```javascript
-const arry = [5, 4, 5];
-let sum = 0;
-const sumAsync = async (a, b) => a + b;
-// function declartion
-async function sum(a, b) { return a + b; }
-
-arry.forEach(async (num) => {
-  sum = await sumAsync(sum, num) // 勿忘sum=, 否则sum不变
-});
-console.log(sum); // 0, (naively expected output: 14)
-```
-
-- 注意`arry.forEach` loop <u>does NOT wait for the async</u> function to complete before moving on to the next iteration.
-
-Ex5. flatten arry (`arry.flat(depth)`)
+Ex3. flatten arry (`arry.flat(depth)`)
 
 ```javascript
 function flatten(arry) {
@@ -2655,8 +2720,22 @@ flatten(nested); // [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 nested.flat(Infinity); // [1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-
 - 注意arry.flat(<span class="orange">Infinity</span>)
+
+##### <span class="white-on-black">for...of</span>
+
+`for...of`支持break
+
+```javascript
+const arry = [1,,3];
+for(const num of arry) {
+  if (num === undefined) {
+    break;
+  }
+  console.log(num);
+}
+// 1
+```
 
 ##### <span class="white-on-black">map</span>
 
