@@ -2529,7 +2529,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 `arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`, <br>
 `arry.slice`, `arry.splice`, `arry.fill`, `arry.copyWithin`
 
-- `callbackFn(elem, index)`, <u>先elem后index</u>
+- `callbackFn(elem, index, arry )`, <u>先elem后index</u>
 - Most of the methods above will **NOT modify the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
 	- `push`, `pop`, `shift`, `unshift`
 	- `splice`, `fill`, `copyWithin`
@@ -2557,71 +2557,179 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   // arry1[1] is undefined
 
   // hole VS undefined
-  console.log(Object.keys(arry1)); // ['0', '2'], index没有1
+  console.log(Object.keys(arry1)); // ['0', '2'], index没有1. 且key都是string不是integer
   const arry2 = [1, undefined, 3];
   console.log(Object.keys(arry2)); // ['0', '1', '2'], index有1
   ```
   - `arry.forEach` skip holes VS `arry.find` visit holes
-  - 区别hole和undefined, <span class="orange">undefined不是hole</span>. hole is not a property. Arrays in JavaScript are just objects whose indexes are property names.
+  - 区别hole和undefined, <span class="orange">undefined不是hole</span>. <u>Arrays are just objects whose indexes are property names</u>.
   - `delete arry[index];`: <span class="orange">creates a hole</span>. 用`arry.splice(index, 1);`保持dense
+  - `Object.keys()` 返回的arry的key是string不是integer
 
 - `async/await`
-  - If the iteration method <span class="orange">takes a callback</span>, they generally **not async-aware**. eg: `arry.map` doesn't await, runs sync returns a promise immediately.
-  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop until the promise resolves**.
+  - If the iteration method <span class="orange">takes a callback</span>, they generally **not async-aware**. eg: `arry.map` doesn't await until promise resolves, but <span class="orange">**returns the promise immediately, skip the rest of lines in current iteration, then continues to the next iteration**</span>.
+  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop UNTIL the promise resolves, then continue the rest of lines in current iteration, then move to the next loop**.
 
+  Ex1. 
   ```javascript
   const arry = [1,2,3];
+  // async写在function expression/declaration前
   const asyncSum = async (a , b) => a + b; // async的位置
-  // function declartion
   async function sumAsync(a, b) { return a + b; } // async的位置
 
   let sum = 0;
-  arry.forEach(async (elem) => {
-    sum = await sumAsync(sum, elem); // arry.map will not wait for await
+  arry.forEach(async elem => { // async的位置, 和上面const asyncSum = async (a, b) => ...一样
+    sum = await sumAsync(sum, elem); // 立刻返回promise, 跳出当前iteration, 进入下一个iteration
   });
-  console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有pause在await等resolve, 直接结束了
+  console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有等await resolve, 直接return了promise
   // ...later, async work finishes
 
 
-  (async () => {
+  // 注意IIFE的括号打在async前!!
+  (async () => { // 勿忘async!! 这个async是和await Promise.all的await对应
     let sum = 0;
     const promises = arry.map(async (elem) => {
-      sum = await sumAsync(sum, elem); // arry.map will not wait for await
+      sum = await sumAsync(sum, elem); // 立刻返回promise, 跳出当前iteration, 进入下一个iteration
     });
-    console.log(`arry.map, sum = ${sum}`);
+    console.log(`arry.map, sum = ${sum}`); // 0
     console.log(promises); // [Promise, Promise, Promise], 没有等resolve
     
-    await Promise.all(promises); // async从这里开始, 先执行block外的done再回来
+    await Promise.all(promises); // async从这里才开始!! 先执行block外的done再回来
     console.log(`arry.map, sum after settle = ${sum}`);
   })();
 
-  console.log("A");
+  console.log("done");
 
-  (async () => {
-    await Promise.resolve();
+  (async () => { // 勿忘async!!
+    await Promise.resolve(); // 跳出async block, 先C再回来
     console.log("B");
   })();
   console.log("C");
 
-  // arry.forEach, sum = 0
-
-  // arry.map, sum = 0 <- async IIFE runs synchronously until it reaches its first await.
-  // A
-  // C
-  // B
-  // arry.map, sum after settle = 3
-
-  (async () => {
+  (async () => { // 勿忘async!!
     let sum = 0;
 
     for (const elem of arry) {
-      sum = await sumAsync(sum, elem);
+      sum = await sumAsync(sum, elem); // 跳出async block, 先D再回来
     }
 
     console.log(`for...of, sum = ${sum}`);
   })();
-  // for...of, sum = 6
+
+  console.log("D");
+
+  /** 
+   * 注意log顺序!!
+   *
+   * arry.forEach, sum = 0
+   * 
+   * arry.map, sum = 0
+   * [Promise, Promise, Promise]
+   *
+   * done
+   * 
+   * C
+   *
+   * D
+   * 
+   * B
+   * 
+   * arry.map, sum after settle = 3 <- 是3不是6!!
+   * 
+   * for...of, sum = 6 <- 区别于arry.map, 这才是对的sum=1+2+3
+   * */
   ```
+  - **async function**() {}, const sumA = **async ()**=> {}` - async都写在function定义前
+  - **await所在的block开始必须有async**
+  - <span class="orange">**(**</span>async ()=>{...}<span class="orange">)()</span> - async的IIFE的括号要打在async之前!!
+    - async的IIFE就是直接执行, 直到遇见await才跳出async block
+  - <span class="orange">async不是整个block直接跳过</span>, 而是**先sync执行, 直到遇见await才pause跳出**，先执行async block之外的
+    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是直接跳出当前iteration, 进入下一个iteration
+  - 注意log <span class="orange">arry.map, sum after settle = 3 <- 不是6=1+2+3</span>! 因为arry.map的3个callbacks start before any of them finishes, and each one reads sum while it is still 0!! 
+    - arry.map的3个callback虽然是sequentially triggered, 但是<u>没有await, they all start before any of them finishes</u>. 
+    - 和for...of, sum = 6不一样, for...of的3个callback也是sequentially triggered, 但是<u>每个都有await, the next iteration doesn't begin until the previous one has finished</u>
+  - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
+    - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
+    - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all
+
+  Ex2. `await` in arry.map的callback VS for...of
+
+  ```javascript
+  const arry = [1,2,3];
+  arry.map(async (elem) => {
+    console.log("start", elem);
+    await delay();
+    console.log("end", elem);
+  });
+  ```
+  Execution looks like this:
+
+  ```
+  callback(1):
+  start 1
+  await ... (pause) <- 没走到end1就pause了
+
+  callback(2):
+    start 2
+    await ... (pause) <- 没走到end2就pause了
+
+  callback(3):
+    start 3
+    await ... (pause) <- 没走到end3就pause了
+
+  map returns
+
+  Later:
+  end 1 <- end是sequential的, 和pause时的elem一样
+  end 2
+  end 3
+  ```
+
+  ```javascript
+  for (const elem of arry) {
+    console.log("start", elem);
+    await delay();
+    console.log("end", elem);
+  }
+  ```
+  Execution looks like this:
+
+  ```
+  start 1
+  end 1
+  start 2 <- end 1结束了才开始start 2 
+  end 2
+  start 3 <- end 2结束了才开始start 3 
+  end 3
+  ```
+  - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<span class="orange">skip following lines in current iteration, 直接进入下一个iteration</span>
+
+  Ex3. scope
+  ```javascript
+  let sum = 0;
+  (async () => {
+    for(const elem of arry) {
+      sum = await sumA(sum, elem);
+    }
+    console.log(`for..of, sum = ${sum}`)
+  })();
+
+  (async () => {
+    // let sum = 0; // 没有这一行, 两个async share同一个sum. UNPREDICTABLE sum at the end
+    const promises = arry.map(async elem => {
+      console.log(`map.sum = ${sum}`);
+      sum = await sumA(sum, elem);
+    });
+    await Promise.all(promises);
+    console.log(`map, promise.all, sum = ${sum}`);
+  })();
+
+  // 3个map.sum = 0
+  // for..of, sum = 6
+  // map, promise.all, sum = 6
+  ```
+  - 注意sum是shared, 最后一个log的sum = 6是unpredictable的, 完全取决于上面async callback的sum继续到了哪里
+  - `let`是block scope, 但也满足lexical scope, <u>可以跳出当前function向上寻找, 只要在一个大的block里就可以</u>
 
 ##### <a name="781-array-iterator-methods" id="781-array-iterator-methods">7.8.1 Array Iterator Methods</a>
 
@@ -2698,7 +2806,7 @@ console.log(arry); // [0, 0, 0, 1, 2, 3]
 ```
 
 - <u>The number of elements to visit is determined <span class="orange">**BEFORE**</span> the callback</u>: 就是index [0~length-1]. 如果arry变了, visit的index是不变的, 只是变成<span class="orange">当前arry的index[0~length-1]</span>. ex1和ex2都只loop了本身arry.length=3次
-  - 注意Ex2.1的push, 虽然arry有新的0加入, 但是loop只loop了当前arry.length=3次: arry[0], arry[1], arry[2]
+  - 注意Ex2.1的push, 虽然arry有新的0加入, 但是loop只loop了当前arry的第0个到第length-1=2个: arry[0], arry[1], arry[2]
   - 区别Ex2.2的unshift, 在前面加了3个0, 虽然也只loop了3次, arry[0], arry[1], arry[2], 但是是每次新的arry的index 0,1,2: <u>[1,2,3]的index0</u> = 1 -> <u>[0,1,2,3]的index1</u> = 1 -> <u>[0,0,1,2,3]的index2</u> = 1, 总共3个1
 
 Ex3. flatten arry (`arry.flat(depth)`)
