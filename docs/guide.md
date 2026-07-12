@@ -2579,7 +2579,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   let sum = 0;
   arry.forEach(async elem => { // async的位置, 和上面const asyncSum = async (a, b) => ...一样
-    sum = await sumAsync(sum, elem); // 立刻返回promise, 跳出当前iteration, 进入下一个iteration
+    sum = await sumAsync(sum, elem); // 立刻返回promise且sumAsync triggered, pause跳出当前iteration, 进入下一个iteration
   });
   console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有等await resolve, 直接return了promise
   // ...later, async work finishes
@@ -2589,7 +2589,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   (async () => { // 勿忘async!! 这个async是和await Promise.all的await对应
     let sum = 0;
     const promises = arry.map(async (elem) => {
-      sum = await sumAsync(sum, elem); // 立刻返回promise, 跳出当前iteration, 进入下一个iteration
+      sum = await sumAsync(sum, elem); // 立刻返回promise且sumAsync triggered, pause跳出当前iteration, 进入下一个iteration
     });
     console.log(`arry.map, sum = ${sum}`); // 0
     console.log(promises); // [Promise, Promise, Promise], 没有等resolve
@@ -2608,11 +2608,9 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   (async () => { // 勿忘async!!
     let sum = 0;
-
     for (const elem of arry) {
-      sum = await sumAsync(sum, elem); // 跳出async block, 先D再回来
+      sum = await sumAsync(sum, elem); // sumAsync triggered, pause跳出async block, 先D再回来
     }
-
     console.log(`for...of, sum = ${sum}`);
   })();
 
@@ -2640,71 +2638,181 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
    * */
   ```
   - **async function**() {}, const sumA = **async ()**=> {}` - async都写在function定义前
-  - **await所在的block开始必须有async**
+  - **await所在的block开始必须有async** - 几个await就得有几个async
   - <span class="orange">**(**</span>async ()=>{...}<span class="orange">)()</span> - async的IIFE的括号要打在async之前!!
     - async的IIFE就是直接执行, 直到遇见await才跳出async block
   - <span class="orange">async不是整个block直接跳过</span>, 而是**先sync执行, 直到遇见await才pause跳出**，先执行async block之外的
-    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是直接跳出当前iteration, 进入下一个iteration
-  - 注意log <span class="orange">arry.map, sum after settle = 3 <- 不是6=1+2+3</span>! 因为arry.map的3个callbacks start before any of them finishes, and each one reads sum while it is still 0!! 
+    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是pause跳出当前iteration, 进入下一个iteration
+  - 注意log <span class="underline-orange">arry.map, sum after settle = 3 <- 不是6=1+2+3</span>! 因为arry.map的3个callbacks start before any of them finishes, and each one reads sum while it is still 0!! 
     - arry.map的3个callback虽然是sequentially triggered, 但是<u>没有await, they all start before any of them finishes</u>. 
-    - 和for...of, sum = 6不一样, for...of的3个callback也是sequentially triggered, 但是<u>每个都有await, the next iteration doesn't begin until the previous one has finished</u>
+    - 和for...of, sum = 6不一样, for...of的3个callback也是sequentially triggered, 但是<span class="underline-orange">每个都有await, the next iteration doesn't begin until the previous one has finished</span>
   - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
     - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
-    - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all
+    - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async, 跳出 -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all resolve
 
-  Ex2. `await` in arry.map的callback VS for...of
+  Ex2. `await` callback in arry.map VS for...of
 
   ```javascript
   const arry = [1,2,3];
   arry.map(async (elem) => {
     console.log("start", elem);
-    await delay();
+    await delay(elem); // delay(elem) is triggered first, then pause
     console.log("end", elem);
   });
   ```
   Execution looks like this:
 
   ```
-  callback(1):
   start 1
-  await ... (pause) <- 没走到end1就pause了
+  await ... await delay没有resolve, sync直接return promise
+  // delay(1)先triggered
+  // 然后pause跳出当前async iteration, 继续map
 
-  callback(2):
-    start 2
-    await ... (pause) <- 没走到end2就pause了
+  start 2
+  await ...
+  // delay(2)先triggered
+  // 然后pause跳出当前async iteration, 继续map
 
-  callback(3):
-    start 3
-    await ... (pause) <- 没走到end3就pause了
+  start 3
+  await ...
+  // delay(3)先triggered
+  // 然后pause跳出当前async iteration
 
   map returns
 
   Later:
-  end 1 <- end是sequential的, 和pause时的elem一样
+  end x 的顺序取决于哪一个delay(elem)先执行完, each callback is independent.
+
+  如果
+  delay(1) -> resolves after 300 ms
+  delay(2) -> resolves after 100 ms
+  delay(3) -> resolves after 200 ms
+  则output是
   end 2
   end 3
+  end 1
   ```
 
   ```javascript
-  for (const elem of arry) {
-    console.log("start", elem);
-    await delay();
-    console.log("end", elem);
-  }
+  (async () => {
+    let sum = 0;
+    for (const elem of arry) {
+      console.log("start", elem);
+      await delay(elem);
+      console.log("end", elem);
+    }
+  })();
+  console.log("done");
   ```
   Execution looks like this:
 
   ```
   start 1
+  await ... delay(1)先triggered, 然后pause, 跳出整个async block, 
+
+  done
+
+  等delay(1) resolve之后
   end 1
-  start 2 <- end 1结束了才开始start 2 
+  start 2
+  
+  await ... delay(2)先triggered, 然后pause, wait until delay(2) resolves
   end 2
-  start 3 <- end 2结束了才开始start 3 
+  start 3
+
+  await ... delay(3)先triggered, 然后pause, wait until delay(3) resolves
   end 3
+
+  即使
+  delay(1) -> resolves after 300 ms
+  delay(2) -> resolves after 100 ms
+  delay(3) -> resolves after 200 ms
+  
+  end x的order也不变 - 区别于map!!!
   ```
   - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<span class="orange">skip following lines in current iteration, 直接进入下一个iteration</span>
+  - 区别map和for...of的`await`
+    - <span class="underline-orange">map的callback starts right away, each one waits independently, so completion order depends on which delay resolves first</span>.
+    - <span class="underline-orange">for...of的callback, each iteration waits for the previous await to finish</span>.
 
-  Ex3. scope
+  Ex3. `async`/`await` + `setTimeout`, **microtask queue**
+
+  ```javascript
+  const arry = [1, 2, 3];
+
+  (async () => {
+    for (const elem of arry) {
+      console.log("start", elem);
+      await Promise.resolve();
+      console.log("end", elem);
+    }
+  })();
+
+  setTimeout(() => {
+    console.log("timeout");
+  }, 0);
+
+  console.log("done");
+
+  // start 1
+
+  //done - 注意log顺序
+
+  // end 1
+  // start 2
+
+  // end 2
+  // start 3
+
+  // end 3
+
+  // timeout - 注意timeout是所有for loop结束才print的
+  ```
+  - 注意<span class="underline-orange">timeout是等到所有for loop结束才print</span>. 因为JavaScript's **event loop** always does this:
+    - Run all synchronous code.
+    - Drain one microtask queue completely.
+    - Then run next macrotask (like setTimeout).
+    - Repeat.
+
+  **Visual timeline**
+
+  ```
+  Call Stack
+  ----------
+  start 1
+  await -- pause
+  setTimeout scheduled, 看见setTimeout并不执行,只是schedule
+  done
+  ---
+  call stack now is empty
+
+  Microtask Queue
+  ---------------
+  resume async (1)
+  ↓
+  end 1
+  start 2
+  await
+  ↓
+  resume async (2)
+  ↓
+  end 2
+  start 3
+  await
+  ↓
+  resume async (3)
+  ↓
+  end 3
+
+  Macrotask Queue
+  ---------------
+  timeout
+  ```
+  - `await` continuations are microtasks.
+  - `setTimeout` callbacks are another macrotasks.
+  - The <span class="underline-orange">event loop always finishes all pending microtasks before running the next macrotask</span>.
+
+  Ex4. scope
   ```javascript
   let sum = 0;
   (async () => {
@@ -2726,9 +2834,9 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   // 3个map.sum = 0
   // for..of, sum = 6
-  // map, promise.all, sum = 6
+  // map, promise.all, sum = 6!!!
   ```
-  - 注意sum是shared, 最后一个log的sum = 6是unpredictable的, 完全取决于上面async callback的sum继续到了哪里
+  - 注意sum是shared, <span class="underline-orange">最后一个log的sum = 6是unpredictable的, 完全取决于上面async callback的sum继续到了哪里</span>
   - `let`是block scope, 但也满足lexical scope, <u>可以跳出当前function向上寻找, 只要在一个大的block里就可以</u>
 
 ##### <a name="781-array-iterator-methods" id="781-array-iterator-methods">7.8.1 Array Iterator Methods</a>
@@ -2805,7 +2913,7 @@ arry.forEach(num => {
 console.log(arry); // [0, 0, 0, 1, 2, 3]
 ```
 
-- <u>The number of elements to visit is determined <span class="orange">**BEFORE**</span> the callback</u>: 就是index [0~length-1]. 如果arry变了, visit的index是不变的, 只是变成<span class="orange">当前arry的index[0~length-1]</span>. ex1和ex2都只loop了本身arry.length=3次
+- <u>The number of elements to visit is determined <span class="orange">**BEFORE**</span> the callback</u> (同`arry.filter`): 就是index [0~length-1]. 如果arry变了, visit的index是不变的, 只是变成<span class="orange">当前arry的index[0~length-1]</span>. ex1和ex2都只loop了本身arry.length=3次
   - 注意Ex2.1的push, 虽然arry有新的0加入, 但是loop只loop了当前arry的第0个到第length-1=2个: arry[0], arry[1], arry[2]
   - 区别Ex2.2的unshift, 在前面加了3个0, 虽然也只loop了3次, arry[0], arry[1], arry[2], 但是是每次新的arry的index 0,1,2: <u>[1,2,3]的index0</u> = 1 -> <u>[0,1,2,3]的index1</u> = 1 -> <u>[0,0,1,2,3]的index2</u> = 1, 总共3个1
 
@@ -2854,21 +2962,16 @@ newArry = arry.map((element, index) => { ... } )
 newArry = arry.map((element, index, array) => { ... } )
 ```
 
-<span class="orange">Return value</span>: A new array with each element being the result of the callback function.
+**Return value**: A new array with each element being the result of the callback function.
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
-<b>Don't</b> using `map` when you <u>aren't using the returned array</u>. In that case, you should use `forEach` or `for...of`.
-
-```javascript
-let doubled = arry.map(num => num*2); // 只有在需要returned arry时才需要map
-console.log(doubled); // [2, 4, 6]
-```
+> Don't using `map` when you aren't using the returned array. 
+> In that case, you should use `forEach` or `for...of`.
 
 ##### <span class="white-on-black">filter</span>
 
 ```javascript
-// Arrow function
 let filtered = arry.filter((element) => { ...return true/false... } )
 filtered = arry.filter((element, index) => { ... } )
 filtered = arry.filter((element, index, array) => { ... } )
@@ -2876,107 +2979,111 @@ filtered = arry.filter((element, index, array) => { ... } )
 // Callback function
 filtered = arry.filter(callbackFn)
 filtered = arry.filter(callbackFn, thisArg)
+
+callbackFn(elem, index, arry)
 ```
 
-<span class="orange">Return value</span>: A new array with the elements that pass the test. If no elements pass the test, an empty array will be returned.
+**Return value**: A new array with the elements that pass the test. If no elements pass the test, <u>an empty array will be returned</u>.
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
 `arry.filter`的callbackFn返回的是true/false.
 
-`arry.filter` <b>skips</b> missing elements in sparse arrays and that its <u>return value is always dense</u>. 
+Ex1. Sparse array
 
 ```javascript
 // To close the gaps in a sparse array
 let sparse = [1,,3,,5, undefined];
-let dense = sparse.filter(() => true);
-console.log(dense); // [1, 3, 5, undefined]]
+let dense = sparse.filter(() => true); // 注意callback直接返回true就行
+console.log(dense); // [1, 3, 5, undefined], undefined还在
 
 // To close gaps and remove undefined and null elements,
 sparse = sparse.filter((elem) => elem !== undefined && elem !== null);
 console.log(sparse); //  [1, 3, 5]
 ```
+- `arry.filter` **skips** holes (**not undefined**) in sparse arrays and that its return value is always dense. 
+
+Ex2. callbackFn(elem, index, arry)
 
 ```javascript
-// use callback function
-// Ex1.1
-const isBigEnuf = val => val>4; // callback自动得到arry中的num
+// Ex2.1
+function isBigEnuf(elem) { // callback自动得到elem, index, arry
+  return elem > 4;
+}
 console.log([1,5,7].filter(isBigEnuf)); // [5, 7]
 
-// Ex1.2 additional param for callback
+// Ex2.2 additional param for callback
 function isBigEnuf2(threshold) {
-  return function(num) { // 注意这里不用pass进threshold
-    return num >= threshold;
+  // 这个return的function是真正的callback, 自动得到elem, index, arry
+  // 勿忘elem!!
+  return function(elem) {
+    return elem >= threshold;
   };
 }
 console.log([1,8,4,3].filter(isBigEnuf2(4))); // [8, 4]
 ```
+- 注意Ex2.2中how to <u>pass in additional params to callback</u>:
+  - arry.filter(isBigEnuf2<span class="orange">(4)</span>): `isBigEnfu2(4)`是立即执行了, 返回的才是真的callback, which has access to (elem, index, arry)
+  - 区别于Ex2.1的arry.filter(isBigEnuf), 没有括号执行, isBigEnuf就是callback
 
-- 注意Ex1.2中how to <u>pass in additional params to callback</u>: use higer-order function. Wrap callback in another function that takes extra params and returns the actual callback.
+Ex3.1 Modify array while `filter`.
 
-- Modify array while `filter`.
+```javascript
+// 本身length<6的是["spray", "limit", "elite"]
+const words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
 
-	```javascript
-	// 本身length<6的是["spray", "limit", "elite"]
-	let words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
-	
-	const modified = words.filter((word, index, arry) => {
-	    arry[index+1] += " extra"; // 这里改变的下一个word
-	    return word.length < 6; 
-	});
-	console.log(`words = ${words}`); // [spray,limit extra,elite extra,exuberant extra,destruction extra,present extra,undefined extra]
-	console.log(`modified = ${modified}`); // [spray]
-	```
+const modified = words.filter((word, index, arry) => {
+    arry[index+1] += " extra";
+    return word.length < 6; 
+});
+console.log(words); // ['spray', 'limit extra', 'elite extra', 'exuberant extra', 'destruction extra', 'present extra', 'undefined extra']
+console.log(modified); // ['spray']
+```
+- 注意原始words多了一个"undefined extra"
+- filter的<u>loop次数依然是原始words.length</u>, 虽然filter里的word已经是更新过的word了
 
-  - 注意原始words多了一个, 且是"undefined extra"
-	- 但是filter的<u>loop次数依然是原始words.length</u>, 虽然filter里的word已经是更新过的word了
+Ex3.2 Appending new words while `arry.filter`.
 
-- Appending new words while `arry.filter`.
+```javascript
+// Ex 3.2.1
+let words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
 
-  Ex1.
-	```javascript
-	// reset words, 因为之前words被改变了
-	words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
-	
-	const appendedWords = words.filter((word, _, arry) => {
-		arry.push("new");
-		return word.length < 6;
-	});
-	console.log(`words = ${words}`); // [spray,limit,elite,exuberant,destruction,present,new,new,new,new,new,new]
-	console.log(`appended = ${appendedWords}`); // [spray,limit,elite]
-	```
+const modified = words.filter((word, _, arry) => { // 注意skip index的写法
+  arry.push("new");
+  return word.length < 6;
+});
+console.log(words); // 多了6个new ['spray', 'limit', 'elite', 'exuberant', 'destruction', 'present', 'new', 'new', 'new', 'new', 'new', 'new']
+console.log(modified); // ['spray', 'limit', 'elite']
 
-  Ex2. 用unshift加在前面, 区别于Ex1
-  ```javascript
-  let words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
-  const filtered = words.filter(word,  => {
-    words.unshift("new");
-    console.log(word); // 6个spray
-    return word.length > 6;
-  });
-  console.log(words); // ['new', 'new', 'new', 'new', 'new', 'new', 'spray', 'limit', 'elite', 'exuberant', 'destruction', 'present']
-  console.log(filtered); // []
-  ```
+// Ex 3.2.2
+words = ["spray", "limit", "elite", "exuberant", "destruction", "present"]; // reset
+const filtered = words.filter(word,  => {
+  words.unshift("new"); 
+  console.log(word); // 6个spray
+  return word.length > 6;
+});
+console.log(words); // 前面多了6个new ['new', 'new', 'new', 'new', 'new', 'new', 'spray', 'limit', 'elite', 'exuberant', 'destruction', 'present']
+console.log(filtered); // ['spray', 'spray', 'spray', 'spray', 'spray', 'spray']
+```
+- 和`arry.forEach`一样, <u>The number of elements to visit is determined <span class="orange">**BEFORE**</span> the callback</u>: 从index [0, length-1]
+- Ex3.2.1中虽然push进了6个new, 但是loop只loop了本身words.length(6)次: arry[0 ~ length-1]
+- Ex3.2.2是unshift, 区别于3.2.1的push, 依然是visit index[0 ~ length-1], 但是是6个spray
+  - unshift("new")并不影响callback的word: arry.filter(word)的word是进入callback之前决定的
 
-  - Ex1中虽然push进了6个new, 但是loop只loop了本身words.length(6)次
-  - 区别Ex1和Ex2, Ex2是从前面插入, 虽然也只loop了6次, 但是每次下一个word都是"spray": words[nextIndex]
+Ex3.3 Deleting words while `filter`.	
+```javascript
+const words = ["spray", "limit", "exuberant", "destruction", "elite", "present"];
 
-- Deleting words while `filter`.	
-	```javascript
-	// reset words, 因为之前words被改变了
-	words = ["spray", "limit", "exuberant", "destruction", "elite", "present"];
-	
-	const deleteWords = words.filter((word) => {
-	    arry.pop();
-	    return word.length < 6;
-	});
-	console.log(`words = ${words}`); // [spray,limit,exuberant]
-	console.log(`deleted = ${deleteWords}`); // [spray,limit]
-  ```
-
-  - 因为pop, <u>fitler只进行了三轮</u>, 因为后面三个被pop掉了, 区别于前面的modify和append
-	- 最终的words只剩3个word
-	- deletedWords中没有elite, 因为在第二轮的时候被pop了
+const deleted = words.filter((word) => {
+  words.pop(); // 也可以直接用words
+  return word.length < 6;
+});
+console.log(words); // ['spray', 'limit', 'exuberant']
+console.log(deleted); // ['spray', 'limit']
+```
+- 因为pop, <u>fitler只进行了三轮</u>, 因为后面三个被pop掉了, 区别于前面的modify和append
+- 最终的words只剩3个word
+- deleted中没有elite, 因为在第二轮的时候被pop了
     
 ##### <span class="white-on-black">find and findIndex</span>
 
