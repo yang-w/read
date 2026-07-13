@@ -2579,7 +2579,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   let sum = 0;
   arry.forEach(async elem => { // async的位置, 和上面const asyncSum = async (a, b) => ...一样
-    sum = await sumAsync(sum, elem); // 立刻返回promise且sumAsync triggered, pause跳出当前iteration, 进入下一个iteration
+    sum = await sumAsync(sum, elem); // sumAsync triggered且立刻返回promise, pause跳出当前iteration, 进入下一个iteration
   });
   console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有等await resolve, 直接return了promise
   // ...later, async work finishes
@@ -2589,7 +2589,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   (async () => { // 勿忘async!! 这个async是和await Promise.all的await对应
     let sum = 0;
     const promises = arry.map(async (elem) => {
-      sum = await sumAsync(sum, elem); // 立刻返回promise且sumAsync triggered, pause跳出当前iteration, 进入下一个iteration
+      sum = await sumAsync(sum, elem); // sumAsync triggered且立刻返回promis, pause跳出当前iteration, 进入下一个iteration
     });
     console.log(`arry.map, sum = ${sum}`); // 0
     console.log(promises); // [Promise, Promise, Promise], 没有等resolve
@@ -2642,13 +2642,25 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   - <span class="orange">**(**</span>async ()=>{...}<span class="orange">)()</span> - async的IIFE的括号要打在async之前!!
     - async的IIFE就是直接执行, 直到遇见await才跳出async block
   - <span class="orange">async不是整个block直接跳过</span>, 而是**先sync执行, 直到遇见await才pause跳出**，先执行async block之外的
-    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是pause跳出当前iteration, 进入下一个iteration
+    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是pause跳出当前async iteration, 进入下一个iteration
   - 注意log <span class="underline-orange">arry.map, sum after settle = 3 <- 不是6=1+2+3</span>! 因为arry.map的3个callbacks start before any of them finishes, and each one reads sum while it is still 0!! 
     - arry.map的3个callback虽然是sequentially triggered, 但是<u>没有await, they all start before any of them finishes</u>. 
     - 和for...of, sum = 6不一样, for...of的3个callback也是sequentially triggered, 但是<span class="underline-orange">每个都有await, the next iteration doesn't begin until the previous one has finished</span>
   - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
     - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
     - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async, 跳出 -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all resolve
+
+  > **Call Stack** | **Microtask Queue**
+  > - The <span class="orange">call stack</span> is where JavaScript is currently executing **synchronous** code.
+  >   - Call stack is **LIFO**: When a function calls another function, the new function is pushed onto the top of the stack. When it finishes, it's popped off.
+  > - The <span class="orange">microtask queue</span> holds **callbacks** that should run as soon as callstack is empty.
+  >
+  > **Event Loop** Ex3
+  > 1. Execute synchronous code on the <span class="orange">call stack</span>.
+  > 2. When the call stack becomes empty, drain the **entire** <span class="orange">microtask queue</span>.
+  > 3. Then process next macrotask (like setTimeout).
+  > 4. Repeat.
+  
 
   Ex2. `await` callback in arry.map VS for...of
 
@@ -2769,8 +2781,8 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   // timeout - 注意timeout是所有for loop结束才print的
   ```
   - 注意<span class="underline-orange">timeout是等到所有for loop结束才print</span>. 因为JavaScript's **event loop** always does this:
-    - Run all synchronous code.
-    - Drain one microtask queue completely.
+    - Run all synchronous code (call stack).
+    - Drain one microtask queue **completely**.
     - Then run next macrotask (like setTimeout).
     - Repeat.
 
@@ -2809,7 +2821,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   timeout
   ```
   - `await` continuations are microtasks.
-  - `setTimeout` callbacks are another macrotasks.
+  - `setTimeout` callback is another microtask.
   - The <span class="underline-orange">event loop always finishes all pending microtasks before running the next macrotask</span>.
 
   Ex4. scope
@@ -2966,7 +2978,7 @@ newArry = arry.map((element, index, array) => { ... } )
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
-> Don't using `map` when you aren't using the returned array. 
+> Don't use `map` when you aren't using the returned array. 
 > In that case, you should use `forEach` or `for...of`.
 
 ##### <span class="white-on-black">filter</span>
@@ -3015,8 +3027,7 @@ console.log([1,5,7].filter(isBigEnuf)); // [5, 7]
 // Ex2.2 additional param for callback
 function isBigEnuf2(threshold) {
   // 这个return的function是真正的callback, 自动得到elem, index, arry
-  // 勿忘elem!!
-  return function(elem) {
+  return function(elem) { // 勿忘elem!!
     return elem >= threshold;
   };
 }
@@ -3060,7 +3071,7 @@ words = ["spray", "limit", "elite", "exuberant", "destruction", "present"]; // r
 const filtered = words.filter(word,  => {
   words.unshift("new"); 
   console.log(word); // 6个spray
-  return word.length > 6;
+  return word.length < 6;
 });
 console.log(words); // 前面多了6个new ['new', 'new', 'new', 'new', 'new', 'new', 'spray', 'limit', 'elite', 'exuberant', 'destruction', 'present']
 console.log(filtered); // ['spray', 'spray', 'spray', 'spray', 'spray', 'spray']
@@ -3094,12 +3105,12 @@ foundElem = arry.find((element, index) => { ... } )
 foundElem = arry.find((element, index, array) => { ... } )
 ```
 
-<span class="orange">Return value</span>: The value of the <b>first element</b> in the array that satisfies the provided testing function. <u>Return的不是arry</u>.
+**Return value**: The value of the **first element** in the array that satisfies the provided testing function. <u>Return的不是arry</u>.
 
-`arry.find()` returns <span class="orange">undefined</span> if not found. `arry.findIndex()` returns <span class="orange">-1</span> if not found.
+`arry.find()` returns `undefined` if not found. 
+`arry.findIndex()` returns -1 if not found.
 
-
-`find`和`findIndex`的callbackFn返回的是true/false.
+`find`和`findIndex`的callbackFn<span class="underline-orange">返回的是true/false</span>, 不是found elem!!!
 
 ```javascript
 let arry = [1,2,3,4];
@@ -3110,22 +3121,28 @@ let foundIndex = arry.findIndex(elem => elem === 2);
 console.log(foundIndex); // 1. 第一次找到2是index=1的时候
 ```
 
-- If the checking can be done <b>without</b> testing function, eg: <b>primitive equality check</b>, use `arry.indexOf()` or `arry.includes()`
-  - If you need to find the <b>index of a value</b>, use `arry.indexOf()`. (It’s similar to findIndex(), but checks each element for equality with the value <u>instead of using a testing function</u>.)
-  - If you need to find if a value <b>exists</b> in an array, use `arry.includes()`. Again, it checks each element for equality with the value <u>instead of using a testing function</u>. 
+> `arry.includes` | `arry.indexOf` | `arry.find` | `arry.some`
+> - 如果只是看某个value是否exist - `arry.includes(val)`
+> - 如果要找这个value所在的index - `arry.indexOf(val)`
+> - 只有在不是单纯的value check, 需要一个testing function的时候, 才用`arry.find`/ `arry.findIndex`
+
 - If you need to find if any element satisfies the provided testing function, use `arry.some()`.
 
 ##### <span class="white-on-black">indexOf, lastIndexOf</span>
 
 ```javascript
-let foundIndex = arry.indexOf(searchElement);
+const foundIndex = arry.indexOf(searchElement);
 indexOf(searchElement, fromIndex);
 
-let foundIndexFromEnd = arry.lastIndexOf(searchElement)
+const foundIndexFromEnd = arry.lastIndexOf(searchElement)
 arry.lastIndexOf(searchElement, fromIndex)
 ```
 
-<span class="orange">Return value</span>: The first index of the element in the array; -1 if not found.
+**Return value**: The first index of the element in the array, returns -1 if not found.
+
+`indexOf()` compares searchElement to elements of the Array using <b>strict equality `===`</b>.
+- <u>indexOf cannot find object</u>: ({ a: 1} !== { a: 1}, unless ref same)
+- <u>indexOf cannot find NaN</u>: NaN !== NaN.
 
 ```javascript
 let arry = [2, 9, 9];
@@ -3136,30 +3153,6 @@ arry.lastIndexOf(9); // 2, 从后面开始找
 arry.indexOf(9, 2);  // 2, 从index=2开始找9
 ```
 
-<b>`indexOf()` compares searchElement to elements of the Array using strict equality `===`.</b>
-
-注意`NaN === NaN` always returns false, means <u>indexOf cannot find NaN</u>. <br>
-区别于 `includes`, `includes` can.
-
-If array contains <u>objects instead of primitive values</u>, these methods check to see if two <u>references both refer to exactly the same object</u>. 
-
-If you want to actually look at the <u>content of an object</u>, try using the `arry.find()` method with your own custom predicate function instead.
-
-Ex. Finding all the occurrences of an element
-
-```javascript
-function findAllIndexes(arry, target) {
-    const indexes = [];
-    arry.forEach((num, index) => {
-      if (num === target) {
-        indexes.push(index);
-      }
-    });
-    return indexes;
-}
-console.log(findAllIndexes(["a", "b", "a", "c", "a", "d"], "a")); // [0, 2, 4]
-```
-
 ##### <span class="white-on-black">includes</span>
 
 ```javascript
@@ -3167,33 +3160,34 @@ arry.includes(searchElement)
 arry.includes(searchElement, fromIndex)
 ```
 
-<span class="orange">Return value</span>: true/false.
+**Return value**: true/false.
 
-<b>`includes` checks if any element `===` searchElement, except it consider `NaN` to be equal to itself</b>. 
+`includes` checks if any <b>element `===` searchElement</b>, except <u>it consider `NaN` to be equal to itself</u>. 
+
+Ex1.
 
 ```javascript
-let a = [1, true, 3, NaN];
-a.includes(true); // true
-a.includes(2); // false
-
-a.includes(NaN); // true
-a.indexOf(NaN); // -1, 注意和incldues的区别!!!
+const arry = [1, true, 3, NaN];
+console.log(arry.includes(true));
+console.log(arry.includes(NaN)); // true
+console.log(arry.indexOf(NaN)); // -1, 注意和includes的区别
 ```
 
-In case of objects, === means literally the same object, as in the same reference (same place in memory), not the same shape.
+Ex2.
 
 ```javascript
-let obj1 = {id: 1}, obj2 = {id: 2};
-let ids = [obj1, obj2];
-console.log(ids.includes(obj1)); // true
-console.log(ids.includes({id: 1})); // false. obj不存在===, 除非是同一个
+const obj1 = { a: 1 }, obj2 = { a: 2 };
+const arry = [obj1, obj2];
+
+console.log(arry.includes(obj1)); // true
+console.log(arry.includes({ a: 1 })); // false, obj不存在===, 除非是同一个
 ```
 
 ##### <span class="white-on-black">every and some</span>
 
 ```javascript
 // Arrow function
-let testResult = arry.every((element) => { ... } )
+let testResult = arry.every((element) => { ...return true/false... } )
 testResult = arry.every((element, index) => { ... } )
 testResult = arry.every((element, index, array) => { ... } )
 
@@ -3202,35 +3196,53 @@ testResult = arry.some((element, index) => { ... } )
 testResult = arry.some((element, index, array) => { ... } )
 ```
 
-<span class="orange">Return value</span>: Boolean true/false.
+**Return value**: Boolean true/false.
 
 The `every()` method tests whether <b>all</b> elements in the array pass the predicates. The `some()` method tests whether <b>at least one</b> element in the array passes the predicates.
 
 Note that both `every()` and `some()` stop iterating array elements as soon as they know what value to return. 
 
-```javascript
-let arry = [1, 30, 39, 29, 10, 13];
-let isBigEnuf = val => val > 10; // 注意callBackFn自动得到arry的num
-console.log(arry.every(isBigEnuf)); // false
-console.log(arry.some(isBigEnuf)); // true
-```
+Ex1.
 
 ```javascript
-// Check if arry2 is a subset of arry1
+const arry = [1, 30, 39, 29, 10, 13];
+function isBigEnuf(elem) { return elem > 10; }
+console.log(arry.some(isBigEnuf)); // true
+console.log(arry.every(isBigEnuf)); // false
+```
+
+Ex2. Check if arry2 is a subset of arry1
+
+```javascript
+// Ex2.1 ERROR
 const isSubset = (arry1, arry2) => {
 	return arry2.every(elem => arry1.includes(elem)); // 勿忘return every的结果
 };
-fuction isSubset2(arry1, arry2) {
-  for(const elem of arry2) {
-    if (!arry1.includes(elem)) return false;
-  }
-  return true;
-}
 console.log(`isSubset = ${isSubset([1, 2, 3, 4, 5, 6, 7], [5, 7, 6])}`); // true
 console.log(`isSubset = ${isSubset([1, 2, 3, 4, 5, 6, 7], [5, 8, 7])}`); // false
-```
+console.log(isSubset([1,2,3], [1,1])); // true -- ERROR
 
-- 注意`arry.every`和`for...of`在上面的应用, isSubset中arry2.every一旦有一个不includes了, every就结束了. 和isSubset2的for...of的break一样
+// Ex2.2
+function isSubset(arry1, arry2) {
+  const map = {};
+  arry1.forEach(elem => {
+    if (map[elem] === undefined) map[elem] = 0;
+    map[elem]++;
+  });
+
+  return arry2.every(elem => { // 勿忘return!!
+    if (!map[elem]) return false; // map[elem]是undefined或者0, 都是false
+    map[elem]--;
+    return true; // 勿忘return true!!!
+  });
+}
+console.log(isSubset([1, 2, 3, 4, 5, 6, 7], [5, 7, 6])); // true
+console.log(isSubset([1, 2, 3, 4, 5, 6, 7], [5, 8, 7])); // false
+console.log(isSubset([1,2,3], [1,1])); // false
+```
+- 注意Ex2.2中, testing function永远要有return. 
+  - return true并不代表every就直接return true了, 只是当前iteration return true, loop continues
+  - return false, every就直接结束了
 
 ##### <span class="white-on-black">reduce and reduceRight</span>
 
