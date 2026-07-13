@@ -34,6 +34,9 @@ Original unedited chapter files are backed up in `backup/`:
 - `backup/ydkjs/scope-closures/` — YDKJS Book 2 chapters (ch1, ch3–ch8, apB)
 - `backup/ydkjs/objects-classes/` — YDKJS Book 3 chapters (ch1–ch4)
 - `backup/ydkjs/types-grammar/` — YDKJS Book 4 chapters (ch1–ch4)
+- `backup/ydkjs/this-object-prototypes/` — YDKJS 1st ed. this & Object Prototypes (ch1–ch6, apA–apB)
+- `backup/ydkjs/async-performance/` — YDKJS 1st ed. Async & Performance (ch1–ch6, apA–apC)
+- `backup/ydkjs/es6-beyond/` — YDKJS 1st ed. ES6 & Beyond (ch1–ch8, apA)
 - `backup/ts/` — Effective TypeScript chapters (ch1–ch10)
 
 The live chapter files (in `YDKJS/` and `TS/chaps/`) have been edited to remove book-intro fluff and meta commentary, keeping only technical content. Check `backup/` for the originals.

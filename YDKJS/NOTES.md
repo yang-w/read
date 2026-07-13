@@ -44,7 +44,7 @@
   - [x] [ch2.md — How Objects Work](objects-classes/ch2.md)
 - [x] [§7.1 Array and Array-Like](../docs/guide.md#71-array-and-array-like)
 - [x] [§7.8 Array Methods](../docs/guide.md#78-array-methods)
-  - [][§7.8.1 Iterator Methods](../docs/guide.md#781-array-iterator-methods)
+  - [x][§7.8.1 Iterator Methods](../docs/guide.md#781-array-iterator-methods)
   - [][§7.8.2 flat() / flatMap()](../docs/guide.md#782-flattening-arrays-with-flat-and-flatmap)
   - [][§7.8.3 concat()](../docs/guide.md#783-adding-arrays-with-concat)
   - [][§7.8.4 push / pop / shift / unshift](../docs/guide.md#784-stacks-and-queues-with-push-pop-shift-and-unshift)
@@ -70,6 +70,21 @@
   - [ch2.md — Primitive Behaviors](types-grammar/ch2.md)
 - [ ] [ch3.md — Object Values](types-grammar/ch3.md)
 - [ ] [ch4.md — Coercing Values](types-grammar/ch4.md)
+
+### this & Object Prototypes (1st ed)
+- [ ] [ch1.md — `this` Or That?](this-object-prototypes/ch1.md) — why `this`, what it's NOT
+- [ ] [ch2.md — `this` All Makes Sense Now!](this-object-prototypes/ch2.md) — 4 binding rules: default, implicit, explicit (call/apply/bind), new
+- [ ] [ch4.md — Mixing (Up) "Class" Objects](this-object-prototypes/ch4.md) — classical inheritance vs JS, mixins
+- [ ] [ch5.md — Prototypes](this-object-prototypes/ch5.md) — `[[Prototype]]` chain, `Object.create`, `instanceof`, `Object.getPrototypeOf`
+
+### Async & Performance (1st ed)
+- [ ] [ch1.md — Asynchrony: Now & Later](async-performance/ch1.md) — event loop, task queue, concurrency
+- [ ] [ch2.md — Callbacks](async-performance/ch2.md) — callback hell, inversion of control, why promises
+- [ ] [ch3.md — Promises](async-performance/ch3.md) — Promise API, chaining, error handling, patterns
+- [ ] [ch4.md — Generators](async-performance/ch4.md) — generator syntax, `yield`, async generators, async/await under the hood
+
+### ES6 & Beyond (1st ed)
+- [ ] [ch4.md — Async Flow Control](es6-beyond/ch4.md) — Promises, generators, async/await
 
 ### Book 5: Sync & Async
 - [ ] [async/await](../docs/guide.md#asyncawait)
