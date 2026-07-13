@@ -3248,310 +3248,101 @@ console.log(isSubset([1,2,3], [1,1])); // false
 
 ```javascript
 // Arrow function
-let reducedResult = arry.reduce((acc, cur) => { ...must return some value... } )
-arry.reduce((acc, cur, index, array) => { ... }, initialValue)
-arry.reduce((accumulator, currentValue, index) => { ... } )
-arry.reduce((accumulator, currentValue, index, array) => { ... } )
+const sum = arry.reduce((acc, cur) => { ...must return some value... }, initialVal )
+arry.reduce((acc, cur, index) => { ... }, initialValue)
+arry.reduce((accumulator, currentValue, index, array) => { ... }, initialValue )
 
 // Callback function
 arry.reduce(callbackFn)
 arry.reduce(callbackFn, initialValue)
 ```
 
-<span class="orange">Return value</span>: The single value that results from the reduction, which is the `accumulator` - the first param in the reducer function. 
+**Return value**: The single value that results from the reduction, which is the `accumulator`.
+
+`arry.reduce()` can be used anytime when trying to <span class="underline-orange">combine all the elements in an array into a single output value</span> by a reducer function.
 
 - callbackFn / reducerFn <b>MUST</b>  <span class="orange">return some value</span> as the value for `accumulator` in the next round, otherwise, `acc` / final result of `reduce()` will be `undefined`.
 
-- <b>`initialValue`</b>
-
-	If `initialValue` is provided, then `accumulator` will be equal to `initialValue`, and `currentValue` will be `arry[0]`, `curIndex` will be 0. 
+- `initialValue`
+  - If `initialValue` is provided, then `accumulator` will be equal to `initialValue`, and `currentValue` will be `arry[0]`, `curIndex` will be 0. 
+  - If no `initialValue` is provided, then `accumulator` will be `arry[0]`, and `currentValue` will be `arry[1]`, `curIndex` will be 1.	
+  - If <u>array is empty</u> and <u>no `initialValue` is provided</u>, <span class="orange">`TypeError` will be thrown</span>.
+- If `reduce` is called with only one value, the solo value will be returned <u>without calling callbackFn</u>.
+  - Either arry has only one element (regardless of position) but no `initialValue` is provided, 
+  - Or if `initialValue` is provided but arry is empty.
 	
-	If no `initialValue` is provided, then `accumulator` will be `arry[0]`, and `currentValue` will be `arry[1]`, `curIndex` will be 1.
+```javascript
+const getMax = (a, b) => Math.max(a, b);
+
+// callbackFn is not invoked
+[50].reduce(getMax); // 50
+[].reduce(getMax, 50); // 50
+try {
+  [].reduce(getMax); // TypeError
+} catch(err) {
+    console.log(err);
+}
+```
+
+Ex1. Sum / Multiply
+
+```javascript
+const arry = [1,2,3,4];
+const sum = arry.reduce((acc, cur) => acc+cur);
+console.log(sum); // 10
+
+function product(acc, cur) { // callbackFn(acc, cur, index, arry)
+  return acc * cur;
+}
+console.log(arry.reduce(product)); // 24
+```
 	
-	- If array is empty and no `initialValue` is provided, `TypeError` will be thrown.
-	- If `reduce` is called with only one value, the solo value will be returned <u>without calling callbackFn</u>.
-		- Either arry has <u>only one element (regardless of position) but no `initialValue`</u> is provided, 
-		- Or if <u>`initialValue` is provided but arry is empty</u>.
-	
-	```javascript
-	const getMax = (a, b) => Math.max(a, b);
-	
-	// callbackFn is not invoked
-	[50].reduce(getMax); // 50
-	[].reduce(getMax, 50); // 50
-	try {
-      [].reduce(getMax); // TypeError
-	} catch(err) {
-	    console.log(err);
-	}
-	```
+Ex2. Sum of values in an object array. 
 
-`reduce()` can be used anytime when trying to <b>combine all the elements in an array into a single output</b> value by a reducer function.
+```javascript
+const arry = [{x: 1}, {x: 2}, {x: 3}]
+const sum = arry.reduce((acc, cur) => {
+  return acc + cur.x; // acc是integer, cur是object
+}, 0); // 需要initVal
+console.log(sum); // 6
+```
+- 区别于Ex1, 此时的reducer需要initVal, 否则initialVal=arry[0]是个obj, 没办法加减
 
-- Ex1. Sum / Multiply
+Ex3. Counting number of times a string appears in an array 
 
-	```javascript
-	const arry1 = [1, 2, 3, 4];
-	let sum = arry1.reduce((acc, cur) => acc + cur);
-	console.log(`sum = ${sum}`); // 10
-	
-	// use callbackFn
-	function reducer(acc, cur) { // callbackFn可以自动得到acc, cur, index, arry
-      return acc + cur;
-	}
-	sum = arry1.reduce(reducer);
-	console.log(`callback sum = ${sum}`); // 10
-	
-	sum = arry1.reduce(reducer, 5); // callbackFn w initial val
-	console.log(`reduce sum with initialVal 5, sum = ${sum}`); // 15
-	
-	let product = arry1.reduce((acc, cur) => acc * cur);
-	console.log(product); // 24
-	```
-	
-- Ex2. Sum of values in an object array. 
+```javascript
+const names = ["Alice", "Bob", "Tiff", "Bruce", "Alice"];
+const map = names.reduce((acc, cur) => {
+  if (acc[cur] === undefined) acc[cur] = 0;
+  acc[cur]++;
 
-	```javascript
-	let sum = [{x: 1}, {x: 2}, {x: 3}].reduce((acc, cur) => acc + cur.x, 0)； // 需要initialVal = 0
-  console.log(`sum of obj.x = ${sum}`); // 6
-	```
-  - 区别于Ex1, 此时的reducer需要initialVal, 否则initialVal=arry[0]是个obj, 没办法加减
+  return acc; // 勿忘return!!
+}, {});
 
--  Ex3. Flatten an array of arrays
-    ```javascript
-    // Ex3.1 等同于 [[0, 1], [2, 3], [4, 5]].flat()
-    function flatWithDepthOne(arry) {
-      return arry.reduce((acc, cur) => {
-        // return acc.concat(cur); // arry.concat不用check if(cur是arry), arry.concat可以take single elem or arry
+console.log(map); // {Alice: 2, Bob: 1, Tiff: 1, Bruce: 1}
+```
+- <span class="orange">勿忘reducer最后要返回acc</span>!!! 否则下次的acc是undefined!!
 
-        if (Array.isArray(cur)) {
-          // acc = [...acc, ...cur];
-          acc.push(...cur); // // 不能直接return. push返回的是长度
-        } else {
-          acc.push(cur);
-        }
-        return acc; // 勿忘return
-      }, []);
-    }
-    console.log(flatWithDepthOne([[0, 1], 2, [3, [4, 5]]])); // [0, 1, 2, 3, [4,5]]
+Ex4. fitler out positive nums and multiply them by 2 Replace 
 
-    // Ex3.2 等同于arry.flat(Infinity)
-    function flatten(arry) {
-      return arry.reduce((acc, cur) => {
-        if (Array.isArray(cur)) {
-          acc.push(...flatten(cur));
-        } else {
-          acc.push(cur);
-        }
-        return acc; // 勿忘return
-      }, []); // 勿忘initial value
-    }
-    console.log(flatten([[0, 1], "a", ["b", [2, 3]], [4, 5]]));
-    ```
-    
-    - reducer <b>MUST return</b> 一个value
-    - 如果用acc.push(...cur), <span class="orange">不能直接</span> `return acc.push();`!! 因为push返回的是新的arry长度, 得写成`acc.push(...cur); return acc;`
-    - 注意Ex3.1中`return acc.concat(cur)`. arry.concat返回一个新arry, 并且cur可以是单个elem, 也可以是一个arry, 不用check if(cur是arry)
+```javascript
+const nums = [-5, 6, 2, 0,];
 
-- Ex4. Counting number of times a string appears in an array 
+// Ex4.1
+const result1 = nums.filter((elem) => elem > 0).map(elem => elem*2);
+console.log(result1); // [12, 4]
 
-	```javascript
-	let names = ["Alice", "Bob", "Tiff", "Bruce", "Alice"];
-	let countMap = names.reduce((acc, cur) => {
-		if(!(cur in acc)) { // 或者 if(!acc[cur])
-		    acc[cur] = 0;
-		}
-		acc[cur]++;
-		return acc; // 勿忘return!! 否则下次的acc是undefined!!
-	}, {});
-	console.log(`name count = ${JSON.stringify(countMap)}`); // {"Alice":2,"Bob":1,"Tiff":1,"Bruce":1}
-	```
-
-  - reducer需要initialVal {}
-  - <span class="orange">勿忘reducer最后要返回acc</span>!!! 否则下次的acc是undefined!!
-
-- Ex5. Grouping objects by a property
-	
-	```javascript
-	let people = [
-      { name: "Alice", age: 21 },
-      { name: "Max", age: 20 },
-      { name: "Jane", age: 20 }
-  ];
-  function groupByProp(arry, prop) {
-      return arry.reduce((acc, cur) => {
-          const val = cur[prop]; 
-          if(!acc[val]) { // 不是if(prop in acc), key是cur.age
-              acc[val] = [];
-          }
-          acc[val].push(cur);
-          return acc; // 勿忘return!!
-      }, {});
+// Ex4.2
+const result2 = nums.reduce((acc, cur) => {
+  if (cur > 0) {
+    acc.push(cur*2);
   }
-  console.log(`${JSON.stringify(groupByProp(people, "age"))}`); // {"20":[{"name":"Max","age":20},{"name":"Jane","age":20}],"21":[{"name":"Alice","age":21}]}
-	```
-
-  - reducer需要initialVal {}
-  - reducer里acc的key是cur[prop], 不是(prop in acc)
-	
-- Ex6. Remove duplicate items in an array
-	
-	```javascript
-	let myArry = ["a", "b", "a", "b", "c", "e", "e", "c", "d", "d", "d", "d"];
-    
-    // let noDup = [...new Set(myArry)];
-    // let noDup = Array.from(new Set(myArry));
-    
-    let noDup = myArry.reduce((acc, cur) => {
-        // 不用map, 用arry测dup只能用includes
-        if(!acc.includes(cur)) {
-            acc.push(cur);
-        }
-        return acc; // 勿忘return!!
-    }, []);
-    console.log(noDup); // ["a", "b", "c", "e", "d"]
-    
-    // 如果用filter
-	let map = {}; // 用map跟快, 相比较于用arry.includes
-	noDup = myArry.filter((word) => {
-	    if(!map[word]) { // !!undefined = false
-	        map[word] = true;
-	        return true;
-	    } 
-	    return false;
-	});
-	console.log(noDup); // ["a", "b", "c", "e", "d"]
-	```
-
-  - <span class="orange">用`Set` remove dups</span>. Set转Array可以用`[...set]`, 也可以用`Array.from(set)`.
-  - 不用map, 用<b>arry测dup</b>可以用<span class="orange">`acc.includes`</span>或者<span class="orange">`acc.indexOf(cur) > -1`</span>.
-  - 如果用`fitler`, 需要map.filter的callbackFn返回true的条件是!map[cur]
-  - 用filter check dup的时候, 相较于用arry.includes(), 用map更快
-	
-- Ex7. Replace `.filter().map()` with `.reduce()`
-
-	```javascript
-	const nums = [-5, 6, 2, 0,];
-  // fitler out positive nums and multiply them by 2
-  // Ex7.1
-  const doublePositive = nums.reduce((acc, cur) => {
-      if (cur > 0) {
-        acc.push(cur*2);
-      }
-      return acc; // 勿忘return!!
-  }, []);
-  console.log(doublePositive); // [12, 4]
-
-  // Ex7.2
-  nums.filter((num) => {
-      if (num <= 0) return false;
-      num = num *2;
-      return true;
-  }); // [6,2], filter针对的是原始的num, filter出的num是原来的num
-  console.log(nums); // [-5, 6, 2, 0]
-
-  // Ex7.3
-  nums.filter((num, index, arry) => {
-      if (num <= 0) return false;
-      arry[index] = num * 2; // 虽然原始nums变了, 但filter针对的是一开始num
-      return true;
-  }); // [6,2]
-  console.log(nums); // [-5, 12, 4, 0]
-	```
-
-  - 注意7.2和7.3, <u>filter针对的是原始的num</u>, filter callback中无论对pass进num操作或者改变原始arry都不影响filter的结果
-  - Instead of `filter` then `map` that traverse arry twice, can use `reduce` by just one pass. `arry.forEach` also works.
-  - 勿忘return acc
-
-Ex8和Ex9都是<b>pipeline</b>. Ex8是pipeline arry of promise, Ex9是pipeline arry of fns.
-
-- Ex8. <span class="red">Running Promises in Sequence</span>
-
-	```javascript
-	// 8.1
-	const p1 = new Promise((resolve) => {
-		resolve("p1"); // 不需要return resolve
-	});
-	const p2 = new Promise((resolve) => {
-		resolve("p2");
-	});
-	function runInSeq1(...promises) {
-		return promises.reduce((acc, cur) => { // 勿忘return, 才能runInSeq1.then
-			return acc.then(val => {
-				console.log(val); // undefined, p1
-				return cur; // 等同于acc = cur
-			})
-		}, Promise.resolve()) // initialVal不是new Promise(). executorFunc is required when init Promise 
-	}
-	runInSeq2(p1, p2); // log没有p2, 返回的是p2这个promise
-	runInSeq2(p1, p2).then(val => console.log(val)); // undefined p1 p2
-	```
-
-	- `promsie.then(val)`, `Promise.resolve()`, `Promise.reject()`都<b>returns a new Promise</b>
-	- `new Promise(executorFunc)`的<u>executorFunc是required</u>, 不能只new Promise()
-	- runInSeq1返回的是promise p2, log只有undefined和p1. 得runInSeq1.then才有p2
-
-	```javascript
-	// 8.2
-	function p1(val) {
-		return new Promise(resolve => {
-			resolve(val * 5); // 不用return resolve
-		});
-	}
-	function p2(val) {
-		return new Promise(resolve => {
-			resolve(val * 3);
-		});
-	}
-	/**
-	* runInSeq2返回的是一个Promise
-	* => Promise.resolve(10).then(p1) 
-	* => p1(10).then(p2))
-	* => 最终的return是p2(10*5) = Promise.resolve(10*5*3)
-	* runInSeq2.then(log) => Promise.resolve(10*5*3).then(log)
-	*/
-	function runInSeq2(promises, initVal) {
-		// 勿忘return, 否则runInSeq2不能then
-		return promises.reduce((acc, cur) => {
-			return acc.then(cur); // 勿忘return
-		}, Promise.resolve(initVal));
-	}
-	runInSeq2([p1, p2], 10).then(console.log); // 150
-	```
-	- runInSeq2的initVal是一个promise
-	- runInSeq2的reducer中勿忘`return acc.then(cur)`, 否则接下来的acc就不是promise了, 变成了undefined.
-
-	```javascript
-	// 8.3
-	function runInSeq3(...promises) {
-		promises.forEach(async p => { // 勿忘async
-			console.log(await p); // p1 p2
-		});
-	}
-	const p1 = new Promise(resolve => resolve("p1"));
-	const p2 = new Promise(resolve => resolve("p2"));
-	runInSeq3(p1,p2);
-	```
-
-	- 注意`async/await`的用法. <u>`await`返回的是一个value</u>, 不是promise. 区别于Promise.resolve/reject/then
-	
-- Ex9. <span class="red">Function composition enabling piping</span>
-
-	- 区别于Ex8的runPromisesInSeq(promises), Ex8中pass进的promises本身就是arry. 这里pipe的使用方式是一个一个的fn, 所以用`...fns`把一个一个的fn condense成一个arry: <span class="orange">`fns`是一个arry</span>. 
-	
-	```javascript
-	const double = x => x * 2;
-	const triple = x => x * 3;
-	
-	// fns condense成了一个arry
-	const pipe = (...fns) => input => fns.reduce((acc, fn) => fn(acc), input);
-	
-	const multiply6 = pipe(double, triple);
-	const multiply18 = pipe(double, triple, triple);
-	
-	console.log(multiply6(6)); // 36, 6是input, 先6*2再*3
-	console.log(multiply18(2)); // 36, 2*2*3*3
-	```
+  return acc; // return acc得写在if外!! 即使cur<=0, 也得return acc!!
+}, []);
+console.log(result2); // [12, 4]
+```
+- Instead of `arry.filter().map()` - 2 pass, use `reduce` by just one pass
+- Ex4.2, 勿忘无论cur是不是positive都要return acc!!
 
 ##### <a name="782-flattening-arrays-with-flat-and-flatmap" id="782-flattening-arrays-with-flat-and-flatmap">7.8.2 Flattening arrays with `flat()` and `flatMap()`</a>
 
