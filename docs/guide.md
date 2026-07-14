@@ -29,7 +29,7 @@
 * [7.1 Array and Array-Like](#71-array-and-array-like)
 * [7.8 Array Methods](#78-array-methods)
 	* [7.8.1 Array Iterator Methods (`forEach`, `map`, `filter`, `find`, `findIndex`, `indexOf`, `lastIndexOf`, `includes `, `every`, `some`, `reduce`)](#781-array-iterator-methods)
-	* [7.8.2 Flattening arrays with `flat()` and `flatMap()`)](#782-flattening-arrays-with-flat-and-flatmap)
+	* [7.8.2 Flattening arrays with `flat()`)](#782-flattening-arrays-with-flat)
 	* [7.8.3 Adding arrays with `concat()`](#783-adding-arrays-with-concat)
 	* [7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`](#784-stacks-and-queues-with-push-pop-shift-and-unshift)
 	* [7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`](#785-subarrays-with-slice-splice-fill-and-copywithin)
@@ -2519,13 +2519,23 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
 #### <a name="78-array-methods" id="78-array-methods">7.8 Array Methods</a>
 
-`arry.forEach`, `for...of`, for...in (avoid, intended for obj)<br>
-`arry.map`, `arry.filter`, <br>
-`arry.find`, `arry.findIndex`, `arry.indexOf`, `arry.lastIndexof`, `arry.includes`, <br>
-`arry.every`, `arry.some`, <br>
-`arry.reduce`, `arry.reduceRight`, <br>
-`arry.flat`, `arry.flatMap`, <br>
-`arry.concat`, `arry.join` (join是arry变str), <br>
+`arry.forEach`, `for...of`, for...in (avoid, intended for obj)
+
+Return a new array 
+`arry.map`, 
+`arry.filter` - **Callback returns truthy**:
+
+**Callback returns truthy**:
+`arry.find`, `arry.findIndex`, `arry.indexOf`, `arry.lastIndexof`, `arry.includes`: - Return once find
+`arry.every`, `arry.some`,
+
+`arry.reduce`, `arry.reduceRight`,
+
+Return a new array
+`arry.flat`, `arry.concat`, 
+
+`arry.join` (join是arry变str),
+
 `arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`, <br>
 `arry.slice`, `arry.splice`, `arry.fill`, `arry.copyWithin`
 
@@ -2768,7 +2778,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   // start 1
 
-  //done - 注意log顺序
+  // done - 注意log顺序
 
   // end 1
   // start 2
@@ -2969,7 +2979,7 @@ for(const num of arry) {
 
 ```javascript
 // Arrow function
-let newArry = arry.map((element) => { ... } )
+const newArry = arry.map((element) => { ... } )
 newArry = arry.map((element, index) => { ... } )
 newArry = arry.map((element, index, array) => { ... } )
 ```
@@ -3099,15 +3109,13 @@ console.log(deleted); // ['spray', 'limit']
 ##### <span class="white-on-black">find and findIndex</span>
 
 ```javascript
-// Arrow function
 let foundElem = arry.find((element) => { ...return true/false... } )
 foundElem = arry.find((element, index) => { ... } )
 foundElem = arry.find((element, index, array) => { ... } )
 ```
 
-**Return value**: The value of the **first element** in the array that satisfies the provided testing function. <u>Return的不是arry</u>.
+**Return value**: The value of the **first element** in the array that satisfies the provided testing function. `undefined` if not found. <u>Return的不是arry</u>.
 
-`arry.find()` returns `undefined` if not found. 
 `arry.findIndex()` returns -1 if not found.
 
 `find`和`findIndex`的callbackFn<span class="underline-orange">返回的是true/false</span>, 不是found elem!!!
@@ -3124,9 +3132,9 @@ console.log(foundIndex); // 1. 第一次找到2是index=1的时候
 > `arry.includes` | `arry.indexOf` | `arry.find` | `arry.some`
 > - 如果只是看某个value是否exist - `arry.includes(val)`
 > - 如果要找这个value所在的index - `arry.indexOf(val)`
+> - 如果需要find if an element satisfies the provided testing function -  `arry.some()`.
 > - 只有在不是单纯的value check, 需要一个testing function的时候, 才用`arry.find`/ `arry.findIndex`
 
-- If you need to find if any element satisfies the provided testing function, use `arry.some()`.
 
 ##### <span class="white-on-black">indexOf, lastIndexOf</span>
 
@@ -3146,7 +3154,7 @@ arry.lastIndexOf(searchElement, fromIndex)
 
 ```javascript
 let arry = [2, 9, 9];
-arry.indexOf(2);     // 0
+arry.indexOf(9);     // 1
 arry.indexOf(7);     // -1
 
 arry.lastIndexOf(9); // 2, 从后面开始找
@@ -3344,160 +3352,138 @@ console.log(result2); // [12, 4]
 - Instead of `arry.filter().map()` - 2 pass, use `reduce` by just one pass
 - Ex4.2, 勿忘无论cur是不是positive都要return acc!!
 
-##### <a name="782-flattening-arrays-with-flat-and-flatmap" id="782-flattening-arrays-with-flat-and-flatmap">7.8.2 Flattening arrays with `flat()` and `flatMap()`</a>
+##### <a name="782-flattening-arrays-with-flat" id="782-flattening-arrays-with-flat">7.8.2 Flattening arrays with `flat()`</a>
 
 ```javascript
-let flattened = arry.flat(); // default depth = 1;
+const flattenedArry = arry.flat(); // default depth = 1;
 flattened = arry.flat(depth);
 flattend = arry.flat(Infinity); // flat所有内部arry
 ```
 
-<span class="orange">Return value</span>: A new array with the sub-array elements concatenated into it.
+**Return value**: A new array with the sub-array elements concatenated into it.
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
  
-- <u>如果arry里没有nested arry</u>, arry.flat()返回的是本身的arry.
-- <u>如果arry中有empty [] or empty elem</u>, arry.flat都会去掉 (<u>empty [] 只能去掉一层</u>).
+- 如果arry里没有nested arry, arry.flat()返回的是本身的arry.
+- 如果<u>arry中有empty slot (hole/[])</u>, arry.flat会去掉empty slot.
 
 `depth`: Defaults=1. 表示打开内部depth层[]. `Infinity`表示完全展开.
 
+Ex1.
 
 ```javascript
-let a = [1, [2, [3, [4]]]];
+const arry = [1, [2, [3, [4]]]];
+console.log(arry.flat()); // [1,2,[3,[4]]]
+console.log(arry.flat(1)); // [1,2,[3,[4]]], default就是1
 
-console.log(a.flat()); // [1, 2, [3, [4]]]
-console.log(a.flat(1)); // [1, 2, [3, [4]]]. 和上面一样, default depth就是1
-
-console.log(a.flat(2)); // [1, 2, 3, [4]]. 打开两层[]
-
-console.log(a.flat(3)); // [1, 2, 3, 4]
-console.log(a.flat(4)); // [1, 2, 3, 4]. 即使depth多了也无所谓
-console.log(a.flat(Infinity)); // [1, 2, 3, 4]
+console.log(arry.flat(2)); // [1,2,3,[4]]
+console.log(arry.flat(10)); // [1, 2, 3, 4]. 即使depth多了也无所谓
+console.log(arry.flat(Infinity)); // [1,2,3,4]
 ```
 
-`arry.flat` will remove empty slots in arrays, 无论是<u>empty elem</u>还是<u>empty arry</u>:
+`arry.flat` will remove empty slots in arrays, 无论是<u>hole</u>还是<u>empty arry</u>:
+
+Ex2.
 
 ```javascript
-// empth element
+// remove hole
 console.log([1, 2, , 4, 5].flat()); // [1, 2, 4, 5]
 // 等同于
 [1, 2, , 4, 5].filter(() => true);
 
 // empty arry: 这种情况无法用filter实现
 console.log([[], [], 1, 2].flat()); // [1, 2]
-// filter无法去掉empty[], 只能去掉empty elem
+// filter无法去掉empty[], 只能去掉hole
 console.log([1, 2, , 4, [], 6].filter(() => true)); // [1, 2, 4, [], 6]
 
 // 但是flat只能去掉一层empty arry
 console.log([1, 2, , 4, [[]], 6].flat()); // [1, 2, 4, [], 6]
-
 ```
-<b>Alternatives</b>
 
-- `flat()`一层的alternative: `reduce` + `concat`
-	- <span class="orange">不能用`return [...acc, ...cur]`</span>, 因为cur不一定iterable / cur不一定是arry. 比如这里的a[0]=1, 1不是iterable, ERROR.
-	- <span class="orange">思考</span>下面`concat`的过程!!
+Ex3.1 用`reduce` / `concat`做flat(1)
 
-	```javascript
-	let a = [1, [2, [3, [4]]]];
-	console.log(a.reduce((acc, cur) => { // [1, 2, [3, [4]]]
-		// return [...acc, ...cur]; // 不能用...cur, 因为cur不一定iterable. 比如这里的a[0]=1, 1不是iterable, ERROR.
-		return acc.concat(cur);
-    }, []));
-    
-	/** 
-	 * a = [1, [2, [3, [4]]]], 思考[].concat(...a)
-	 * ...a是 1, [2, [3, [4]]] 
-	 * [].concat(1) = [1]
-	 * [1].concat([2, [3, [4]]]) = [1, 2, [3, [4]]]
-	 */
-	console.log([].concat(...a)); // [1, 2, [3, [4]]]. 不是[1, [2, [3, [4]]] ]!!!
-	```
-- `flat(depth)`多层的alternative
-	- Recursive
-		- 注意recursive思路: <span class="orange">`reduce` + `concat` + `Array.isArray`</span>: recursivity
-		- Stop condition是depth===0
-		- `concat`可以pass进single elem或者arry. <span class="orange">思考</span>: 如果arry=[[1]], 第一次reduce的时候[].concat([1])其实就已经完全展开了, 但是如果arry=[[[1]]], 第一次是[].concat([[1]]) = [[1]]就不对了. 所以无论哪种情况都用`Array.isArray()`确保最后concat的只能是single elem.
-		
-		```javascript
-		// recursive
-		let a = [1, [2, [3, [4]]]];
-		const flatDeep = (arry, depth = 1) => { // 注意default val的写法
-			if (depth < 1) return arry;
-			return arry.reduce((acc, cur) => {
-			    return acc.concat(Array.isArray(cur) ? flatDeep(cur, depth-1) : cur);
-			}, []);
-	    };
-	    console.log(flatDeep(a, 2)); // [1, 2, 3, [4]]
-	    
-	    /** recursive思路
-	     * [1].concat(flatDeep([2, [3, [4]]], 1)) = ...from below... = [1].concat([2, 3, [4]]) = [1, 2, 3, [4]];
-	     * flatDeep([2, [3, [4]]], 1) = [2].concat(flatDeep([3, [4]], 0)) = ...from below... = [2].concat([3, [4]]) = [2, 3, [4]]
-	     * flatDeep([3, [4]], 0) = [3, [4]]
-	     */
-	     ```
-	- Iterative
-		- depth control is hard/inefficient. 这里只考虑完全flat
-		- It's possible w/o reversing on shift/unshift, but array OPs on the end tends to be faster
-		- <span class="orange">注意`const`的用法</span>: 
-			- stack, res虽然后来值变了, 但是因为arry是reference val, 所以依然用的const. 
-			- 对于next, 因为`const` is only scoped to the wrapping code block {}, 即<u>一次的loop,</u> 所以 a brand new 'next' variable is created on every iteration.
-		- 注意stack = [...arry]是arry的copy, 后面虽然stack.pop()了, 但是并不影响本身的arry. <span class="orange">思考!!</span> 和7.8.3中的最后一个例子类似.
+```javascript
+const arry = [1, [2, [3, [4]]]];
 
-		```javascript
-		const flatDeep = (arry) => { // [3, [4]]
-			const stack = [...arry]; // [3, [4]], stack是arry的copy
-			const res = [];
-			while(stack.length > 0) {
-				const next = stack.pop(); // next = [4], stack = [3]
-				if(Array.isArray(next)) {
-				    stack.push(...next); // stack = [3, 4]
-				} else {
-				    res.push(next); // res = [4]
-				}
-			}
-			return res.reverse();
-		};
-		console.log(flatDeep(a)); // [1, 2, 3, 4]
-		```
+const flat = arry.reduce((acc, cur) => {
+  if (Array.isArray(cur)) {
+    acc.push(...cur);
+  } else {
+    acc.push(cur);
+  }
+  return acc;
+}, []);
+console.log(flat); // [1,2,[3,[4]]]
+
+console.log([].concat(...arry)); // // [1,2,[3,[4]]], 和flat一样
+/** 
+ * a = [1, [2, [3, [4]]]], 思考[].concat(...a)
+ * ...a是 1, [2, [3, [4]]] 
+ * [].concat(1) = [1]
+ * [1].concat([2, [3, [4]]]) = [1, 2, [3, [4]]]
+ */
+```
+
+Ex3.2 用`reduce`做`flat(depth)`
+
+```javascript
+const arry = [1, [2, [3, [4]]]];
+
+function flat(arry, depth = 1) { // 注意default val的写法
+  if (depth === 0) return arry; // stop condition
+
+  const flatten = arry.reduce((acc, cur) => {
+    if (Array.isArray(cur)) {
+      acc.push(...flat(cur, depth - 1));
+    } else {
+      acc.push(cur);
+    }
+    return acc;
+  }, [])
+
+  return flatten;
+}
+console.log(flat(arry, 1)); // [1,2,[3,[4]]]
+console.log(flat(arry, 2)); // [1,2,3,[4]]
+```
 		
 ##### <a name="783-adding-arrays-with-concat" id="783-adding-arrays-with-concat">7.8.3 Adding arrays with `concat()`</a>
 
 ```javascript
 const newArry = arry.concat(value0, value1, ... , valueN);
-
-// 当valueN是arry时, arry1.concat(arry2)就是 [...arry1, ...arry2] 
 ```
 
-<span class="orange">Return value</span>: a new array. <u>Original array stays the same</u>.
+**Return value**: a new array.
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
-
 `valueN`: can be values or array.
+- If `valueN` is an array, it will be **flatten by one level** and added to the arry
+- If `valueN` is an element, it will be added directly to the arry.
+
+Ex1.
 
 ```javascript
-const a = [1, 2],  b = [3, 4], c = [5, 6];
-console.log(a.concat("test", b, c)); // [1, 2, "test", 3, 4, 5, 6]
+console.log([1, 2].concat({ a: 1 }, "hello", [3,4])); // [1,2,{a:1}, "hello", 3, 4]
+
+console.log([1].concat([2, 3])); // [1, 2, 3], [2,3] is flattened by one level and pushed in
+console.log([1].concat([[2, 3]])); // [1, [2, 3]] - [[2, 3]] is flattened only one level
 ```
 
-<span class="orange">区别下面两种情况</span>
-
-- num1.concat(num2)就是 [...num1, ...num2], ...num1是[1], 所以num1.push(4)并不会影响后来的nums
-- 但是如果是对已经spread了的[1]中push(5), nums就变了
+Ex2.
 
 ```javascript
-const num1 = [[1]], num2 = [2, [3]];
-const nums = num1.concat(num2);
-console.log(nums); // [[1], 2, [3]]; 
+const arry1 = [[1]], arry2 = [2, [3]];
+const newArry = arry1.concat(arry2);
+console.log(newArry); // [[1], 2, [3]]
 
-// case 1
-num1.push(4); 
-console.log(nums); // [[1], 2, [3]]; 注意此时nums不变
-// case 2
-num1[0].push(5);
-console.log(nums); // [[1, 5], 2, [3]]; 但是这里nums变了
+arry1.push(4);
+console.log(newArry); // [[1], 2, [3]], 此时concat不变
+
+arry1[0].push(5);
+console.log(newArry); // [[1, 5], 2, [3]], 注意concat变了 [1,5]
 ```
+- <span class="orange">`arry.concat`是**shallow copy**</span>. [ref to arry1[0], 2, ref to arry2[1]], 所以arry1[0].push(5)改变了newArry
 
 ##### <a name="784-stacks-and-queues-with-push-pop-shift-and-unshift" id="784-stacks-and-queues-with-push-pop-shift-and-unshift">7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`</a>
 
