@@ -2539,9 +2539,11 @@ Return a new array
 **In-Place**
 `arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`,
 
-`arry.slice` - return a new arry
+`arry.slice` - orignal arry remain the same
+
 **In-Place**
-`arry.splice`
+`arry.splice`,
+`arry.sort`,
 
 - `callbackFn(elem, index, arry )`, <u>先elem后index</u>
 - Most of the methods above will **NOT modify the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
@@ -3640,8 +3642,7 @@ arry.sort(); // returns sorted arry, in-place
 arry.sort((firstEl, secondEl) => { ... compareFn... } )
 arry.sort(compareFn)
 ```
-
-<span class="orange">Return value</span>: The sorted array.
+**Return value**: The sorted array.
 
 <span class="orange">In-Place</span>. <u>Original arry will be changed.</u>
 
