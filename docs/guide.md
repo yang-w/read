@@ -2534,8 +2534,6 @@ Return a new array
 Return a new array
 `arry.flat`, `arry.concat`, 
 
-`arry.join` (join是arry变str, default ',' connect),
-
 **In-Place**
 `arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`,
 
@@ -2543,7 +2541,12 @@ Return a new array
 
 **In-Place**
 `arry.splice`,
-`arry.sort`,
+`arry.sort`, `arry.reverse`
+
+Array -> String
+`arry.join` (join是arry变str, default ',' connect),
+`arry.toString` - 1,2,3
+`JSON.stringify` - [1,2,3]
 
 - `callbackFn(elem, index, arry )`, <u>先elem后index</u>
 - Most of the methods above will **NOT modify the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
@@ -3642,53 +3645,57 @@ arry.sort(); // returns sorted arry, in-place
 arry.sort((firstEl, secondEl) => { ... compareFn... } )
 arry.sort(compareFn)
 ```
-**Return value**: The sorted array.
+**Return value**: The orginal array, but sorted.
 
 <span class="orange">In-Place</span>. <u>Original arry will be changed.</u>
 
 If `compareFn` is not supplied, all `non-undefined` array elements are sorted in <u>alphabetical</u>, <u>case-sensitive</u>, <u>ascending</u> order</u>, by <u>converting them to strings</u> and comparing strings in UTF-16 code units order. All `undefined` elements are sorted to the end of the array.
 
-- If `compareFn` returns some value > 0, order will be "b, a".
-- If `compareFn` returns some value < 0, order will be "a, b".
-- If `compareFn` returns 0, a and b are considered equal.
+`compareFn` returns a **number**
+- number > 0, order will be "b, a".
+- number < 0, order will be "a, b".
+- number = 0, a and b are considered equal.
 
 Ex1.
 
 ```javascript
-let a = [33, 4, 1111, 222]; // alphabetical string ascending
-console.log(a.sort()); // [1111, 222, 33, 4];
+let arry = [1, 30, 4, 21, 100];
+console.log(arry.sort()); // [1,100,21,30,4], string compare
+console.log(arry); // [1,100,21,30,4], arry.sort返回的就是本身的arry
 
-a = [33, 4, 1111, 222];
-a.sort((a, b) => a - b); // increaseing num
-console.log(a); // [4, 33, 222, 1111]
-
-a = [33, 4, 1111, 222]; // decreasing num
-console.log(a.sort((a, b) => b-a)); // [1111, 222, 33, 4]
+arry = [1,30,4,21,100];
+console.log(arry.sort((a, b) => a - b)); // [1, 4, 21, 30, 100]
 ```
 
 Ex2. 
 
 ```javascript
-let b = ["ant", "Bug", "cat", "Dog", "Cat"];
-console.log(b.sort()); // ["Bug","Cat","Dog","ant","cat"]; case sensitive
+let arry = ["ant", "Bug", "cat", "Dog", "Cat"];
+console.log(arry.sort()); // ['Bug', 'Cat', 'Dog', 'ant', 'cat']
 
 /** 
  * 不能用return e1<e2;
  * 1. false是0, 不是-1!!!
- * 2. return e1 < e2;返回的是true/false. true>0 is true, but false>0 is false
+ * 2. return e1 < e2返回的是true/false: 
+ * a<b -> return true -> true=1>0 -> order be ("b","a")
 */
-b.sort((elem1, elem2) => {
-    const e1 = elem1.toLowerCase(), e2 = elem2.toLowerCase();
-    if(e1 === e2) return 0;
-    if(e1 < e2) return -1;
-    else return 1;
-});
-console.log(b); // ["ant", "Bug", "Cat", "cat", "Dog"]; case insensitive
+arry = ["ant", "Bug", "cat", "Dog", "Cat"];
+console.log(arry.sort((a, b) => {
+  // return word1.toLowerCase() - word2.toLowerCase(); // Error, "a"-"b" = NaN
+  // 但是string可以比较>,<,=
+  const aL = a.toLowerCase(),
+  bL = b.toLowerCase();
+  if (aL > bL) return 1;
+  if (aL < bL) return -1;
+  return 0;
+})); // ['ant', 'Bug', 'cat', 'Cat', 'Dog']
 ```
-- 注意Ex2中不能用`return e1<e2`:
-	- `compareFn`expect的是returned value和0的关系.
-	- <span class="orange">`false`是0</span>, 不是-1!!!
-	- `return e1 < e2`返回的是true/false. <span class="orange">true>0 is true</span>, but <span class="orange">false>0或者false<0都是false</span>.
+- `str.toLowerCase()`不是in-place, str不变
+- <span class="underline-orange">str不能+-*/, 结果都是`NaN`</span>
+- 不能`return e1<e2`:
+	- <span class="underline-orange">`compareFn`expect的是returned value和0的关系.</span>
+	- `false`是0, 不是-1!!!
+	- `return e1 < e2`返回的是true/false, 然后再和0比较. true==1, false==0
 
 ##### <span class="white-on-black">reverse</span>
 
@@ -3696,170 +3703,79 @@ console.log(b); // ["ant", "Bug", "Cat", "cat", "Dog"]; case insensitive
 arry.reverse(); // returns reversed arry, in-place
 ```
 
-<span class="orange">Return value</span>: The reversed array.
+**Return value**: The reversed array.
 
 <span class="orange">In-Place</span>. <u>Original arry will be changed.</u>
 
 ##### <a name="787-array-to-string-conversions-jsonstringify-join-tostring" id="787-array-to-string-conversions-jsonstringify-join-tostring">7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)</a>
 ##### <span class="white-on-black">JSON.stringify</span>
 
-如果想保持arry的样子(带bracket)以便今后再用, serialize the array with `JSON.stringify(arry)`. 这样以后可以用`JSON.parse(str)`把它变回array.
-
-<span class="orange">Return value</span>: A JSON <b>string</b> representing the given value, or undefined.
-
-Ex. 注意stringify出来的结果是string, 虽然带bracket:  <span class="orange bold">[</span>"a","b","c"<span class="orange bold">]</span>
+Object(Array) 都可以用`JSON.stringify(obj/arry)`
 
 ```javascript
-let arry = ["a", "b", "c"];
-console.log(JSON.stringify(arry)); // ["a","b","c"]; 带bracket的string
-console.log(JSON.parse(JSON.stringify(arry))); // array: ["a", "b", "c"]
+const arry = ["a", "b", "c"];
+console.log(JSON.stringify(arry)); // string ["a","b","c"]
+console.log(JSON.parse(JSON.stringify(arry))); // array ['a', 'b', 'c']
 ```
 
 ##### <span class="white-on-black">join</span>
 
 ```javascript
-let str = arry.join(); // default separator is comma (","), no space inbt
-str = arry.join(separator);
+const str = arry.join(separator); // default is comma
 ```
 
-<span class="orange">Return value</span>: A string with all array elements joined by separator. If an element is `undefined`, `null` or empty arry [], it is converted to an <u>empty string</u>.
+**Return value**: A string with all elements joined by separator. 
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
-Ex1. 
-
-```javascript
-let a = ["Wind", "Water", "Fire"];
-a.join(); // "Wind,Water,Fire"; no space bt, 和a.toString()一样
-a.join(""); // "WindWaterFire"
-```
-
-Ex2. 注意`undefined` join后变成了empty str, 不是空格
-
-```javascript
-console.log(["a",undefined,"c"].join()); // "a,,c"; 注意中间的empty str
-```
-
-Ex3. 注意b.join后是4个相连的hyphen, 虽然本身arry是5个empty slots.
-
-```javascript
-let b = new Array(5); // An array of length 5 with no elements
-b.join("-") // => "----": a string of 4 hyphens
-```
-
-区别于`JSON.stringify()` return的是arry样子的string, <span class="orange">有bracket</span>. `arry.join()`返回的结果和`arry.toString()`一样, <span class="orange">都没有bracket</span>. 
-
-```javascript
-let arry = ["a", "b", "c"];
-console.log(JSON.stringify(arry)); // ["a","b","c"], 有bracket, 但是是string
-
-console.log(arry.join()); // a,b,c; 注意没有bracket
-console.log(arry.join("")); // abc
-
-console.log(arry.toString()); // a,b,c; 注意没有bracket
-```
-
-##### <span class="white-on-black">toString</span>
-
-```javascript
-["a", "b", "c"].toString(); // a,b,c; 注意没有bracket
-[1, [2,"c"]].toString(); // 1,2,c; 注意里面的bracket也拆了
-```
-
-#### <a name="79-array-like-objects" id="79-array-like-objects">7.9 Array-Like Objects</a>
-
-An <b>array-like object</b> is an <u>object</u> that has <u>indexed properties</u> and <u>a non-negative length property</u>.
-
-Some common examples of Array-Like Objects are <b>string</b>, <b>arguments</b> object in functions, <b>HTMLCollection</b> or <b>NodeList</b> objects returned from methods like `document.getElementsByClassName("test")` (HTMLCollection), `document.getElementsByTagName("p")` (HTMLCollection), or `document.querySelectorAll("div.test")` (NodeList).
+- `undefined`, `null` in array will be treated as an empty string when join
+- empty array [] will be converted to an <u>empty string</u>.
 
 Ex1. 
 
 ```javascript
-let arry_like_obj = {
-    4: "i",
-    1: "am",
-    2: "arry-like-obj",
-    length: 2 // 虽然有3个elem
-};
-console.log(arry_like_obj[4]); // i
-console.log(arry_like_obj.length); // 2
-
-/**
- * 1. 因为arry_like_obj的key没有0, 所以生成的arry[0]是undefined
- * 2. 因为length=2, 所以只取了arry[0]和arry[1]
- */
-console.log(Array.from(arry_like_obj)); // [undefined, "am"];
+console.log([].join()); // "", empty string
+console.log([null].join()); // "", empty string
+console.log(["a",undefined,"c"].join()); // a,,c - undefined is an empty string
+console.log(["a",undefined,"c"].join("")); // ac
 ```
-
-- arry-like obj不需要顺序的index, 也不要求length一定是elem的数量. 只要有indexed property和length就够了
-- <span class="orange">注意random index和length对最后转成arry的影响</span>
-- `arry_like_obj.4`是syntax error, 不能这样access
 
 Ex2.
 
 ```javascript
-const arr = [];
-arr[0] = "a"; // adds item to the array
-console.log(arr.length); // 1
-
-arr.two = "b"; // adds an item to the underlying object that array is built on top of.
-console.log(arr.length); // 1, 注意此时依然是1!!
-
-// 但是key可以loop到arry的index和附加的key
-for(let i in arr){
-    // this will hit both "0" and "two"
-    console.log(i);
-}
+const arry = ["a", "b", "c"];
+console.log(arry.join()); // a,b,c default是comma
+console.log(arry.join("")); // abc
 ```
 
-- `arry.two`并不影响length, 只有numbered index才会算到length里
-- arry本质还是object, 用for...in可以loop所有的key, 无论numbered还是non-numbered
-
-Ex3. both <u>array</u> and <u>arry-like</u> are object (<span class="orange">instanceof</span>)
+Ex3.
 
 ```javascript
-console.log(Array.isArray(arry_like_obj)); // false
-
-// both array and arry-like are object
-console.log(arry_like_obj instanceof Object); // true
-console.log([] instanceof Object); // true
-console.log([] instanceof Array); // true
-
-// arry is always an instanceof Object
-let a = new Array();
-console.log(a instanceof Array); // true
-console.log(a instanceof Object); // true
+const arry = new Array(5);
+console.log(arry.join("-")); // ----, 4个hyphen
+// 5个undefined -> 5个empty string用-连接: 4个hyphen
 ```
+- 是4个hyphen不是5个
 
-<u>arry is always an instanceof Object</u>, no matter how created (new Array() or arry literal).
+##### <span class="white-on-black">toString</span>
 
-<b>Array-Like Object to Array</b>
+Ex1.
 
-- `Array.prototype.slice.call(arry_like_obj)`
-- `Array.from(arry_like_obj)`
-	
-	Ex1. 
-	
-	```javascript
-	let arry_like_obj = {
-		4: "i",
-		1: "am",
-		2: "arry-like-obj",
-		length: 2 // 虽然有2个elem
-	};
-	console.log(Array.from(arry_like_obj)); // [undefined, "am"]
-	console.log(Array.prototype.slice.call(arry_like_obj)); // [, "am"]
-	```
-	
-	Ex2.
-	
-	```javascript
-	let a = {"0": "a", "1": "b", "2": "c", length: 3};
-	console.log(Array.from(a)); // ["a", "b", "c"]
-	console.log(Array.prototype.slice.call(a)); // ["a", "b", "c"]
-	```
-	
-	注意Ex1和Ex2的区别, 注意random index和length对生成的arry的影响
+```javascript
+const arry = [1,2,3];
+console.log(JSON.stringify(arry)); // string [1,2,3]
+console.log(arry.toString()); // 1,2,3, 有comma没有bracket!!
+console.log(arry.join()); // 1,2,3 有comma
+```
+- `toString`没有bracket, 但是有comma
+- 区别于<u>JSON.stringify(arry), 就是array样子的string</u>
+
+Ex2.
+
+```javascript
+console.log(["a", "b", "c"].toString()); // a,b,c
+console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
+```
 
 <div class = "border">
 	<ul>
