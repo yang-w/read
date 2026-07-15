@@ -32,7 +32,7 @@
 	* [7.8.2 Flattening arrays with `flat()`)](#782-flattening-arrays-with-flat)
 	* [7.8.3 Adding arrays with `concat()`](#783-adding-arrays-with-concat)
 	* [7.8.4 Stacks and Queues with `push()`, `pop()`, `shift()`, and `unshift()`](#784-stacks-and-queues-with-push-pop-shift-and-unshift)
-	* [7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`](#785-subarrays-with-slice-splice-fill-and-copywithin)
+	* [7.8.5 Subarrays with `slice()`, `splice()`](#785-subarrays-with-slice-splice)
 	* [7.8.6 Array Sorting Methods (`sort`, `reverse`)](#786-array-sorting-methods-sort-reverse)
 	* [7.8.7 Array to String Conversions (`JSON.stringify`, `join`, `toString`)](#787-array-to-string-conversions-jsonstringify-join-tostring)
 * [11.1.1 The Set Class](#1111-the-set-class)
@@ -2534,10 +2534,14 @@ Return a new array
 Return a new array
 `arry.flat`, `arry.concat`, 
 
-`arry.join` (join是arry变str),
+`arry.join` (join是arry变str, default ',' connect),
 
-`arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`, <br>
-`arry.slice`, `arry.splice`, `arry.fill`, `arry.copyWithin`
+**In-Place**
+`arry.push`, `arry.pop`, `arry.shift`, `arry.unshift`,
+
+`arry.slice` - return a new arry
+**In-Place**
+`arry.splice`
 
 - `callbackFn(elem, index, arry )`, <u>先elem后index</u>
 - Most of the methods above will **NOT modify the arry on which it is invoked. (<span class="orange">NOT in-place</span>). <b>`concat`, `flat`</b>都是non-inplace, original arry stays the same. <span class="orange">除了</span>以下这几个是<span class="orange">in-place</span>:
@@ -3423,6 +3427,7 @@ console.log([].concat(...arry)); // // [1,2,[3,[4]]], 和flat一样
  * [1].concat([2, [3, [4]]]) = [1, 2, [3, [4]]]
  */
 ```
+- 注意concat的用法!!
 
 Ex3.2 用`reduce`做`flat(depth)`
 
@@ -3441,7 +3446,7 @@ function flat(arry, depth = 1) { // 注意default val的写法
     return acc;
   }, [])
 
-  return flatten;
+  return flatten; // 勿忘return!! 大部分的recursive都要return something
 }
 console.log(flat(arry, 1)); // [1,2,[3,[4]]]
 console.log(flat(arry, 2)); // [1,2,3,[4]]
@@ -3458,15 +3463,15 @@ const newArry = arry.concat(value0, value1, ... , valueN);
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
 `valueN`: can be values or array.
-- If `valueN` is an array, it will be **flatten by one level** and added to the arry
+- If `valueN` is an array, it will be **flatten by one level** then added each to the arry
 - If `valueN` is an element, it will be added directly to the arry.
 
 Ex1.
 
 ```javascript
-console.log([1, 2].concat({ a: 1 }, "hello", [3,4])); // [1,2,{a:1}, "hello", 3, 4]
+console.log([1, 2].concat({ a: 1 }, "hello", [3,4])); // [1,2,{a:1}, "hello", 3, 4], [3,4]先unpack再push
 
-console.log([1].concat([2, 3])); // [1, 2, 3], [2,3] is flattened by one level and pushed in
+console.log([1].concat([2, 3])); // [1, 2, 3], [2,3]先unpack再push in
 console.log([1].concat([[2, 3]])); // [1, [2, 3]] - [[2, 3]] is flattened only one level
 ```
 
@@ -3492,128 +3497,138 @@ console.log(newArry); // [[1, 5], 2, [3]], 注意concat变了 [1,5]
 - `push()`
 
 	```javascript
-	let newLength = arry.push(element0); 
-	console.log(arry); // arry changed
-	
-	newLength = arry.push(element0, element1, ... , elementN)
+	const newLength = arry.push(element0, element1, ... , elementN)
+
+  arry.push(...anotherArry)
 	```
-	<span class="orange">Return value</span>: the new length of arry.
+	**Return value**: the new length of arry.
 	
 	```javascript
 	const stack = [];
-	stack.push(1, 2); // 返回的是2. stack = [1, 2]
-	stack.push([3, 4]); // 返回3. stack = [1, 2, [3, 4]] 注意[3, 4]是以一个整体push进去的
+  console.log(stack.push(1,2)); // 2, 返回的是new length
+  console.log(stack); // [1,2]
 	```
-	
-	<u>Merging two arrays</u>: use <b>spread</b> to push all elements from a second array into the first one.
-	
-	```javascript
-	const moreNums = [5, 6, [7]];
-	stack.push(...moreNums); 
-	// 注意不是console.log(stack.push(...))!! push返回的是长度
-	console.log(stack); // [1,2,[3,4],5,6,[7]];
-	```
+
 - `pop()`
 	
 	```javascript
 	const popedElem = arry.pop(); 
-	console.log(arry); // arry changed
 	```
-	<span class="orange">Return value</span>: The removed element from arry; `undefined` if arry is empty.
+	**Return value**: The removed element from end of array; `undefined` if arry is empty.
 	
 - `shift()`
 	
 	```javascript
 	const firstElem = arry.shift();
-	console.log(arry); // arry changed
 	```
-	<span class="orange">Return value</span>: The removed element from arry (first element); `undefined` if arry is empty.
+	**Return value**: The removed element from arry (first element); `undefined` if arry is empty.
 
 - `unshift()`
 	
-	```javascript
-	let newLength = arry.unshift(element0);
-	console.log(arry); // arry changed
-	
-	newLength = arry.unshift(element0, element1, ... , elementN);
+	```javascript	
+	const newLength = arry.unshift(element0, element1, ... , elementN);
 	```
-	<span class="orange">Return value</span>: The new length of the arry.
+	**Return value**: The new length of the arry.
 	
-	但是要注意一点, if multiple elements are passed as parameters, they're inserted in chunk at the beginning of the object, in the <u>exact same order</u> they were passed as parameters. <u>区别于一次一次unshift</u>.
-	
+	Ex.
+
 	```javascript
-	let arry = [1, 2, 3];
-	console.log(arry.unshift(4, 5)); // 5. 注意这里返回的不是arry!! 是新的length
-	console.log(arry); // [4, 5, 1, 2, 3]. (4,5)整体在前面
-	
-	// 区别于
-	arry = [1, 2, 3];
-	arry.unshift(4);
-	arry.unshift(5);
-	console.log(arry); // [5, 4, 1, 2, 3]. 5被插到了4的前面
+  let arry = [1, 2, 3];
+  arry.unshift(4,5);
+  console.log(arry); // [4,5, 1,2,3], (4,5)是被一起加入
+
+  // 区别于
+  arry = [1, 2, 3];
+  arry.unshift(4);
+  arry.unshift(5);
+  console.log(arry) // [5,4, 1,2,3], 5在4之前
 	```
+  - `arry.unshift(elem0, elem1)`, elem0和elem1是<u>一次性一起加入, in the exact same order</u>. 区别于一次一次unshift.
 	
-##### <a name="785-subarrays-with-slice-splice-fill-and-copywithin" id="785-subarrays-with-slice-splice-fill-and-copywithin">7.8.5 Subarrays with `slice()`, `splice()`, `fill()`, and `copyWithin()`</a>
+##### <a name="785-subarrays-with-slice-splice" id="785-subarrays-with-slice-splice">7.8.5 Subarrays with `slice()`, `splice()`</a>
 
 ##### <span class="white-on-black">slice</span>
 
 ```javascript
-let slicedArry = arry.slice();
-arry.slice(start);
-arry.slice(start, end); // slice [start, end), 注意end is not included
+const sliced = arry.slice(start);
+arry.slice(start, end); // slice [start, end), end is not included
 ```
 
-<span class="orange">Return value</span>: A <b>shallow</b> copy of sliced elements from the original array.
+****Return value**: A <b>shallow</b> copy of sliced elements from the original array.
 
 <span class="orange">Not In-Place</span>. <u>Original arry stays the same.</u>
 
-- Ex1.
+Ex1.
 
-	```javascript
-	let arry = ["a", { b: 1 }, "c", "d", "e"];
-	console.log(arry.slice()); // 一个shallow copy of arry
-	
-	let sliced = arry.slice(1, 3);
-	console.log(arry); // arry没变
-	console.log(JSON.stringify(sliced)); // [{"b":1},"c"], 注意不包括arry[3]
-	    
-	arry[1].b = 2;
-	console.log(JSON.stringify(sliced)); // [{"b":2},"c"], 注意是shallow copy
-	```
-	- `arry.slice(start, end)`, end是不包括的
-	- `arry.slice`是shallow copy, sliced中b的value变了
+```javascript
+const arry = ["a", { b: 1 }, "c", "d", "e"];
+console.log(arry.slice()); // shallow copy of arry: ["a", { b: 1 }, "c", "d", "e"]
 
-- Ex2. 用于Array-like objects变成arry
-
-	```javascript
-	const argsArry = Array.prototype.slice.call(arguments);
-	```
+const sliced = arry.slice(1, 3);
+console.log(sliced); // [{b:1}, "c"]
+arry[1].b = 2;
+console.log(sliced); // [{b:2}, "c"], 注意slice变了, shallow copy
+```
+- `arry.slice(start, end)`, end是不包括的
+- `arry.slice`是shallow copy, sliced中b的value变了, 和concat一样
 	
 ##### <span class="white-on-black">splice</span>
 
 ```javascript
-let deletedArry = arry.splice(start); // 类似arry.slice(start), 但是本身arry被改了
-deletedArry = arry.splice(start, deleteCount, item1, item2, itemN);
-arry.splice(start, deleteCount);
-arry.splice(start, deleteCount, item1);
+arry.splice(); // no-op, delete 0 item, arry不变
+
+/**
+ * start is provide, but deleteCount is omitted
+ * delete从start到length-1
+ * deletedArry类似arry.slice(start), 但是本身arry只剩[0,start)
+ * */
+const deletedArry = arry.splice(start); 
+
+arry.splice(start, deleteCount, item1, item2, itemN); 
 ```
 
-<span class="orange">Return value</span>: An array containing the deleted elements. If no elements are removed, an empty array is returned.
+**Return value**: An array of deleted elements. If no elements are removed, an empty array is returned.
 
 <span class="orange">In-Place</span>. <u>Original arry will be changed.</u>
 
+Ex1.
+
 ```javascript
-let arry = ["a", "b", "c", "d", "e"];
-let deleted = arry.splice(2);
-console.log(deleted); // ["c", "d", "e"], 等同于arry.slice(2), 除了arry本身被改了
-console.log(arry); // ["a", "b"]
+// Ex1.1
+const arry = [1,2,3];
+console.log(arry.splice()); // []
+console.log(arry); // [1,2,3], 原arry不变
 
-arry = ["a", "b", "c", "d", "e"];
-console.log(arry.splice(2,0,"test1","test2")); // [], 注意return的是空arry, 因为没有delete
-console.log(arry); // ["a", "b", "test1", "test2", "c", "d", "e"], 注意test1, test2是插在c的前面, 即从start开始插入
+// Ex1.2 start is provided - 区别于1.1
+console.log(arry.splice(0)); // [1,2,3], 整个arry从0到end都被delete了
+console.log(arry); // [], arry被delete完了
 
-console.log(arry.splice(2, 2, ["test3","test4"], "test5")); // ["test1", "test2"]
-console.log(JSON.stringify(arry)); // ["a","b",["test3","test4"],"test5","c","d","e"]
+// Ex1.3
+const arry = [1,2,3];
+console.log(arry.splice(1, undefined)); // [], undefined coerced to 0: delete 0 elem
+console.log(arry); // [1,2,3]
+```
+- 区别1.1和1.2, 如果`<span class="underline-orange">start` is provided but `deleteCount` is omitted, `splice()` will delete everything [start, length-1]</span>
+- 区别1.2和1.3, 如果`deleteCount`是undefined不是omit, undefined被coerce as 0 - delete 0 item
+- `arry.slice(1)` VS `arry.splice(1)`
+  - `arry.slice(1)`得到新arry[2,3], 原arry不变
+  - `arry.splice(1)`remove everything after index1, 原arry只剩[1]
+
+Ex2.
+
+```javascript
+let arry = [1,2,3,4,5];
+const deleted = arry.splice(2);
+console.log(deleted); // [3,4,5], 从index2到end都被delete了
+console.log(arry); // [1,2]
+
+arry = [1,2,3,4,5];
+console.log(arry.splice(2,0,"a","b")); // [], nothing deleted
+console.log(arry); // [1,2, "a","b", 3,4,5]
+
+arry = [1,2,3,4,5];
+console.log(arry.splice(2,2,["a","b"],"c")); // [3,4]
+console.log(arry); // [1,2, ["a","b"],"c", 5]
 ```
 
 ##### <a name="786-array-sorting-methods-sort-reverse" id="786-array-sorting-methods-sort-reverse">7.8.6 Array Sorting Methods (`sort`, `reverse`)</a>
