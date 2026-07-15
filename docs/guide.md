@@ -3777,31 +3777,25 @@ console.log(["a", "b", "c"].toString()); // a,b,c
 console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 ```
 
-<div class = "border">
-	<ul>
-		<li>
-			<b>Set</b>和<b>Map</b>都是iterable object.
-			<ul>
-				<li>都可以用<b>`[...]`</b>或者<b>`Array.from()`</b>变成array</li>
-				<li>都可以用<b>for...of</b>循环</li>
-			</ul>
-		</li>
-		<li>
-			<b>Set</b>和<b>Map</b>都有has(), delete(), clear().
-			<ul>
-				<li>Set用`set.add(val)`加入新的elem</li>
-				<li>Map用`map.set(key, val)`加入新的elem, 除此之外, Map还有`map.get(key)`</li>
-			</ul>
-		</li>
-		<li><b>Set</b> is <b>faster</b> in lookup (`set.has(val)`), comparing to `arry.includes(val)`. <b>Map</b> is <b>faster</b> in lookup, and frequent insertion/deletion  (`map.has(key)`, `map.set(key, val)`, `map.delete(key)`)</li>
-	</ul>
-</div>
+> - **`Set`** 和 **`Map`** 都是 **iterable objects**
+>   - 都可以用`[...]`或`Array.from()`转成array
+>   - 都可以用`for...of`遍历
+>     - `for(const val of set)`
+>     - `for (const [key, value] of map)`
+>
+> - **`Set`** 和 **`Map`** 都有 `has()`, `delete()`, `clear()`
+>   - `Set`用 **`set.add(value)`** 添加元素
+>   - `Map`用 **`map.set(key, value)`** 添加pair
+>   - `Map`另外还有 **`map.get(key)`** 读取值
+>
+> - **`Set`** 的查找`set.has(value)`通常比`array.includes(value)`更快
+> - **`Map`** 在频繁查找(`map.has()`, `map.get()`)以及插入/删除(`map.set()`, `map.delete()`)时, 通常比Object更快
 
 #### <a name="1111-the-set-class" id="1111-the-set-class">11.1.1 The Set Class</a>
 
-<b>Set</b> is a collection of <b>unique</b> values, like an array is, but it's not ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. However, <b>set</b> can be iterated in insertion order.
+**Set** is a collection of **unique** values, like an array is, but it's not ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. However, **set** can be iterated in insertion order.
 
-#####<u>Value Equality in Set</u>
+##### <u>Value Equality in Set</u>
 Set用类似于<b>`===`</b>判断是否unique
 
 - 1, "1"和true是不一样的
@@ -3859,15 +3853,15 @@ x < y;      // true!! string compare, no number coerce
 ```
 Contrast explicit coercion with `Number()`: [§4.13.3 Ex4](#typeof-instanceof).
 
-#####<u>Constructor</u>
+##### <u>Constructor</u>
 
 ```javascript
 new Set(); // empty set
 new Set(iterable);
 ```
 
-- If an <u>iterable object</u> is passed, all of its elements will be added to the new Set, <span class="bold underline">one by one</span>, not as a whole.
-- <span class="bold underline">Iterable object</span>包括array, string, set, map, etc
+- If an <u>iterable</u> is passed, all of its elements will be added to the new Set, <span class="bold underline">one by one</span>, not as a whole.
+- <span class="bold underline">Iterable</span>包括array, string, set, map, etc
 
 Ex2.1
 
@@ -3875,7 +3869,7 @@ Ex2.1
 // iterable eg: array
 let s = new Set(["a", "b", "a"]);
 console.log(s); // Set {"a", "b"}
-s = new Set([..."aba"]); // ["a", "b", "a"]等同于[..."aba"] 和上面完全一样
+s = new Set([..."aba"]); // ["a", "b", "a"]
 console.log(s); // Set {"a", "b"}
 
 console.log(typeof s); //object
@@ -3902,7 +3896,6 @@ console.log(t); // Set {"a", "b"}, Set s被拆开一一加入t
 t = new Set([1, s]);
 console.log(t); // Set {1, s}. 区别于上面s里的elem被一个个加入Set, 这里[1,s]已经是iterable了, 只会拆一层, 不会继续拆s了, s以一个整体加入t
 ```
-
 - Set constructor可以pass进的iterable包括<u>array, string, set</u>, etc.
 - Set常用来作为<u>remove dups</u>. 注意`Array.from(set)`和`[...set]`的应用
 	- 注意set和array的关系
@@ -3951,7 +3944,7 @@ console.log(s.size); // 0
 ```
 
 ##### Iteration Methods
-- for...of
+- `for...of`
 - <b>Set.prototype.forEach()</b>
 	
 	```javascript
@@ -4018,7 +4011,7 @@ console.log(s.size); // 0
 	- 如果是无论如何都要一个一个循环的可以用forEach
 	
 	```javascript
-	Set.prototype.isSubset = (superset) => {
+	Set.prototype.isSubset = (superset) => { // ERROR!!!
 	    if(this.size > superset.size) return false;
 	
 	    /**
@@ -4049,7 +4042,7 @@ console.log(s.size); // 0
 	```javascript
 	Set.prototype.isSubset = (superset) => {
 	    if (this.size > superset.size) return false;
-	    for(let elem of this) {
+	    for(const elem of this) {
 	        if(!superset.has(elem)) return false; // 区别于forEach, 这里for loop可以因为return就结束了
 	    }
 	    return true;
@@ -4065,6 +4058,7 @@ console.log(s.size); // 0
 	Ex4.4.2 set1.union(set2), 不能改变原有set1
 	
 	```javascript
+  // Ex4.4.2.1
 	Set.prototype.union = function(otherSet) {
 	    const _union = new Set(this); // 注意Set可以直接用set init
 	    otherSet.forEach((elem) => {
@@ -4077,18 +4071,24 @@ console.log(s.size); // 0
 	let s1 = new Set([1,2,3]);
 	let s3 = new Set([1,3,5]);
 	console.log(s1.union(s3)); // Set {1,2,3,5}
+
+  // Ex4.4.2.2
+  Set.prototype.union = function(otherSet) {
+    return new Set([...this, ...otherSet]); // 可以直接...set
+  };
+  // const union = new Set([...this, ...otherSet]);
 	```
 	- 可以直接`_union = new Set(this)`, 不用init一个空set再一个一个加
 	- 注意上面不用check _union是否has新的elem, <u>应该直接add, Set本身会保证unique</u>
 
 	Ex4.4.3 set1.intersect(s3)
 	
-	这个思路是错的: new set(this); 然后loop thru otherSet,如果newSet没有otherSet的elem,就删掉. 
+	这个思路是错的: new set(this); 然后loop thru otherSet,如果otherSet的elem不在newSet里,就删掉. 
 	<span class="red">ERROR</span>的点在: newSet(this)里的elem如果有不属于otherSet也应该删掉, 思考s1.intersect(s3)
 	
 	```javascript
-	Set.prototype.intersect = function(otherSet) {
-	    const _intersect = new Set(this); // ERROR
+	Set.prototype.intersect = function(otherSet) { // ERROR
+	    const _intersect = new Set(this);
 	    otherSet.forEach((elem) => {
 	        if(! _intersect.has(elem)) {
 	            _intersect.delete(elem);
