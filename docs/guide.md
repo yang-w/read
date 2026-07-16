@@ -3780,7 +3780,7 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 > - **`Set`** 和 **`Map`** 都是 **iterable objects**
 >   - 都可以用`[...]`或`Array.from()`转成array
 >   - 都可以用`for...of`遍历
->     - `for(const val of set)`
+>     - `for(const elem of set)`
 >     - `for (const [key, value] of map)`
 >
 > - **`Set`** 和 **`Map`** 都有 `has()`, `delete()`, `clear()`
@@ -3788,70 +3788,20 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 >   - `Map`用 **`map.set(key, value)`** 添加pair
 >   - `Map`另外还有 **`map.get(key)`** 读取值
 >
-> - **`Set`** 的查找`set.has(value)`通常比`array.includes(value)`更快
-> - **`Map`** 在频繁查找(`map.has()`, `map.get()`)以及插入/删除(`map.set()`, `map.delete()`)时, 通常比Object更快
+> - **Set** VS **Array**: 查找
+>   - `set.has(value)` O(1)
+>   - `arry.includes(value)` O(n)
+> - **Map** VS **Object**:
+>   - 在频繁查找(`map.has()`, `map.get()`)以及插入/删除(`map.set(key,val)`, `map.delete()`)时, 虽然都是O(1), 但是<u>相较于Object, map is optimized for dynamic key-val storage</u>
 
 #### <a name="1111-the-set-class" id="1111-the-set-class">11.1.1 The Set Class</a>
 
-**Set** is a collection of **unique** values, like an array is, but it's not ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. However, **set** can be iterated in insertion order.
+**Set** is a collection of **unique** values. Set is implemented as a <u>hash table</u> (or similar hash-based structure).
 
-##### <u>Value Equality in Set</u>
-Set用类似于<b>`===`</b>判断是否unique
-
-- 1, "1"和true是不一样的
-- `document.body`和`document.querySelector("body")`是一样的
-
-	```javascript
-	let s = new Set();
-	s.add(document.body);
-	s.has(document.querySelector("body")); // true
-	``` 
-- 对于reference values (array, object, functions), 永远不相等, 只能用地址比较
-
-Ex1. 
-
-```javascript
-let s = new Set();
-s.add([1]);
-s.add([1]);
-console.log(s.has([1])); // false, 区别于后面s.has(arry)是true
-console.log(s); // Set {[1], [1]}, [1]永远不等于[1]
-console.log(s.delete([1])); // false, 只能用地址delete
-	
-let arry=[1];
-s.add(arry);
-console.log(s); // Set {[1], [1], arry}
-console.log(s.has(arry)); // true
-s.add(arry);
-console.log(s); // 还是Set {[1], [1], arry}. 区别于上面, 这里arry只加了一次, 对于reference val, 只能用地址
-console.log(s.delete(arry)); // true, s是Set {[1], [1]}, arry被delete了
-```
-- `undefined`和`null`都可以加入Set. <u>`NaN`是个特例,</u> 虽然`NaN !== NaN`, 但是Set里可以只被加入一次
-
-```javascript
-3 === 3.0; // true
-
-// undefined和null都是primitive, 可以比较
-undefined === undefined; // true
-null === null; // true
-
-undefined == null; // true
-
-NaN === NaN; // false
-[1] === [1]; // false
-
-var x = [ 1, 2, 3 ];
-var y = x;
-
-y === x;              // true
-y === [ 1, 2, 3 ];    // false
-x === [ 1, 2, 3 ];    // false
-
-var x = "10";
-var y = "9";
-x < y;      // true!! string compare, no number coerce
-```
-Contrast explicit coercion with `Number()`: [§4.13.3 Ex4](#typeof-instanceof).
+**Set** VS **Array**
+- like an array is, but set is NOT ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. 
+- However, <u>set can be iterated in insertion order</u>.
+- `set.has(val)`: O(1) **faster** than `arry.includes(val)`: O(n)
 
 ##### <u>Constructor</u>
 
@@ -3859,102 +3809,159 @@ Contrast explicit coercion with `Number()`: [§4.13.3 Ex4](#typeof-instanceof).
 new Set(); // empty set
 new Set(iterable);
 ```
+- **Iterable**就是可以for loop的, 包括**array**, **string**, **set**, **map**, etc
 
-- If an <u>iterable</u> is passed, all of its elements will be added to the new Set, <span class="bold underline">one by one</span>, not as a whole.
-- <span class="bold underline">Iterable</span>包括array, string, set, map, etc
-
-Ex2.1
+Ex1. Constructor
 
 ```javascript
-// iterable eg: array
-let s = new Set(["a", "b", "a"]);
-console.log(s); // Set {"a", "b"}
-s = new Set([..."aba"]); // ["a", "b", "a"]
-console.log(s); // Set {"a", "b"}
+const set1 = new Set([..."aba"]); // 用arry new
+console.log(set1); // Set(2) {'a', 'b'}
 
-console.log(typeof s); //object
-console.log(s instanceof Set); // true
-    
-/**
- * iterable object变array的两种方法 eg: set, map
- * 1. Array.from(an iterable or array-like object), arryLike: arguments
- * 2. Spread operator [...iterable]
- */
-console.log(Array.from(s)); //  ["a", "b"]
+const set2 = new Set(["a", "b", "a"]); // 用arry new
+console.log(set2); // Set(2) {'a', 'b'}
 
-// Remove duplicates in array
-let rmDup = [...new Set(["a", "b", "a"])];
-console.log(rmDup); // ["a", "b"]
+console.log(typeof set1); // object
+console.log(set1 instanceof Set); // true
+console.log(set1 instanceof Object); // true
 
-// iterable eg: string
-s = new Set("aab");
-console.log(s); // Set {"a", "b"}, "aab" is added in Set OneByOne
+const set3 = new Set("aba"); // 用string new
+console.log(set3); // Set(2) {'a', 'b'}
 
-// iterable eg: set
-let t = new Set(s);
-console.log(t); // Set {"a", "b"}, Set s被拆开一一加入t
-t = new Set([1, s]);
-console.log(t); // Set {1, s}. 区别于上面s里的elem被一个个加入Set, 这里[1,s]已经是iterable了, 只会拆一层, 不会继续拆s了, s以一个整体加入t
+const set4 = new Set(set1); // 用set new
+console.log(set4); // Set(2) {'a', 'b'}, 把set1拆开一一加入set4
+
+const set5 = new Set([1, set1]);
+console.log(set5); // Set(2) {1, Set(2) {'a', 'b'}}. 区别于set4, [1,set1]已经是iterable了, 只会unpack一层, 不会继续拆set1了, set1以一个整体加入set5
+
+const set6 = new Set([1, 2]);
+console.log(set6); // Set(2) {1, 2}
+// 区别于new Set([1,2]): [1,2]是拆开一一加入, 
+// 这里set.add([1,2]): [1,2]是以整体一个加入
+set6.add([1,2]);
+console.log(set6); // Set(3) {1,2, [1,2]}
 ```
-- Set constructor可以pass进的iterable包括<u>array, string, set</u>, etc.
-- Set常用来作为<u>remove dups</u>. 注意`Array.from(set)`和`[...set]`的应用
-	- 注意set和array的关系
-	
-	Ex2.2 
-	
-	```javascript
-	let s = new Set([1,4,2]);
-	console.log([...s]); // [1,4,2], set变array
-	console.log(Math.max(...s)); // 4, set通过...变成单个的.这里不是array, 是Math.max(1,4,2)  
-	```
-	
-- 区别于<u>`set.add([1,2])`</u>是把[1,2]以一个整体加入set, <u>`new Set([1,2])`</u>是把[1,2]拆开一一加入set.
+- `instanceof` 用于**non-primitive values**, checks whether an object <u>inherits from a constructor's prototype chain</u>.
+  - 所以set既是instanceof Set 也是instanceof Object
+- 注意`new Set(set1)`是把set1拆开一一加入: If an iterable is passed in, all of its elements will be added to the new Set, <u>one by one</u>, not as a whole.
+  - `new Set([1,2])`是[1,2]拆开一一加入
+  - 区别于`set.add([1,2])`, [1,2]是以整体一个加入
 
+Ex2. Remove dup using `set`
+
+```javascript
+/// remove dup from arry
+const arry = ["a", "b", "a"];
+const unique = [...new Set(arry)];
+console.log(unique); // ['a', 'b']
+
+// remove dup from string
+const str = "aba";
+const unqiueStr = [...new Set(str)].join("");
+console.log(unqiueStr); // ab
+```
+	
 ##### Instance Properties
 `Set.prototype.size`
 
 ##### Instance Methods
-- `Set.prototype.add(value)`: <u>returns the `Set` object</u> with added value, 所以<b>可以chain</b>.
+- `Set.prototype.add(value)`: <u>returns the `Set` object</u> with added value, 所以**可以chain**.
 - `Set.prototype.has(value)`: returns `true/false`
-	- `has()` is musch faster than `Array.prototype.includes()` when they have the same length/size.
+	- `set.has(val)` O(1) is musch faster than `arry.includes(val)` O(n), when they have the same length/size.
 - `Set.prototype.delete(value)`: returns `true` if `value` was already in `Set`, otherwise `false`
-- `Set.prototype.clear()`: returns `undefined`
+- `Set.prototype.clear()`: no return.
 
-Ex3. 
+###### <u>Value Equality in Set</u>
+Set用类似于<b>`===`</b>判断是否unique
+
+Ex1.
 
 ```javascript
-let s = new Set();
-console.log(s.size); // 0
+const set = new Set();
+set.add([1]).add([1]); // chain add
+console.log(set); // Set(2) {[1], [1]}, 两个[1]都加进去了
+console.log(set.has([1])); // false
+console.log(set.delete([1])); // false
 
-s.add(1).add(1).add(true); // add可以chain
-console.log(s); // Set {1, true}. 1和true是不一样的
+const arry = [1];
+set.add(arry).add(arry);
+console.log(set); // Set(3) {[1], [1], [1]}, 只加进了一个[1]
+console.log(set.has(arry)); // true, ref compare
+console.log(set.delete(arry)); // true
+console.log(set); // Set(2) {[1], [1]}
+```
+- 对于reference values (array, object, functions), 永远不相等, 只能用地址比较
+- `undefined`和`null`都可以加入Set. <u>`NaN`是个特例,</u> 虽然`NaN !== NaN`, 但是Set里可以只被加入一次
 
-console.log(s.has("1")); // false, check ===
-console.log(s.has(true)); // true
+Ex2.
 
-s.add([1,2]);
-console.log(s.size); // 3, [1,2]是以一个整体加进去的, Set {1,true,[1,2]}. 区别于new Set([1,2]), [1,2]会被拆开
-console.log(s.delete([1,2])); // false, reference obj永远不等
-console.log(s.size); // 还是3
+```javascript
+const set = new Set();
+set.add(document.body);
+console.log(set.has(document.querySelector("body"))); // true
+``` 
+- `document.body`和`document.querySelector("body")`是一样的
 
-console.log(s.delete("1")); // false, 1和"1", true不一样
-console.log(s.delete(1)); // true, Set{true, [1,2]}
-s.clear();
-console.log(s.size); // 0
+Ex3.
+
+```javascript
+3 === 3.0; // true!!
+
+undefined === undefined; // true
+null === null; // true
+
+undefined === null; // false
+undefined == null; // true
+
+NaN === NaN; // false, 两个NaN永远不相等
+[1] === [1]; // false
+
+const x = [ 1, 2, 3 ];
+const y = x;
+
+x === y; // true
+x === [ 1, 2, 3 ]; // false
+y === [ 1, 2, 3 ]; // false
+
+const a = "10";
+const b = "9";
+a < b; // true!! string compare, no number coerce
 ```
 
+Ex4. 
+
+```javascript
+const set = new Set();
+console.log(set.size); // 0
+
+set.add(1).add(1).add(true); // add chaining
+console.log(set); // Set(2) {1, true}
+console.log(set.size); // 2
+
+console.log(set.has("1")); // false, ===equal
+console.log(set.has(true)); // true
+
+set.add([1,2]);
+console.log(set.size); // 3, [1,2]是以整体一个加入
+console.log(set.delete([1,2])); // false, ref val永远不等
+console.log(set.delete(1)); // true
+set.clear();
+console.log(set.size); // 0
+```
+- `set.add(val)` returns the set, can chaining `set.add(val).add(val)`
+- `set.clear()` has no return
+
 ##### Iteration Methods
-- `for...of`
-- <b>Set.prototype.forEach()</b>
+- `for(const val of set)`
+- `Set.prototype.forEach()`
 	
 	```javascript
 	set.forEach((elem) => { ... });
 	set.forEach(callbackFn)
 	```
-	- 区别于<b>`arry.forEach((elem, index) => { ... })`</b>, 因为Set doesn’t have indexes.
+	- 区别于<b>`arry.forEach((elem, index) => { ... })`</b>, Set doesn’t have index.
 	- 和`arry.forEach()`一样, 都没有return, 都不改变当前arry, 等同于for loop.
 	- 和`arry.forEach()`一样, 都<u>无法跳出循环. 区别于for loop</u>.
-	- Iterated in the order of insertion order
+	- Iterated **in the order of insertion order**
 
 	Ex4.1
 	
@@ -4135,8 +4142,6 @@ console.log(s.size); // 0
 	console.log(s1.intersect(s2)); // Set {1,2,3}
 	console.log(s1.intersect(s3)); // Set {1,3}, s1里的2不在intersect中
 	```
-	
-	
 	
 	Ex4.4.4 s1.difference(s2)
 	
