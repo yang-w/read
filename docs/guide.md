@@ -3779,18 +3779,19 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 
 > - **`Set`** 和 **`Map`** 都是 **iterable objects**
 >   - 都可以用`[...]`或`Array.from()`转成array
->   - 都可以用`for...of`遍历
->     - `for(const elem of set)`
+>   - 都可以用`for...of`/ `forEach`遍历
+>     - `for(const elem of set)` | `set.forEach(elem => {...})`
 >     - `for (const [key, value] of map)`
 >
 >
 > |       | Set       | Map       |
 > |-------|-----------|-----------|
-> | props |`set.size`       |     |
+> | props |`set.size`       |`map.size`         |
 > | add   |`set.add(val)`   |`map.set(key, val)`|
 > | delete|`set.delete(val)`|`map.delete(key)`  |
 > | has   |`set.has(val)`   |`map.has(key)`<br>`map.get(key)`|
 > | clear |`set.clear()`    |`map.clear()`      |
+> |        |`set.isSubsetOf(superset)`<br> `set.union(otherSet)`<br> `set.intersection(otherSet)`<br>`set.difference(otherSet)`|`map.clear()`      |
 >
 > - **Set** VS **Array**: 查找
 >   - `set.has(value)` O(1)
@@ -3851,7 +3852,7 @@ console.log(set6); // Set(3) {1,2, [1,2]}
 - 注意`new Set(set1)`是把set1拆开一一加入: If an iterable is passed in, all of its elements will be **unpacked by one level** and added to the new Set <u>one by one</u>, not as a whole.
   - `new Set([1,2])`: 是[1,2]拆开一一加入
   - 区别于`new Set([1, [1,2]])`: 只拆一层, [1,2]是以整体加入
-  - 区别于`set.add([1,2])`: [1,2]是以整体一个加入
+  - 区别于`set.add([1,2])`: [1,2]是以一个整体加入
 
 Ex2. Remove dup using `set`
 
@@ -3875,7 +3876,12 @@ console.log(unqiueStr); // ab
 - `Set.prototype.has(value)`: returns `true/false`
 	- `set.has(val)` O(1) is musch faster than `arry.includes(val)` O(n), when they have the same length/size.
 - `Set.prototype.delete(value)`: returns `true` if `value` was already in `Set`, otherwise `false`
-- `Set.prototype.clear()`: no return.
+- `Set.prototype.clear()`: no return
+- `Set.prototype.isSubsetOf(superset)`
+- `Set.prototype.union(otherSet)`: returns a new set
+- `Set.prototype.intersection(otherSet)`: 交集
+- `Set.prototype.difference(otherSet)`: s1 - s2
+
 
 ###### <u>Value Equality in Set</u>
 Set用类似于<b>`===`</b>判断是否unique
@@ -3948,13 +3954,13 @@ console.log(set.has("1")); // false, ===equal
 console.log(set.has(true)); // true
 
 set.add([1,2]);
-console.log(set.size); // 3, [1,2]是以整体一个加入
+console.log(set.size); // 3, [1,2]是以一个整体加入
 console.log(set.delete([1,2])); // false, ref val永远不等
 console.log(set.delete(1)); // true
 set.clear();
 console.log(set.size); // 0
 ```
-- `set.add(val)` returns the set, can chaining `set.add(val).add(val)`
+- `set.add(val)` returns the set, can chain `set.add(val).add(val)`
 - `set.clear()` has no return
 
 ##### Iteration Methods
@@ -4008,25 +4014,30 @@ console.log(set); // Set(1) {{ x: 1, y: 2 }}
 ```
 - 注意这里可以delete的原因是elem指向同一个地址
 	
-Ex3.1 set.isSubset(superset) 
+```javascript
+set.isSubsetOf(superset) 
+```
+**Returns** `true`/`false`
 
 ```javascript
-Set.prototype.isSubset = function(superset) {
-  if (this.size > superset.size) return false;
+if (!Set.prototype.isSubsetOf) {
+  Set.prototype.isSubsetOf = function(superset) {
+    if (this.size > superset.size) return false;
 
-  for(const val of this) { // for...of可以跳出循环
-    if (!superset.has(val)) return false;
+    for(const val of this) { // for...of可以跳出循环
+      if (!superset.has(val)) return false;
+    }
+    return true;
   }
-  return true;
 }
 const s1 = new Set([1,2,3]);
 const s2 = new Set([5,1,6,2,3]);
 const s3 = new Set([1,3,5]);
-console.log(s1.isSubset(s2)) // true
-console.log(s1.isSubset(s3)); // false
-console.log(s2.isSubset(s3)); // false
+console.log(s1.isSubsetOf(s2)) // true
+console.log(s1.isSubsetOf(s3)); // false
+console.log(s2.isSubsetOf(s3)); // false
 ```
-- 注意如果要用s1.isSubset(s2), 就得写成`Set.prototype.isSubset`
+- 注意如果要用s1.isSubsetOf(s2), 就得写成`Set.prototype.isSubsetOf`
 - 必须用`for...of`, 可以随时跳出循环
   - 区别于`forEach`无法跳出, 不会因为return false就跳出, 会一直走到最后return true
   ```javascript
@@ -4039,11 +4050,16 @@ console.log(s2.isSubset(s3)); // false
   return true; // 最终都是return true, 勿论是否循环里有return false
   ```
 
-Ex3.2 set.union(otherSet), 不能改变原有set, shallow copy.
+```javascript
+set.union(otherSet)
+```
+
+**Returns** a **new** Set object containing elements from both sets.
+Original set remain the same.
 
 ```javascript
 // 3.2.1
-Set.prototype.union = function(otherSet) {
+Set.prototype.union = Set.prototype.union || function(otherSet) {
   const _union = new Set(this);
   otherSet.forEach(elem => _union.add(elem)); // 不用check if(_union.has(elem)), add直接保证unique才能加进去
   return _union;
@@ -4052,97 +4068,64 @@ const s1 = new Set([1,2,3]), s2 = new Set([1,3,5]);
 console.log(s1.union(s2)); // Set(4) {1, 2, 3, 5}
 
 // 3.2.2
-Set.prototype.union2 = function(otherSet) {
-  // return new Set(this, otherSet); // ERROR!!
-  // new Set([this, otherSet])也不对, set就变成两个elems, 没有一一拆开
-  return new Set([...this, ...otherSet]);
-};
-console.log(s1.union2(s2)); // Set(4) {1, 2, 3, 5}
+if (!Set.prototype.union) {
+  Set.prototype.union = function(otherSet) {
+    // return new Set(this, otherSet); // ERROR!!
+    // new Set([this, otherSet])也不对, set变成两个elems, no flatten
+    return new Set([...this, ...otherSet]);
+  };
+}
+console.log(s1.union(s2)); // Set(4) {1, 2, 3, 5}
 ```
-- 注意3.2.1不用check _union是否has新的elem, <u>应该直接add(elem), Set本身会保证unique</u>
+- 注意3.2.1不用check _union是否has新的elem, <u>应该直接add(elem), Set本身会保证unique</u>, 和set.delete(elem)类似
 - 3.2.2中, 区别于`new Array(elem0, elem1, ..., elemN)`, set只能`new Set(iterable)`
   - <b>`[...set]`</b>spread可以用于set!! 
 
-Ex3.3 set.intersect(otherSet)
-
-这个思路是错的: new set(this); 然后loop thru otherSet,如果otherSet的elem不在newSet里,就删掉. 
-<span class="red">ERROR</span>的点在: newSet(this)里的elem如果有不属于otherSet也应该删掉, 思考s1.intersect(s3)
-
 ```javascript
-Set.prototype.intersect = function(otherSet) { // ERROR
-    const _intersect = new Set(this);
-    otherSet.forEach((elem) => {
-        if(! _intersect.has(elem)) {
-            _intersect.delete(elem);
-        }
-    });
-    return _intersect;
-};
-let s1 = new Set([1,2,3]);
-let s2 = new Set([5,1,6,2,3]);
-let s3 = new Set([1,3,5]);
-console.log(s1.intersect(s2)); // Set {1,2,3}
-console.log(s1.intersect(s3)); // Set {1,2,3}. ERROR: s1里s3没有的要删掉, 应该是{1,3}
+set.intersection(otherSet)
 ```
-
-这么做是对的, 但是loop了两遍
+**Returns** a **new** Set containing elements in both this set and the other set.
 
 ```javascript
-Set.prototype.intersect = (other) => {
-    const _intersect = new Set(this); // loop第一遍
-    _intersect.forEach(elem => { // loop第二遍
-        if (!other.has(elem)) {
-            _intersect.delete(elem);
-        }
-    });
-    return _intersect;
+Set.prototype.intersection = Set.prototype.intersection || function(otherSet) {
+  const [smaller, larger] = this.size <= otherSet.size ? [this, otherSet] : [otherSet, this];  
+  
+  const _intersect = new Set();
+  smaller.forEach(elem => {
+    if(larger.has(elem)) { // 不是otherSet, 得是之前得到的larger
+      _intersect.add(elem);
+    }
+  });
+  return _intersect;
 }
+const odds = new Set([1, 3, 5, 7, 9]);
+const squares = new Set([1, 4, 9]);
+console.log(odds.intersection(squares)); // Set(2) {1, 9}
 ```
 
-应该这样
+```javascript
+set.difference(otherSet)
+```
+**Returns** a **new** Set of s1有但是s2没有的 (set-otherSet)
 
 ```javascript
-Set.prototype.intersect = function(otherSet) {
-    const _intersect = new Set(); // 要用空set
-    this.forEach((elem) => {
-        if(otherSet.has(elem)) {
-            _intersect.add(elem);
-        }
+if (!Set.prototype.difference) {
+  Set.prototype.difference = function(otherSet) {
+    const diff = new Set(this);
+    otherSet.forEach(elem => { // otherSet.forEach比diff.forEach更快, 因为只care delete otherSet的elem
+      // if (otherSet.has(elem)) { // no check needed
+      diff.delete(elem);
+      // }
     });
-    return _intersect;
-};
-let s1 = new Set([1,2,3]);
-let s2 = new Set([5,1,6,2,3]);
-let s3 = new Set([1,3,5]);
-console.log(s1.intersect(s2)); // Set {1,2,3}
-console.log(s1.intersect(s3)); // Set {1,3}, s1里的2不在intersect中
+    return diff;
+  }
+}
+const odds = new Set([1, 3, 5, 7, 9]);
+const squares = new Set([1, 4, 9]);
+console.log(odds.difference(squares)); // Set(3) {3, 5, 7}
 ```
-
-Ex4.4.4 s1.difference(s2)
-
-注意difference的意思不是返回(s1并s2)-(s1交s2), 而是s1.difference(s2)是取(s1-s2)
-
-```javascript
-Set.prototype.difference = function(otherSet) {
-    const _difference = new Set(this);
-    // _difference.forEach((elem) => {
-    //     if(otherSet.has(elem)) {
-    //         _difference.delete(elem); // 如果用这个方法, 必须查has
-    //     }
-    // });
-    otherSet.forEach((elem) => {
-        _difference.delete(elem); // 不需要查has, 和union类似, 可以直接delete, 只是返回true/false而已
-    })
-    return _difference;
-};
-let s1 = new Set([1,2,3]);
-let s2 = new Set([5,1,6,2,3]);
-let s3 = new Set([1,3,5]);
-console.log(s1.difference(s2)); // empty set
-console.log(s2.difference(s3)); // Set {6,2}
-```
-
--  注意delete不需要对_difference循环然后看otherSet是否有这个elem. 可以直接用otherSet循环, 并且直接delete otherSet里的每一个elem, 不需要考虑_difference里是否有otherSet的elem, 即使没有就是return false而已
+- otherSet.forEach更高效, 因为只需尝试删除otherSet的elem
+- diff.delete不用check if(otherSet.has), delete包括这一步, 和set.add(elem)类似
 
 #### <a name="1112-the-map-class" id="1112-the-map-class">11.1.2 The Map Class</a>
 
