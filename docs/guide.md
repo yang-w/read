@@ -3783,23 +3783,27 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 >     - `for(const elem of set)`
 >     - `for (const [key, value] of map)`
 >
-> - **`Set`** 和 **`Map`** 都有 `has()`, `delete()`, `clear()`
->   - `Set`用 **`set.add(value)`** 添加元素
->   - `Map`用 **`map.set(key, value)`** 添加pair
->   - `Map`另外还有 **`map.get(key)`** 读取值
+>
+> |       | Set       | Map       |
+> |-------|-----------|-----------|
+> | props |`set.size`       |     |
+> | add   |`set.add(val)`   |`map.set(key, val)`|
+> | delete|`set.delete(val)`|`map.delete(key)`  |
+> | has   |`set.has(val)`   |`map.has(key)`<br>`map.get(key)`|
+> | clear |`set.clear()`    |`map.clear()`      |
 >
 > - **Set** VS **Array**: 查找
 >   - `set.has(value)` O(1)
 >   - `arry.includes(value)` O(n)
 > - **Map** VS **Object**:
->   - 在频繁查找(`map.has()`, `map.get()`)以及插入/删除(`map.set(key,val)`, `map.delete()`)时, 虽然都是O(1), 但是<u>相较于Object, map is optimized for dynamic key-val storage</u>
+>   - 在用key的频繁查找(`map.has(key)`, `map.get(key)`)以及用key的插入/删除(`map.set(key,val)`, `map.delete(key)`)时, 相较于Obejct虽然都是O(1), 但是<u>map is optimized for dynamic key-val storage</u>
 
 #### <a name="1111-the-set-class" id="1111-the-set-class">11.1.1 The Set Class</a>
 
 **Set** is a collection of **unique** values. Set is implemented as a <u>hash table</u> (or similar hash-based structure).
 
 **Set** VS **Array**
-- like an array is, but set is NOT ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. 
+- `Set` is similar to `Array`, but set is NOT ordered or indexed, you <u>CANNOT</u> visit a set like an array does `arry[1]`. 
 - However, <u>set can be iterated in insertion order</u>.
 - `set.has(val)`: O(1) **faster** than `arry.includes(val)`: O(n)
 
@@ -3820,7 +3824,7 @@ console.log(set1); // Set(2) {'a', 'b'}
 const set2 = new Set(["a", "b", "a"]); // 用arry new
 console.log(set2); // Set(2) {'a', 'b'}
 
-console.log(typeof set1); // object
+console.log(typeof set1); // object, 不是set!!
 console.log(set1 instanceof Set); // true
 console.log(set1 instanceof Object); // true
 
@@ -3840,11 +3844,14 @@ console.log(set6); // Set(2) {1, 2}
 set6.add([1,2]);
 console.log(set6); // Set(3) {1,2, [1,2]}
 ```
+- <b>`typeof`</b> returns <span class="underline-orange">primitive value types (`undefined`, `number`, `string`, `boolean`, `symbol`, etc) and `object`, `function`</span> 
+  - `typeof null` is `object`
 - `instanceof` 用于**non-primitive values**, checks whether an object <u>inherits from a constructor's prototype chain</u>.
   - 所以set既是instanceof Set 也是instanceof Object
-- 注意`new Set(set1)`是把set1拆开一一加入: If an iterable is passed in, all of its elements will be added to the new Set, <u>one by one</u>, not as a whole.
-  - `new Set([1,2])`是[1,2]拆开一一加入
-  - 区别于`set.add([1,2])`, [1,2]是以整体一个加入
+- 注意`new Set(set1)`是把set1拆开一一加入: If an iterable is passed in, all of its elements will be **unpacked by one level** and added to the new Set <u>one by one</u>, not as a whole.
+  - `new Set([1,2])`: 是[1,2]拆开一一加入
+  - 区别于`new Set([1, [1,2]])`: 只拆一层, [1,2]是以整体加入
+  - 区别于`set.add([1,2])`: [1,2]是以整体一个加入
 
 Ex2. Remove dup using `set`
 
@@ -3907,7 +3914,7 @@ Ex3.
 3 === 3.0; // true!!
 
 undefined === undefined; // true
-null === null; // true
+null === null; // true, 区别于object永远不等
 
 undefined === null; // false
 undefined == null; // true
@@ -3963,211 +3970,179 @@ console.log(set.size); // 0
 	- 和`arry.forEach()`一样, 都<u>无法跳出循环. 区别于for loop</u>.
 	- Iterated **in the order of insertion order**
 
-	Ex4.1
-	
-	```javascript
-	let s = new Set([1,4,2]);
-	s.add(5);
-	let sum = 0;
-	// 1, 4, 2, 5. in insertion order
-	for(let num of s) { // 等同于 s.forEach((num) => { sum += num })
-	    console.log(num);
-	    sum += num;
-	}
-	console.log(sum); // 12
-	
-	let product = 1;
-	s.forEach(num => {
-	    product *= num;
-	});
-	console.log(product); // 40
-	```
-	
-	Ex4.2 `set.forEach(callbackFn)`
-	
-	```javascript
-	function logElem(elem) {
-	    console.log(elem);
-	}
-	new Set(["foo", "bar", undefined]).forEach(logElem);
-	// foo
-	// bar
-	// undefined
-	```
-	
-	- 注意每个elem对应一行log, 不是log在一行里
-	
-	Ex4.3 delete obj from set
-	
-	```javascript
-	let s = new Set();
-	s.add({ x: 1, y: 2}).add({ x: 10, y: 4});
-	s.forEach((point) => {
-	    if (point.x > 5) {
-	        s.delete(point);
-	    }
-	});
-	console.log(s); // Set { { x: 1, y: 2} }, 第二个point被delete了
-	```
-	
-	Ex4.4.1 set.isSubset(superset) 
-	
-	<span class="red">ERROR</span>: 注意forEach和for的区别
-	
-	- 如果循环是一旦遇到某种情况就可以跳出结束的要用for
-	- 如果是无论如何都要一个一个循环的可以用forEach
-	
-	```javascript
-	Set.prototype.isSubset = (superset) => { // ERROR!!!
-	    if(this.size > superset.size) return false;
-	
-	    /**
-	     * 1. forEach无法中断for loop 
-	     * 2. forEach没有return
-	     * 3. 如果用forEach, 得在forEach外有一个let val=true, 然后如果不has就val=false, 最后return val
-	     */
-	    this.forEach((elem) => {
-	        if(!superset.has(elem)) {
-	            return false; // forEach没有return, 不会因为return就跳出循环
-	        }
-	    });
-	    return true;
-	}
-	let s1 = new Set([1,2,3]);
-	let s2 = new Set([5,1,6,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.isSubset(s2)); // true
-	console.log(s1.isSubset(s3)); // true. 因为forEach不会因为return就stop, 永远返回的都是最后的true
-	console.log(s2.isSubset(s3)); // false. fail在s2.length > s3.length
-	```
-	
-	- 区别于for loop可以随时跳出for循环, <span class="underline-orange">forEach无法中断for loop</span>, 不会因为return false就跳出, 会一直走到最后return true
-	- <span class="underline-orange">forEach没有return</span>
+Ex1.
 
-	应该用for loop
-	
-	```javascript
-	Set.prototype.isSubset = (superset) => {
-	    if (this.size > superset.size) return false;
-	    for(const elem of this) {
-	        if(!superset.has(elem)) return false; // 区别于forEach, 这里for loop可以因为return就结束了
-	    }
-	    return true;
-	}
-	let s1 = new Set([1,2,3]);
-	let s2 = new Set([5,1,6,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.isSubset(s2)); // true
-	console.log(s1.isSubset(s3)); // false
-	console.log(s2.isSubset(s3)); // false. fail在s2.length > s3.length
-	```
-	
-	Ex4.4.2 set1.union(set2), 不能改变原有set1
-	
-	```javascript
-  // Ex4.4.2.1
-	Set.prototype.union = function(otherSet) {
-	    const _union = new Set(this); // 注意Set可以直接用set init
-	    otherSet.forEach((elem) => {
-	        // if(!_union.has(elem)) { // 不需要check, 应该直接add, Set本身会保证unique
-	            _union.add(elem);
-	        // }
-	    });
-	    return _union;
-	};
-	let s1 = new Set([1,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.union(s3)); // Set {1,2,3,5}
+```javascript
+// sum
+const set = new Set([1,4,2]);
+set.add(5);
+let sum = 0;
+// 1,4,2, 5 in insertion order
+for(const val of set) {
+    sum += val;
+}
+console.log(sum); // 12
 
-  // Ex4.4.2.2
-  Set.prototype.union = function(otherSet) {
-    return new Set([...this, ...otherSet]); // 可以直接...set
-  };
-  // const union = new Set([...this, ...otherSet]);
-	```
-	- 可以直接`_union = new Set(this)`, 不用init一个空set再一个一个加
-	- 注意上面不用check _union是否has新的elem, <u>应该直接add, Set本身会保证unique</u>
+// product
+let product = 1;
+set.forEach(val => {
+    product = product * val;
+  // return product;  // 不用return!!
+});
+console.log(product); // 40
+```
+- arrow func不用return!! `set.forEach(val => product*=val)`. 但得`product=product*val`, 不能 val=>product*val, product没复新值
+	
+	
+Ex2. delete obj from set
 
-	Ex4.4.3 set1.intersect(s3)
+```javascript
+const set = new Set();
+set.add({ x: 1, y: 2 }).add({ x: 10, y: 4 });
+set.forEach(elem => {
+  if (elem.x > 5) {
+    set.delete(elem); // 可以delete, 因为指向同一个地址
+  }
+});
+console.log(set); // Set(1) {{ x: 1, y: 2 }}
+```
+- 注意这里可以delete的原因是elem指向同一个地址
 	
-	这个思路是错的: new set(this); 然后loop thru otherSet,如果otherSet的elem不在newSet里,就删掉. 
-	<span class="red">ERROR</span>的点在: newSet(this)里的elem如果有不属于otherSet也应该删掉, 思考s1.intersect(s3)
-	
-	```javascript
-	Set.prototype.intersect = function(otherSet) { // ERROR
-	    const _intersect = new Set(this);
-	    otherSet.forEach((elem) => {
-	        if(! _intersect.has(elem)) {
-	            _intersect.delete(elem);
-	        }
-	    });
-	    return _intersect;
-	};
-	let s1 = new Set([1,2,3]);
-	let s2 = new Set([5,1,6,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.intersect(s2)); // Set {1,2,3}
-	console.log(s1.intersect(s3)); // Set {1,2,3}. ERROR: s1里s3没有的要删掉, 应该是{1,3}
-	```
-	
-	这么做是对的, 但是loop了两遍
-	
-	```javascript
-	Set.prototype.intersect = (other) => {
-	    const _intersect = new Set(this); // loop第一遍
-	    _intersect.forEach(elem => { // loop第二遍
-	        if (!other.has(elem)) {
-	            _intersect.delete(elem);
-	        }
-	    });
-	    return _intersect;
-	}
-	```
-	
-	应该这样
-	
-	```javascript
-	Set.prototype.intersect = function(otherSet) {
-	    const _intersect = new Set(); // 要用空set
-	    this.forEach((elem) => {
-	        if(otherSet.has(elem)) {
-	            _intersect.add(elem);
-	        }
-	    });
-	    return _intersect;
-	};
-	let s1 = new Set([1,2,3]);
-	let s2 = new Set([5,1,6,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.intersect(s2)); // Set {1,2,3}
-	console.log(s1.intersect(s3)); // Set {1,3}, s1里的2不在intersect中
-	```
-	
-	Ex4.4.4 s1.difference(s2)
-	
-	注意difference的意思不是返回(s1并s2)-(s1交s2), 而是s1.difference(s2)是取(s1-s2)
-	
-	```javascript
-	Set.prototype.difference = function(otherSet) {
-	    const _difference = new Set(this);
-	    // _difference.forEach((elem) => {
-	    //     if(otherSet.has(elem)) {
-	    //         _difference.delete(elem); // 如果用这个方法, 必须查has
-	    //     }
-	    // });
-	    otherSet.forEach((elem) => {
-	        _difference.delete(elem); // 不需要查has, 和union类似, 可以直接delete, 只是返回true/false而已
-	    })
-	    return _difference;
-	};
-	let s1 = new Set([1,2,3]);
-	let s2 = new Set([5,1,6,2,3]);
-	let s3 = new Set([1,3,5]);
-	console.log(s1.difference(s2)); // empty set
-	console.log(s2.difference(s3)); // Set {6,2}
-	```
-	
-	-  注意delete不需要对_difference循环然后看otherSet是否有这个elem. 可以直接用otherSet循环, 并且直接delete otherSet里的每一个elem, 不需要考虑_difference里是否有otherSet的elem, 即使没有就是return false而已
+Ex3.1 set.isSubset(superset) 
+
+```javascript
+Set.prototype.isSubset = function(superset) {
+  if (this.size > superset.size) return false;
+
+  for(const val of this) { // for...of可以跳出循环
+    if (!superset.has(val)) return false;
+  }
+  return true;
+}
+const s1 = new Set([1,2,3]);
+const s2 = new Set([5,1,6,2,3]);
+const s3 = new Set([1,3,5]);
+console.log(s1.isSubset(s2)) // true
+console.log(s1.isSubset(s3)); // false
+console.log(s2.isSubset(s3)); // false
+```
+- 注意如果要用s1.isSubset(s2), 就得写成`Set.prototype.isSubset`
+- 必须用`for...of`, 可以随时跳出循环
+  - 区别于`forEach`无法跳出, 不会因为return false就跳出, 会一直走到最后return true
+  ```javascript
+  // ERROR 
+  this.forEach((elem) => {
+      if(!superset.has(elem)) {
+          return false; // return false并不会跳出循环, 只会继续
+      }
+  });
+  return true; // 最终都是return true, 勿论是否循环里有return false
+  ```
+
+Ex3.2 set.union(otherSet), 不能改变原有set, shallow copy.
+
+```javascript
+// 3.2.1
+Set.prototype.union = function(otherSet) {
+  const _union = new Set(this);
+  otherSet.forEach(elem => _union.add(elem)); // 不用check if(_union.has(elem)), add直接保证unique才能加进去
+  return _union;
+}
+const s1 = new Set([1,2,3]), s2 = new Set([1,3,5]);
+console.log(s1.union(s2)); // Set(4) {1, 2, 3, 5}
+
+// 3.2.2
+Set.prototype.union2 = function(otherSet) {
+  // return new Set(this, otherSet); // ERROR!!
+  // new Set([this, otherSet])也不对, set就变成两个elems, 没有一一拆开
+  return new Set([...this, ...otherSet]);
+};
+console.log(s1.union2(s2)); // Set(4) {1, 2, 3, 5}
+```
+- 注意3.2.1不用check _union是否has新的elem, <u>应该直接add(elem), Set本身会保证unique</u>
+- 3.2.2中, 区别于`new Array(elem0, elem1, ..., elemN)`, set只能`new Set(iterable)`
+  - <b>`[...set]`</b>spread可以用于set!! 
+
+Ex3.3 set.intersect(otherSet)
+
+这个思路是错的: new set(this); 然后loop thru otherSet,如果otherSet的elem不在newSet里,就删掉. 
+<span class="red">ERROR</span>的点在: newSet(this)里的elem如果有不属于otherSet也应该删掉, 思考s1.intersect(s3)
+
+```javascript
+Set.prototype.intersect = function(otherSet) { // ERROR
+    const _intersect = new Set(this);
+    otherSet.forEach((elem) => {
+        if(! _intersect.has(elem)) {
+            _intersect.delete(elem);
+        }
+    });
+    return _intersect;
+};
+let s1 = new Set([1,2,3]);
+let s2 = new Set([5,1,6,2,3]);
+let s3 = new Set([1,3,5]);
+console.log(s1.intersect(s2)); // Set {1,2,3}
+console.log(s1.intersect(s3)); // Set {1,2,3}. ERROR: s1里s3没有的要删掉, 应该是{1,3}
+```
+
+这么做是对的, 但是loop了两遍
+
+```javascript
+Set.prototype.intersect = (other) => {
+    const _intersect = new Set(this); // loop第一遍
+    _intersect.forEach(elem => { // loop第二遍
+        if (!other.has(elem)) {
+            _intersect.delete(elem);
+        }
+    });
+    return _intersect;
+}
+```
+
+应该这样
+
+```javascript
+Set.prototype.intersect = function(otherSet) {
+    const _intersect = new Set(); // 要用空set
+    this.forEach((elem) => {
+        if(otherSet.has(elem)) {
+            _intersect.add(elem);
+        }
+    });
+    return _intersect;
+};
+let s1 = new Set([1,2,3]);
+let s2 = new Set([5,1,6,2,3]);
+let s3 = new Set([1,3,5]);
+console.log(s1.intersect(s2)); // Set {1,2,3}
+console.log(s1.intersect(s3)); // Set {1,3}, s1里的2不在intersect中
+```
+
+Ex4.4.4 s1.difference(s2)
+
+注意difference的意思不是返回(s1并s2)-(s1交s2), 而是s1.difference(s2)是取(s1-s2)
+
+```javascript
+Set.prototype.difference = function(otherSet) {
+    const _difference = new Set(this);
+    // _difference.forEach((elem) => {
+    //     if(otherSet.has(elem)) {
+    //         _difference.delete(elem); // 如果用这个方法, 必须查has
+    //     }
+    // });
+    otherSet.forEach((elem) => {
+        _difference.delete(elem); // 不需要查has, 和union类似, 可以直接delete, 只是返回true/false而已
+    })
+    return _difference;
+};
+let s1 = new Set([1,2,3]);
+let s2 = new Set([5,1,6,2,3]);
+let s3 = new Set([1,3,5]);
+console.log(s1.difference(s2)); // empty set
+console.log(s2.difference(s3)); // Set {6,2}
+```
+
+-  注意delete不需要对_difference循环然后看otherSet是否有这个elem. 可以直接用otherSet循环, 并且直接delete otherSet里的每一个elem, 不需要考虑_difference里是否有otherSet的elem, 即使没有就是return false而已
 
 #### <a name="1112-the-map-class" id="1112-the-map-class">11.1.2 The Map Class</a>
 
