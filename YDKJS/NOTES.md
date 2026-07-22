@@ -52,7 +52,7 @@
   - [x][§7.8.6 sort / reverse](../docs/guide.md#786-array-sorting-methods-sort-reverse)
   - [x][§7.8.7 Array → String](../docs/guide.md#787-array-to-string-conversions-jsonstringify-join-tostring)
 - [x] [§11.1.1 The Set Class](../docs/guide.md#1111-the-set-class)
-- [ ] [§11.1.2 The Map Class](../docs/guide.md#1112-the-map-class)
+- [x] [§11.1.2 The Map Class](../docs/guide.md#1112-the-map-class)
 - [ ] [§9.2 Classes and Constructors](../docs/guide.md#92-classes-and-constructors) — [§9.3 class keyword](../docs/guide.md#93-classes-with-the-class-keyword) — [§9.4 Add Methods](../docs/guide.md#94-adding-methods-to-existing-classes) — [§9.5 Subclasses](../docs/guide.md#95-subclasses)
   - [public fields](objects-classes/ch3.md#public-fields)
   - [static](objects-classes/ch3.md#static-class-behavior)

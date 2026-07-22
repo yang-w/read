@@ -3773,7 +3773,7 @@ console.log(arry.join()); // 1,2,3 有comma
 Ex2.
 
 ```javascript
-console.log(["a", "b", "c"].toString()); // a,b,c
+console.log(["a", "b", "c"].toString()); // "a,b,c"
 console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 ```
 
@@ -3781,7 +3781,7 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 >   - 都可以用`[...]`或`Array.from()`转成array
 >   - 都可以用`for...of`/ `forEach`遍历
 >     - `for(const elem of set)` | `set.forEach(elem => {...})`
->     - `for (const [key, value] of map)`
+>     - `for (const [key, value] of map)` | `map.forEach((val, key, map) => {...})` 先val后key
 >
 >
 > |       | Set       | Map       |
@@ -3791,7 +3791,7 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 > | delete|`set.delete(val)`|`map.delete(key)`  |
 > | has   |`set.has(val)`   |`map.has(key)`<br>`map.get(key)`|
 > | clear |`set.clear()`    |`map.clear()`      |
-> |        |`set.isSubsetOf(superset)`<br> `set.union(otherSet)`<br> `set.intersection(otherSet)`<br>`set.difference(otherSet)`|`map.clear()`      |
+> |        |`set.isSubsetOf(superset)`<br> `set.union(otherSet)`<br> `set.intersection(otherSet)`<br>`set.difference(otherSet)`|`[...map.keys()]`<br>`[...map.values()]`<br>`[...map.entries()] = [...map]`   |
 >
 > - **Set** VS **Array**: 查找
 >   - `set.has(value)` O(1)
@@ -4129,147 +4129,50 @@ console.log(odds.difference(squares)); // Set(3) {3, 5, 7}
 
 #### <a name="1112-the-map-class" id="1112-the-map-class">11.1.2 The Map Class</a>
 
-<b>Map</b> is a collection of `[key, value]` pairs, where <u>`key` is unique</u>. <b>Map</b> can be iterated in insertion order (后来的update不会改变loop的顺序, 永远根据的是初始insert的顺序)
-
-#####<u>Value Equality in Map</u>
-
-Map用类似<b>`===`</b>判断key是否一样, 和Set一样. 
-
-- Any Javascript value can be used as a `key` or a `value` in a Map.
-- `undefined`, `null`, `NaN`都可以用作key, 虽然`NaN !== NaN`.
-- Reference value (objects, arrays, functions)也可以做key, 但是永远不相等, 只能用地址比较
-
-Ex1.1
-
-```javascript
-let m = new Map();
-m.set({}, 1);
-m.set({}, 2);
-console.log(m.size); // 2, {} !== {}
-console.log(m); // Map {{}=>1, {}=>2}
-console.log(m.get({})); // undefined
-
-m.set(m, 3);
-console.log(m.has(m)); // true, 只能用地址
-console.log(m.get(m)); // 3
-```
-
-Ex1.2 注意ref和primitive做key区别
-
-```javascript
-let m = new Map();
-let str = "a string";
-m.set(str, "val associate with \"a string\"");
-let obj = {};
-m.set(obj, "val associate with {}");
-    
-console.log(m.get(str)); // val associate with "a string"
-console.log(m.get(obj)); // val associate with {}
-
-console.log(m.get("a string")); // val associate with "a string". 和m.get(str)一样
-console.log(m.get({})); // undefined, 因为obj!=={}
-
-console.log(obj === {}); // false
-```
-
-- 对于<b>primitive value</b>做key, eg: string, `str === "a string"`. <span class="underline-orange">`m.get("a string")`等同于`m.get(str)`</span>
-- 但是<b>reference value</b>做key, eg: object, array, function, `obj !== {}`, 即使他们key/val一样. <span class="underline-orange">`m.get({})`和`m.get(obj)`不一样</span>
-
-Ex1.3 `NaN`做key
-
-```javascript
-let m = new Map();
-m.set(NaN, "not a number");
-console.log(m.get(NaN)); // not a number
-
-console.log(m.get(Number("foo"))); // not a number
-```
-
-- `NaN`可以做key, 虽然<b>`NaN !== NaN`</b>
-- 注意`Number("foo")`返回的是`NaN`, <span class="underline-orange">`m.get(Number("foo"))`和`m.get(NaN)`完全一样</span>
+**Map** is a collection of `[key, value]` pairs, where <u>`key` is unique</u>. **Map** can be <u>iterated in insertion order</u> (后来的update不会改变loop的顺序, 永远根据的是初始insert的顺序)
 
 ##### <u>Constructor</u>
 
 ```javascript
 new Map(); // empty map
-new Map(iterable);
+new Map(iterable object);
 ```
+区别于`Set`, which can be init with any iterable. `Map` can be init with **iterable object** only (no string). Eg: 
+- `[[key1, val1], [key2, val2], ...]`
+- `Object.entries(obj)`
+- map
 
-- <b>iterable包括</b>
-	- array of [key, val]. ex: [["a", 1], ["b", 2]]
-	- object -> array of [key, val]: `Object.entries(obj)`
-	- map
-
-Ex2.1
+Ex1.
 
 ```javascript
-// iterable: array
-let m = new Map([["one", 1], ["two", 2]]);
+// arry of [key, val]
+const map = new Map([["x", 1], ["y", 2]]);
+console.log(map); // Map(2) {'x' => 1, 'y' => 2}
 
-// iterable: Object.entries(obj)
-let o = { x: 1, y: 2};
-let p = new Map(Object.entries(o)); // 等同于new Map([["x", 1], ["y", 2]])
-console.log(p); // Map {"x"=>1, "y"=>2}
+// Object.entries(obj)
+const obj = { x: 1, y: 2 };
+const map = new Map(Object.entries(obj)); // 等同于new Map([["x", 1], ["y", 2]])
+console.log(map.get("x")); // 1, 勿忘key双引号
 
-// iterable: map
-let copy = new Map(m);
-console.log(copy); // Map {"one"=>1, "two"=>2}, 和m完全一样
+// map
+const copy = new Map(map);
+console.log(copy); // Map(2) {'x' => 1, 'y' => 2}
 
-console.log(copy === m); // false. 注意copy并不等于原始的m
+console.log(copy === map); // false, copy并不等于原始的map
 ```
 
-Ex2.2 Maps can be merged, maintaining key uniqueness
+Ex2.
 
 ```javascript
-let arry1 = [[1, "one"], [2, "two"]];
-let arry2 = [[1, "oneone"]];
-m = new Map([...arry1, ...arry2, [1, "oneoneone"]]);
-console.log(m); // Map {1 => "oneoneone", 2 => "two"}. 注意对于相同的key, val取最后一个
+const arry1 = [[1, "a"], [2, "b"]];
+const arry2 = [[1, "aa"]];
+
+const map = new Map([...arry1, ...arry2]);
+console.log(map.get(1)); // aa
+console.log(map.get("1")); // undefined, strictly equal===
 ```
-
-- 注意对于相同的key, val取最后一个
-
-##### <u>Map和array的关系</u>
-
-Ex3.
-
-```javascript
-let m = new Map([["one", 1], ["two", 2]]);
-
-// 一下两种变array的结果都一样, 等同于[...m.entries()]
-console.log([...m]); // [["one", 1], ["two", 2]], 和init m的array of array完全一样
-console.log(Array.from(m)); //  [["one", 1], ["two", 2]]
-
-console.log(m.entries()); // [["one", 1], ["two", 2]], 和变arry类似,但不是arry,[...m.entries()]
-```
-
-##### <u>Map和Object的关系</u>
-
-|      	    		| Map      	    | Object 		|
-| ----------- | ----------- | ----------- |
-| <b>Keys</b>      | A Map does not contain any keys by default.  | An Object has a `prototype`, so it contains default keys.     |
-| <b>Key Types</b>      | A Map's keys can be any value, including functions, objects, or any primitive. | The keys of an Object must be either a `String` or a `Symbol`.    |
-| <b>Size</b>      | `map.size`  | The number of items in an Object must be determined manually.    |
-| <b>Iteration</b>      | A Map is iterable (`for...of`, `forEach((val, key)=>{...})`), by its first insertion order. 可以用在`for(let [key,val] of map)`, 也可以用在`m.entries()`, `m.keys()`, `m.values()`. <span class="underline-orange">区别于Object的三个对应function, map的这三个返回的都不是arry, 是iterable object</span>.	| Object has to use `for...of` on `Object.keys()`, `Object.values()`, `Object.entries()`, no order guranteed.   |
-| <b>Performance</b>      | Map performs better in scenarios involving <span class="underline-orange">frequent additions and removals (set/get/delete)</span> of key-value pairs.  | Object is NOT optimized for frequent additions and removals of key-value pairs.    |
-
-Map和Object都有key,但是如果用`obj[key]=val`的方式set Map, will cause confusion.
-
-```javascript
-// The following way of setting a property does not interact with the Map data structure. 
-// It uses the feature of the generic object.
-let wrongMap = new Map();
-wrongMap["a"] = 1;
-wrongMap["b"] = 2;
-console.log(wrongMap); // Map {a: 1, b: 2, size: 0}
-
-console.log(wrongMap.size); // 0
-console.log(wrongMap.has("a")); // false
-console.log(wrongMap.delete("a")); // false
-```
-
-- 注意上面用`obj[key]=val`的方式set Map的方法并<u>没有interact with the Map data structure, still uses the feature of the generic object</u>: size, has(), delete()都不work
-- Map要用`map.set(key, val)` set key/val
+- `[...arry1, ...arry2]`: [1,"a"]和[1,"aa"]都在, Map后才merge
+- 对于相同的key, val取最后一个
 
 ##### Instance Properties
 
@@ -4279,8 +4182,8 @@ Map.prototype.size
 
 ##### Instance Methods
 
-- `Map.prototype.get(key)`: return `undefined` if not found. set里没有类似的.
 - `Map.prototype.set(key, val)`: <u>returns new Map</u>, <b>可以chain</b>. 和set.add()一样.
+- `Map.prototype.get(key)`: return `undefined` if not found.
 
 - `Map.prototype.has(key)`: return `true/false`
 	- map.has()很快, though not as fast as indexing an array, no matter how large the map is
@@ -4288,144 +4191,163 @@ Map.prototype.size
 - `Map.prototype.delete(key)`: returns `true` if key was already in Map, otherwise `false`
 - `Map.prototype.clear()`: returns `undefined`
 
-Ex4.1
+##### <u>Value Equality in Map</u>
+
+Map用类似<b>`===`</b>判断key是否一样, 和Set一样. 
+- Any Javascript value can be used as a `key` or a `value` in a Map.
+- `undefined`, `null`, `NaN`都可以用作key, 虽然`NaN !== NaN`.
+- Reference value (objects, arrays, functions)也可以做key, 但是永远不相等, 只能用地址比较
+
+Ex1.
 
 ```javascript
-let m = new Map();
-m.set("1", 1).set(1, 2).set(true, 3); // key查的是===
-console.log(m); // Map {"1"=>1, 1=>2, true=>3}
-console.log(m.get("1")); // 1
-console.log(m.get("one")); // undefined
-
-m.set(1, 11); // update val
-console.log(m); // Map {"1"=>1, 1=>11, true=>3}
-
-for(let [key, val] of m) {
-    console.log(`[${key}, ${val}]`);
-}
-// ["1",1]
-// [1, 11], 注意iterate是根据insertion order, 后来update并不会改变顺序
-// [true, 3]
-
-console.log(m.delete("one")); // false
-console.log(m.delete(1)); // true
-console.log(m); // Map {"1"=>1, true=>3}
-
-m.set(1, "hello");
-for(let [key, val] of m) {
-    console.log(`[${key}, ${val}]`);
-}
-// ["1", 1]
-// [true, 3]
-// [1, hello], 之前被删掉又加回来的1, loop时在末尾
+const map = new Map([[undefined, 1], [null, 2], [NaN, 3]]);
+console.log(map.get(undefined)); // 1, undefined===undefined
+console.log(map.get(null)); // 2, null===null
+console.log(map.get(NaN)); // 3, 虽然 NaN !== NaN
+console.log(map.get(Number("abc"))); // 3, 和直接map.get(NaN)一样
 ```
+- `undefined === undefined`, `null === null`, 和object不一样
+- `NaN`可以做key, 虽然`NaN !== NaN`
+- 注意`Number("foo")`返回的是`NaN`, <span class="underline-orange">`m.get(Number("foo"))`和`m.get(NaN)`完全一样</span>
 
+Ex2.
+
+```javascript
+// The following way of setting a property does not interact with the Map data structure. 
+// It uses the feature of the generic object.
+const wrongMap = new Map();
+console.log(wrongMap instanceof Map); // true
+console.log(wrongMap instanceof Object); // true
+
+wrongMap["a"] = 1;
+wrongMap["b"] = 2;
+console.log(wrongMap); // Map {a: 1, b: 2, size: 0}
+
+console.log(wrongMap.size); // 0
+console.log(wrongMap.has("a")); // false
+console.log(wrongMap.delete("a")); // false
+```
+- 注意上面用`wrongMap[key]=val`的方式set Map的方法并<u>没有interact with the Map data structure, still uses the feature of the generic object</u>: size, has(), delete()都不work
+- Map要用`map.set(key, val)` set key/val
+
+Ex3.
+
+```javascript
+const map = new Map();
+map.set("1", 1).set(1, 2).set(true, 3); // 可以chain
+console.log(map); // Map(3) {'1' => 1, 1 => 2, true => 3}
+console.log(map.get("1")); // 1
+
+map.set(1, 11);
+console.log(map.get(1)); // 11, updated val
+
+for(const [key, val] of map) {
+  console.log(key, val);
+}
+// "1" 1
+// 1 11 <- iterate是根据insertion order, 后来update并不会改变顺序
+// true 3
+
+console.log(map.delete("one")); // false
+console.log(map.delete(1)); // true
+console.log(map); // Map(2) {'1' => 1, true => 3}
+```
 - 注意iteration的顺序, 和后来的update无关. 如果delete后又加回来, 加回来的elem按新elem处理, loop时在最后
 
-Ex4.2 注意下面arry和map中的arry的关系
+Ex4.
 
 ```javascript
-let arry = [];
-let m = new Map();
-m.set("ref", arry);
+const arry = [];
+const map = new Map();
+map.set("ref", arry);
 
 arry.push("a");
-console.log(m); // Map {"ref" => ["a"]}, 注意map里的arry的val也变了
+console.log(map); // Map(1) {'ref' => ["a"]}, 注意map里的arry的val也变了
 
-m.get("ref").push("b");
-console.log(arry); // ["a", "b"], 注意本身arry的val变了
-console.log(m); // Map {"ref" => ["a", "b"]}
+map.get("ref").push("b");
+console.log(arry); // ['a', 'b'], 注意本身arry的val变了
+console.log(map); // Map(1) {'ref' => ["a", "b"]}
 ```
+- 注意map中的arry是ref
 
 ##### Iteration Methods
 
-- 以下三个返回的都<b>不是array</b>, 得用<b>`[...m.keys()]`</b>或者<b>`Array.from(m.keys())`</b	>变成array. 区别于<u>obj.keys(), obj.values(), obj.entries()</u>返回的都是array
-- 以下三个<b>都可以用for...of循环</b>, 因为返回的都是iterable obj
-	- `Map.prototype.keys()`: returns <u>iterable objects</u> that iterate keys
-	- `Map.prototype.values()`: returns <u>iterable objects</u> that iterate values
-	- `Map.prototype.entries()`: returns <u>iterable objects</u> that iterate [key,value] pairs
-		- `[...m.entries()]`等同于`[...m]`
-		- 虽然m.entries()不是array, 但是for(let entry of m.entries())的entry是array
+- `for(const [key, val] of map)`
+- `map.forEach((value, key, map) => {...})` - 先val后key. 类似arry.forEach((elem, index, arry)), 先val后index
+
+Ex1.
+
+```javascript
+const map = new Map([[1, "a"], [2, {}], [3, undefined]]);
+map.forEach((val, key) => { // 先val后key!!
+  console.log(key, val); // 1 "a", 2 {}, 3 undefined
+});
+
+map.forEach(logMapElem);
+function logMapElem(val, key, map) { // 先val后key,
+  console.log(`map.get(${key}) = ${val}`)
+}
+// map.get(1) = a
+// map.get(2) = [object Object]
+// map.get(3) = undefined
+```
+>- 以下三个返回的都**不是array**, 得用<b>`[...map.keys()]`</b> or <b>`Array.from(map.keys())`</b	>变成array. 
+>- 以下三个**都可以用for...of循环**
+>- 区别于`Object.keys()`, `Object.values()`, `Object.entries()`返回的都是array
+- `Map.prototype.keys()`: returns <u>an iterable object</u> that contains the keys for each element in this map in insertion order.
+- `Map.prototype.values()`: returns <u>an iterable object</u> that contains the values for each element in this map in insertion order.
+- `Map.prototype.entries()`: returns <u>an iterable objects</u> that contains the `[key, value]` pairs for each element in this map in insertion order.
 		
-	Ex5.1
-	
-	```javascript
-	let m = new Map();
-	m.set("0", "foo").set(1, "bar").set({}, "baz");
-	console.log([...m.keys()]); // ["0", 1, {}]. 注意本身m.keys()不是返回array, 要用[...]变成array. 也可以用Array.from(m.keys())
-	console.log(Array.from(m.values())); // ["foo", "bar", "baz"]
-	
-	console.log([...m.entries()]); // [["0", "foo"], [1, "bar"], [{}, "baz"]], 等同于[...m]
-	for(let [key, val] of m.entries()) {
-		console.log(key, val);
-	}
-	// "0" "foo"
-	// 1 "bar"
-	// {} "baz"
-	
-	for(let [key, val] of m) {
-		console.log(key, val); // 和for...of m.entries()完全一样
-	}
-	
-	for(let entry of m.entries()) {
-	    console.log(entry); // 注意虽然m.entries()不是array, 但是entry是
-	}
-	// ["0", "foo"]
-	// [1, "bar"]
-	// [{}, "baz"]
-	
-	for(let entry of m) {
-	    console.log(typeof entry); // object. array is object. typeof有undefined, number, string, boolean, object, function
-	    console.log(Array.isArray(entry)); // true
-	    console.log(entry);
-	}
-	```
-	
-	- 注意`m.keys()`, `m,values()`, `m.entries()`返回的都<b>不是array</b>, 要用<b>`[...iterable]`</b>或者<b>`Array.from(iterable)`</b>变成array
-	- 注意`[...m.entries()]`等同于`[...m]`
-	- <span class="underline-orange">`for(let [key, val] of m)`和`for(let [key, val] of m.entries())`完全一样</span>
-	- for...of
-		- 注意`for(let entry of m.entries())`, 虽然<u>m.entries()不是array, 但是entry是array</u>
-		- 类似的, <u>`for(let entry of m)`的entry也是array</u>
-			- 注意查是不是array的方法不是`typeof` (<u>`typeof []` 是object</u>). 要用<span class="underline-orange">`Array.isArray(arry)`</span>
+Ex2.
 
-- for...of: `for(let [key, val] of m)`
-- `Map.prototype.forEach()`
+```javascript
+const map = new Map();
+map.set("0", "foo").set(1, "bar").set({}, "baz");
+console.log([...map.keys()]); // ['0', 1, {}]. 注意本身m.keys()不是返回array, 要用[...]变成array
+console.log(Array.from(map.values())); // ['foo', 'bar', 'baz']
 
-	```javascript
-	map.forEach((value, key) => {...});
-	map.forEach(callbackFn)
-	```
-	- 注意是<b>`(value, key)`</b>不是`(key, value)`. 类似`arry.forEach((elem, index))`, index变成了key
-	- 区别于<span class="underline-orange">`for(let [key, val] of m)`是先key后val, `m.forEach((val, key) => {...})`是先val后key</span>
-	- `forEach`没有return, 也不能中途跳出循环
-	
-	Ex5.2
-	
-	```javascript
-	function logValKey(val, key) {
-	    console.log(val, key);
-	}
-	m = new Map([["a", 1], ["b", 2]]);
-	m.forEach(logValKey);
-	// 1 "a", val在前, key在后
-	// 2 "b"
-	
-	[...m.entries()].forEach((entry) => { // m.entries()不是array, 要用arry.forEach()要先变成array
-	    console.log(entry); // entry是array
-	})
-	// ["a", 1], key在前, val在后.区别于直接对m.forEach,这里的forEach是针对m.entries(),which返回的是[key, val]不是val/key
-	// ["b", 2]
-	
-	// 或者写成
-	[...m.entries()].forEach(([key, val]) => { // 要用()把[key, val]括起来
-	    console.log(key, val);
-	})
-	```
-	
-	- 注意map.forEach是先val后key
-	- m.entries()不是array, 要用arry.forEach()要先变成array
-	- 区别于m.forEach是先val后key, m.entries()的forEach返回的是[key, val]不是val/key
+// [...map]等同于[...map.entries()]
+console.log([...map]); // [["0", "foo"], [1, "bar"], [{}, "baz"]]
+console.log([...map.entries()]); // [["0", "foo"], [1, "bar"], [{}, "baz"]]
+
+// for [key, val] of map/map.entries()完全一样
+for(const [key, val] of map) {
+  console.log(key, val); // "0" "foo", 1 "bar", {} "baz"
+}
+for(const [key, val] of map.entries()) {
+  console.log(key, val); // // 和for...of map完全一样
+}
+/// 注意虽然map.entries()不是array, 但是entry本身是arry
+for(const entry of map.entries()) {
+  console.log(entry); // ['0', 'foo'], [1, 'bar'], [{}, 'baz']
+}
+```
+
+- `map.keys()`, `map,values()`, `map.entries()`返回的都**不是array*, 要用<b>`[...iterable]`</b>或者<b>`Array.from(iterable)`</b>变成array
+- 注意`[...map]`等同于`[...map.entries()]`
+- `for(const [key, val] of map)`和`for(cosnt [key, val] of m.entries())`完全一样
+- `for(const entry of m.entries())`, 虽然<u>map.entries()不是array, 但是entry本身是array</u>
+
+Ex3.
+
+```javascript
+const map = new Map([["a", 1], ["b", 2]]);
+
+// 用arry.forEach要先把map.entries()变成arry
+[...map.entries()].forEach(entry => {
+  console.log(entry); // ["a", 1], ["b", 2] - entry是array, 先key后val
+});
+
+[...map.entries()].forEach(([key, val]) => {
+  console.log(key, val); // "a" 1, "b" 2
+});
+
+map.forEach((val, key) => { // 区别于上面, 先val后key
+  console.log(key, val); // "a" 1, "b" 2
+});
+```
+- 区别于map.forEach是先val后key, map.entries()的forEach返回的是[key, val]不是val/key
 
 #### <a name="92-classes-and-constructors" id="92-classes-and-constructors">9.2 Classes and Constructors</a>
 
