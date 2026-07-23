@@ -3781,7 +3781,7 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 >   - 都可以用`[...]`或`Array.from()`转成array
 >   - 都可以用`for...of`/ `forEach`遍历
 >     - `for(const elem of set)` | `set.forEach(elem => {...})`
->     - `for (const [key, value] of map)` | `map.forEach((val, key, map) => {...})` 先val后key
+>     - `for (const [key, value] of map)` | `[...map].forEach(([key,val] => {...}))` arry-先key后val, `map.forEach((val, key, map) => {...})` 先val后key
 >
 >
 > |       | Set       | Map       |
@@ -4334,6 +4334,11 @@ Ex3.
 ```javascript
 const map = new Map([["a", 1], ["b", 2]]);
 
+// 用arry.forEach要先把map变成arry
+[...map].forEach(([key, val]) => {
+  console.log(key, val);
+});
+
 // 用arry.forEach要先把map.entries()变成arry
 [...map.entries()].forEach(entry => {
   console.log(entry); // ["a", 1], ["b", 2] - entry是array, 先key后val
@@ -4347,286 +4352,239 @@ map.forEach((val, key) => { // 区别于上面, 先val后key
   console.log(key, val); // "a" 1, "b" 2
 });
 ```
-- 区别于map.forEach是先val后key, map.entries()的forEach返回的是[key, val]不是val/key
+- 区别于map.forEach是先val后key, [...map]和[...map.entries()]的forEach返回的是[key, val]不是val/key
 
 #### <a name="92-classes-and-constructors" id="92-classes-and-constructors">9.2 Classes and Constructors</a>
 
-- Constructor-Less Class (<u>所有regular function都可以看作一种class</u>)
+##### <u>Constructor-Less Class</u> - Singleton or Factory Function
 	
-	Ex1. range() is a factory function
-		
-	```javascript
-	function range(from, to) {
-		console.log(this); // Window. 区别于Constructor里的this是constructor本身, eg: Range {}
-		// 所有range的objects都会inherit range.methods里的properties
-		let r = Object.create(range.methods);
-		r.from = from;
-		r.to = to;
-		return r;
-	}
-	range.methods = { 
-		includes(x) {
-		    return x >= this.from && x <= this.to; // this指向range自己, 所以有this.from/to
-		}, 
-		toString() {
-		    return `[${this.from}, ${this.to}]`;
-		}
-	};
-	const range1 = range(1, 3), range2 = range(6, 10); // range1和range2互不干扰
-	console.log(range1.toString()); // [1, 3]
-	console.log(range1.includes(2)); // true
-	console.log(range2.toString()); // [6, 10]
-	console.log(range2.includes(5)); // false
-	
-	console.log(range1 instanceof range); // false, range不是constructor
-	console.log(range.methods.isPrototypeOf(range1)); // true
-	```
-	
-	- range()是factory function, 不是constructor. <u>Constructor用this赋值, 不需要return, invoke时要用new</u>.
-	- range()是一个普通function, 所有function里的<span class="orange">this都是window</span>. 区别于<span class="orange">Constructor Range里的this是Range {}</span>.
-	- `Object.create(proto)` creates a new object "r", which use range.methods as its prototype
-	- 对于range.methods: 首先range是一个function, 所以也是一个object, 所以可以给range加property. methods是range的一个property, 所以可以access this.from/to
-	- 注意range1和range2的to/from互不干扰, range()里定义的properties都是<u>unshared/uninherited, 和constructor一样</u>. 只有range.methods里的东西才<u>share/inherit, 类似prototype</u>.
-	- 注意<span class="orange">用factory function init的object `instanceof`返回false. 这种constructor-less的要用`isPrototypeOf`</span>
+Ex1. range() as a factory function
+  
+```javascript
+function range(from, to) {
+  console.log(this); // Window. 区别于Constructor里的this是constructor本身, eg: Range {}
+  // 所有range的objects都会inherit range.methods里的properties
+  let r = Object.create(range.methods);
+  r.from = from;
+  r.to = to;
+  return r;  // 勿忘return
+}
+range.methods = { 
+  includes(x) {
+      return x >= this.from && x <= this.to; // this指向range自己, 所以有this.from/to
+  }, 
+  toString() {
+      return `[${this.from}, ${this.to}]`;
+  }
+};
+const range1 = range(1, 3), range2 = range(6, 10); // range1和range2互不干扰
+console.log(range1.toString()); // [1, 3]
+console.log(range1.includes(2)); // true
+console.log(range2.toString()); // [6, 10]
+console.log(range2.includes(5)); // false
 
-- Constructor
+console.log(range1 instanceof range); // false, range不是constructor
+console.log(range.methods.isPrototypeOf(range1)); // true
+```
+- `obj.toString()`返回'[object Object]'
+  - `function a() {}; a.toString();`返回'function a() {}'
+- Singleton和Factory Function都需要export/return, 区别于Constructor/Class用this, 不需要return.
+  - Singleton
+    ```javascript
+    // logger.js - Singleton
+    class Logger {
+      log(msg) {
+        console.log(msg)
+      }
+    }
+    // Every component gets the same logger object.
+    const logger = new Logger();
+    // export default logger; // 两种写法
+    export { logger };
 
-	Constructor using `new` to invoke. Inside construtor function, there is <u>no need to call `Object.create(proto)`</u> to create a new object, there is also <u>no need to return</u> newly created object. With the use of `new`, construcotr will automatically create and return the new object.
+    // component1.js
+    import { logger } from "./logger";
+    logger.log("hello");
+    // component2.js
+    import { logger } from "./logger";
+    logger.log("hello");
+    ```
+    - component1 and component2 share the same logger
+  - Factory Function
+    ```javascript
+    // createLogger.js
+    function createLogger(name) {
+      return {
+        name,
+        log(msg) {
+          console.log(msg);
+        }
+      };
+    }
 
-	Ex2. 改写上面的range(), Range是一个constructor
-	
-	```javascript
-	function Range(from, to) {
-		this.from = from;
-		this.to = to; // 不需要return
-	}
-	// 这里overwrite了predefined Range.prototype
-	Range.prototype = {
-		includes(x) {
-		    return x >= this.from && x <= this.to;
-		},
-		toString() {
-		    return `[${this.from}, ${this.to}]`;
-		}
-	}
-	// Constructor用new invoke, 区别于factory/普通function
-	const range1 = new Range(1, 3), range2 = new Range(6, 10);
-	console.log(range1.toString()); // [1, 3]
-	console.log(range1.includes(2)); // true
-	console.log(range2.toString()); // [6, 10]
-	console.log(range2.includes(5)); // false
-	
-	console.log(range1 instanceof Range); // true. 区别于上面的factory function
-	console.log(Range.prototype.isPrototypeOf(range1)); // true
-	```
-	
-	- Constructor name要大写首字母, 用来区别其他的function
-	- 注意Range constructor里, no need to create/return object, <u>it just inits `this`</u>.
-	- Constructor用new invoke, 区别于factory/普通function
+    // component1.js
+    const logger1 = createLogger("logger1"); 
+    // component2.js
+    const logger2 = createLogger("logger2");
+    ```
+    - logger1 and logger2 are independent, having its own name and log(msg).
+- range()是一个普通function, 所有<u>function里的this都是window</u>. 区别于Constructor/Class里的this是Range {}.
+- `Object.create(proto)` creates a new object "r", which refers to range.methods as its prototype
+  - 对于range.methods: 首先range是一个function, 所以也是一个object, 所以可以给range加property. methods是range的一个property, 所以可以access this.from/to
+- 注意range1和range2的from/to互不干扰, range()里定义的props都是unshared, 和constructor一样. 只有range.methods里的东西才share/inherit, 类似prototype.
+- 注意<u>用factory function init的object `instanceof`返回false. 这种constructor-less的要用`isPrototypeOf`</u>
 
-上面的Ex1和Ex2都没有用<b>arrow function</b> when defining constructors or methods. 因为arrow function没有this. arrow functions inherit the `this` keyword from the context in which they are defined rather than setting it based on the object through which they are invoked. <u>Arrow functions are <b>NOT</b> allowed when defining methods in constructor/class</u>.
-	
-- `instanceof`, `isPrototypeOf`
-	
-	`obj instanceof C`<span class="orange">查的是如果obj inherits from C.prototype</span>. 所以上面Ex1中用factory function init的range的instanceof返回false, 而Ex2的range instanceof返回的是true. 这种constructor-less的可以用`isPrototypeOf`. 
-	
-	Ex1的range没有prototype, <span class="underline-orange">range.prototype会报错, 关键在于range不是constructor, constructor不能有return</span>. <span class="underline-orange bold">`prototype`只属于constructor, 只有constructor才能用prototype</span>, 例如Ex2的Range, 即function定义里没有return.
-	
-	Ex3.
-	
-	```javascript
-	function Strange() {}
-	Strange.prototype = Range.prototype;
-	new Strange() instanceof Range； // true
-	```
-	
-	- 注意`obj instanceof C`查的就是<span class="orange">obj的constructor.prototype是不是指向C.prototype</span>. <span class="orange">注意</span>这里并不要求obj.constructor存在, 思考Ex2的range1.constructor并不存在, 但instanceof是true.
+##### <u>Constructor / Class</u> with `new` to invoke
 
-- `obj.constructor`: Prototype的constructor property
-
-	对于所有function/constructor自带的prototype都有back-reference回本身constructor的constructor property, 即<span class="orange">`F.prototype.constructor === F`</span>. 所以有下面的
-
-	```javascript
-	let F = function() {};
-	let obj = new F();
-	obj.constructor === F; // true. 因为inherit了F.prototype的所有properties, construtor是自带的其中之一
-	
-	// 之前Ex2的range1
-	console.log(range1.constructor === Range); // false.
-	```
-	
-	- 因为Ex2的Range.prototype是overwrite了本身predefined prototype, 所以上面range1.constructor不是Range
-	- To fix
-		
-		```javascript
-		Range.prototype = {
-			constructor: Range, // Explicitly set the constructor back-reference
-			/* method definitions go here */
-		};
-		const range3 = new Range(11,15);
-		console.log(range3.constructor === Range); // true
-		```
-	- 除了上面explicitly set back reference, 经常用的是extend the predefined Range.prototype object
-
-		```javascript
-		Range.prototype.includes = function(x) {
-			return x >= this.from && x <= this.to;
-		}
-		```
-
-#### <a name="93-classes-with-the-class-keyword" id="93-classes-with-the-class-keyword">9.3 Classes with the class Keyword</a>
-
-用`class`定义的class本质和9.2的`function Range(from, to)`是一样的, 只是`class`是ES6新的syntax, 简化了用function定义class
-
-Ex1. 
+Ex2. Range as Class
 
 ```javascript
 class Range { // Range后没有(), 直接{}, params从constructor传进去
-    constructor(from, to) {
-        this.from = from;
-        this.to = to;
-    }
-    // prototype method, public
-    includes(x) {
-        return x >= this.from && x <= this.to;
-    } // method之间不用comma断开
-    toString() {
-        return `[${this.from}, ${this.to}]`;
-    }
-} // 这里也没有comma
-let range = new Range(1, 3); // 和之前用function Range(from, to)一样, 都用new init
+  constructor(from, to) {
+    this.from = from;
+    this.to = to;
+  }
+  includes(val) {
+    return val >= this.from && val <= this.to;
+  } // method之间不用comma断开
+  toString() {
+    return `[${this.from}, ${this.to}]`;
+  }
+}
+
+// Constructor用new invoke, 区别于factory/普通function
+const range = new Range(1, 3);
 console.log(range.toString()); // [1, 3]
-console.log(range.includes(7)); // false
-```
+console.log(range); // true
 
-- `class Range { ... }`和function定义类似, 但是Range后没有(), 直接{}, params从constructor传进去
-- class里的methods之间不用comma分开, 类似nested function里的function. 区别于Range.prototype这种obj的key/val pair(function)后每个都有comma
-- class Range {}的最后也不用comma, 类似function Range() {}的最后也不需要comma
+// 以下两种是equivalent的
+console.log(range instanceof Range); // true. 区别于上面的factory function
+console.log(Range.prototype.isPrototypeOf(range)); // true
 
-##### <u>Defining Classes</u>
-
-<span class="bold underline">Classes</span> are special <span class="bold underline">functions</span>.
-
-Ex2.
-
-```javascript
 console.log(typeof Range); // function
 console.log(typeof class {}); // function
 
 console.log(Range instanceof Object); // true, 判断Range是否inherit from Object.prototype
 console.log(Range instanceof Function); // true
 ```
+- class A {}, A后没有()
+- class的method不用comma分开, 区别于object
+- class A {}的最后也不用comma
+- `class` is a special function (`typeof`)
+- Range constructor里, no need to create/return object, <u>it just uses `this`</u>.
+- Constructor用new invoke, 区别于factory/普通function
 
-- `typeof`返回的是undefined, number, string, boolean, object(`typeof null // object`), function
-- primitive有undefined, <u>null</u>, number, string, boolean, 剩下的都是reference
-- `class` is a special function
-- 注意上面对于class的typeof和instanceof
+Arrow functions are **NOT** allowed when defining methods in constructor/class, because arrow functions inherit `this` from the context in which they are defined.
 
-<hr />
+#### <a name="93-classes-with-the-class-keyword" id="93-classes-with-the-class-keyword">9.3 Classes with the class Keyword</a>
 
-- Class Declaration
-	- 上面的`class Range {}`就是class declaration.
-	- <b>Hoisting</b>: 区别于function declaration, classes <u>MUST be defined before</u> they can be constructed. Following will throw `ReferenceError`
-
-		```javascript
-		const range = new Range(); // ReferenceError
-    	class Range {}
-		```
-
-- Class Expression (一般不这么用, 都是class declaration)
-	
-	Ex3. 
-	
-	```javascript
-	let R1 = class { // R1大写
-        constructor(from, to) {
-            this.from = from;
-            this.to = to;
-        }
-    };
-    console.log(R1.name); // R1
-    
-    let R2 = class Range {};
-    console.log(R2.name); // Range,不是R2
-	```
-	
-	- 虽然是expression, 但是variable也要首字母大写, 表示是class, 区别于普通function.
-	- Hoisting: 和function expression一样, must be defined before use.
-
-##### <u>Class Body</u>
+区别于function declaration, classes <u>MUST be defined before</u> they can be constructed. Following will throw `ReferenceError`
+```javascript
+const range = new Range(); // ReferenceError
+class Range {}
+```
 
 <span class="white-on-black">Constructor</span>
 
 A constructor can use `super` keyword to call the constructor of the super class.
 	
-Ex4.1
+Ex1.
 	
 ```javascript
 class Rectangle {
-    constructor(width, height) {
-        this.width = width;
-        this.height = height;
-        this.name = "Rectangle";
-    }
-    toString() {
-        return `${this.name}: [${this.width}, ${this.height}]`;
-    }
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+  }
+  toString() {
+    return `[${this.width}, ${this.height}]`;
+  }
 }
 class FilledRectangle extends Rectangle {
-    constructor(width, height, color) {
-        super(width, height); // call constructor of its super class
-        this.name = "Filled rectangle";
-        this.color = color;
-    }
+  constructor(width, height, color) {
+    super(width, height); // 不用return super()
+    this.color = color;
+  }
 }
 const rect = new Rectangle(3, 4);
-const filledRect = new FilledRectangle(2, 5, "red");
-console.log(rect.toString()); // Rectangle: [3, 4]
-console.log(filledRect.toString()); // Filled rectangle: [2, 5], 注意虽然call的parent的toString, 但是this.name是subclass的name, 不是Rectangle
+console.log(rect.toString()); // [3, 4]
+const filled = new FilledRectangle(10, 2, "red");
+console.log(filled.toString()); // [10, 2]
 ```
+- 注意上面`super`的用法. `super`写在constructor里, 且没有return
 	
-- 注意上面`super`的用法. `super`写在constructor里
-- 注意filledRect.toString()虽然call的是Rectangle的toString(), 但是用的是自己的this.name
-- subclass的init params可以和super class完全不一样(顺序, 个数, 含义), 完全取决于subclass的super怎么call. 看下面Ex4.2.
-	
-Ex4.2
+Ex2.
 	
 ```javascript
-class Span extends Range {
-    constructor(start, length) {
-        if (length > 0) {
-            super(start, start + length);
-        } else {
-            super(start + length, start);
-        }
-    }
+class Range {
+  constructor(from, to) {
+    this.from = from;
+    this.to = to;
+  }
+  toString() {
+    return `[${this.from}, ${this.to}]`;
+  }
 }
-let span = new Span(3, 4);
-console.log(span.toString()); // [3, 7], end=3+4
-span = new Span(5, -2);
-console.log(span.toString()); // [3, 5], start=5-2
+class Span extends Range {
+  constructor(start, length) {
+    if (length >= 0) {
+      super(start, start+length); // 没有return
+    } else {
+      super(start+length, start);
+    }
+  }
+}
+const span1 = new Span(3, 4);
+console.log(span1.toString()); // [3, 7]
+const span2 = new Span(10, -2);
+console.log(span2.toString()); // [8, 10]
 ```
-	
 - 区别于Range需要的是(from, to), Span pass的是(start, length). 通过`super`把(start, length)变回Range需要的(from, to)
 
-<span class="white-on-black">Instance Property and Method (Prototype Method)</span>
 
-<div class="border">
-<ul>
-<li>只要不是 <span class="bold"><i>static</i></span> 的就都是instance的: instance property/method. 对于instance property, 每个instance都有一份copy. 区别于<span class="bold"><i>static</i></span> property, 只有一份, 属于class本身.</li>
-<li><span class="bold"><i>Static</i></span> property一般<u>不在constructor里定义, 因为constructor里的this是instance, 而static属于class</u>, 除非用ClassName.staticProp</li>
-<li>Instance property/method 可以是public, 也可以是private, 取决于有没有 <span class="bold">#</span>.</li> 
-	<ul>
-	<li>如果是private <span class="bold">#</span>, 就只能accessibile inside its own class body (NOT subclass): this.#prop, 不能obj.#prop / obj.#method()</li>
-	<li>private property<u>不能在constructor里定义</u>, 得在constructor外先declare</li>
-	<li>private property<u>必须先declare(#privateProp)才能用this.#privateProp</u></li>
-	<li>private property是没有inherit的, <u>无法subClass.#baseProp</u></li>
-	<li>private property是不能delete的, <s>delete this.#privateProp</s></li>
-	<li>如果没有 <span class="bold">#</span>, 就可以access thru obj: obj.prop / obj.method()</li>
-	</ul>
-<li>Instance/Static property在class里定义时都<span class="bold">不用var/const/let</span>. 直接<u>`prop1 = "instanceProp"; static prop2 = "staticProp";`</u></li>
-</ul>
-</div>
+> - 只要不是 **`static`** 的就都是**instance**的: instance field/instance method
+>   - **Instance field**：每个instance都有自己的一份copy
+>   - **Static field**：只有一份, 属于**class本身**，所有 instance共享
+>
+> - **Static field**一般**不在`constructor`里定义**, 因为`constructor`里的`this`指的是**instance**, 而static属于 **class**
+>   - 如果一定要在`constructor`里操作static field, 需要用 **`ClassName.staticProp`**(或`this.constructor.staticProp`)
+>
+> - **Instance field/method**可以是**public**或**private**, 取决于有没有 **`#`**
+>   - 如果是**private(`#`)**, 只能在**自己的class body**内访问(**不能**在subclass中访问)
+>     - ✅ `this.#prop`
+>     - ❌ `obj.#prop`
+>     - ❌ `obj.#method()`
+>   - **Private field**必须先在 class body 中声明, 不能直接在`constructor` 里首次定义
+>
+>     ```js
+>     class Foo {
+>       #count;
+>
+>       constructor() {
+>         this.#count = 0;
+>       }
+>     }
+>     ```
+>
+>   - **Private field**必须先声明(`#privateProp`), 才能使用`this.#privateProp`
+>   - **Private field 不会被继承**, subclass无法访问:
+>     - ❌ `this.#baseProp`
+>   - **Private field不能被删除**:
+>     - ❌ `delete this.#privateProp`
+>   - 如果没有 **`#`**, 就是public, 可透过object存取:
+>     - `obj.prop`
+>     - `obj.method()`
+>
+> - **Instance**/**Static field**在class body中声明时, 都**不用**`var`/`let`/`const`, 直接写即可:
+>
+>   ```js
+>   class Example {
+>     prop1 = "instanceProp";
+>     static prop2 = "staticProp";
+>   }
+>   ```
+
+<span class="white-on-black">Instance Field and Method (Prototype Method)</span>
 
 - Instance Property
 
