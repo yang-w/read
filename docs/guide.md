@@ -39,8 +39,9 @@
 * [11.1.2 The Map Class](#1112-the-map-class)
 * [9.2 Classes and Constructors](#92-classes-and-constructors)
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
-* [9.4 Adding Methods to Existing Classes](#94-adding-methods-to-existing-classes)
-* [9.5 Subclasses](#95-subclasses)
+* [9.4 Class Lifecycle](#94-class-lifecycle)
+* [9.5 Adding Methods to Existing Classes](#94-adding-methods-to-existing-classes)
+* [9.6 Subclasses](#95-subclasses)
 * [8.7 Function Properties, Methods, and Constructor](#87-function-properties-methods-and-constructor)
 	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#871-funclength-funcname-funcprototype)
 	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#874-5-the-funcapply-funccall-and-funcbind-methods)
@@ -4361,10 +4362,10 @@ map.forEach((val, key) => { // 区别于上面, 先val后key
 Ex1. range() as a factory function
   
 ```javascript
-function range(from, to) {
+function range(from, to) { // range小写, 不用大写
   console.log(this); // Window. 区别于Constructor里的this是constructor本身, eg: Range {}
-  // 所有range的objects都会inherit range.methods里的properties
-  let r = Object.create(range.methods);
+  // 必须有这句!! 否则range1.includes() is not a function
+  const r = Object.create(range.methods); // 所有range的objects都会inherit range.methods里的properties
   r.from = from;
   r.to = to;
   return r;  // 勿忘return
@@ -4372,7 +4373,7 @@ function range(from, to) {
 range.methods = { 
   includes(x) {
       return x >= this.from && x <= this.to; // this指向range自己, 所以有this.from/to
-  }, 
+  },  // comma separate
   toString() {
       return `[${this.from}, ${this.to}]`;
   }
@@ -4383,7 +4384,7 @@ console.log(range1.includes(2)); // true
 console.log(range2.toString()); // [6, 10]
 console.log(range2.includes(5)); // false
 
-console.log(range1 instanceof range); // false, range不是constructor
+console.log(range1 instanceof range); // false, range没有constructor
 console.log(range.methods.isPrototypeOf(range1)); // true
 ```
 - `obj.toString()`返回'[object Object]'
@@ -4417,21 +4418,24 @@ console.log(range.methods.isPrototypeOf(range1)); // true
       return {
         name,
         log(msg) {
-          console.log(msg);
+          console.log(`${name}, ${msg}`);
         }
       };
     }
 
     // component1.js
     const logger1 = createLogger("logger1"); 
+    logger1.log("hello"); // logger1, hello
     // component2.js
     const logger2 = createLogger("logger2");
+    logger2.log("world"); // logger2, world
     ```
     - logger1 and logger2 are independent, having its own name and log(msg).
 - range()是一个普通function, 所有<u>function里的this都是window</u>. 区别于Constructor/Class里的this是Range {}.
-- `Object.create(proto)` creates a new object "r", which refers to range.methods as its prototype
-  - 对于range.methods: 首先range是一个function, 所以也是一个object, 所以可以给range加property. methods是range的一个property, 所以可以access this.from/to
-- 注意range1和range2的from/to互不干扰, range()里定义的props都是unshared, 和constructor一样. 只有range.methods里的东西才share/inherit, 类似prototype.
+- <span class="underline-orange">必须有`const r = Object.create(range.methods)`!!</span> 否则无法用r1.includes()/toString()
+  - range.methods: 首先range是一个function, 所以是一个object. methods是range的一个property, 所以可以access this.from/to
+  - <span class="underline-orange">range.methods里的function的`this`是object本身</span>, 和class类似, 区别于本身function range(){}里的`this`是window
+- 注意range1和range2的from/to互不干扰, range()里定义的props都是unshared, 和constructor一样. 只有range.methods里的东西才share, 类似prototype.
 - 注意<u>用factory function init的object `instanceof`返回false. 这种constructor-less的要用`isPrototypeOf`</u>
 
 ##### <u>Constructor / Class</u> with `new` to invoke
@@ -4443,10 +4447,10 @@ class Range { // Range后没有(), 直接{}, params从constructor传进去
   constructor(from, to) {
     this.from = from;
     this.to = to;
-  }
+  } // method之间不用comma断开
   includes(val) {
     return val >= this.from && val <= this.to;
-  } // method之间不用comma断开
+  }
   toString() {
     return `[${this.from}, ${this.to}]`;
   }
@@ -4461,6 +4465,7 @@ console.log(range); // true
 console.log(range instanceof Range); // true. 区别于上面的factory function
 console.log(Range.prototype.isPrototypeOf(range)); // true
 
+console.log(typeof range); // object!! 区别于Range/class {}
 console.log(typeof Range); // function
 console.log(typeof class {}); // function
 
@@ -4468,13 +4473,11 @@ console.log(Range instanceof Object); // true, 判断Range是否inherit from Obj
 console.log(Range instanceof Function); // true
 ```
 - class A {}, A后没有()
-- class的method不用comma分开, 区别于object
+- <u>class的method没有comma, 区别于object</u>
 - class A {}的最后也不用comma
 - `class` is a special function (`typeof`)
 - Range constructor里, no need to create/return object, <u>it just uses `this`</u>.
-- Constructor用new invoke, 区别于factory/普通function
-
-Arrow functions are **NOT** allowed when defining methods in constructor/class, because arrow functions inherit `this` from the context in which they are defined.
+- Constructor用new invoke, 区别于singleton / factory function
 
 #### <a name="93-classes-with-the-class-keyword" id="93-classes-with-the-class-keyword">9.3 Classes with the class Keyword</a>
 
@@ -4491,7 +4494,7 @@ A constructor can use `super` keyword to call the constructor of the super class
 Ex1.
 	
 ```javascript
-class Rectangle {
+class Rect {
   constructor(width, height) {
     this.width = width;
     this.height = height;
@@ -4500,18 +4503,26 @@ class Rectangle {
     return `[${this.width}, ${this.height}]`;
   }
 }
-class FilledRectangle extends Rectangle {
+class FilledRect extends Rect {
   constructor(width, height, color) {
     super(width, height); // 不用return super()
     this.color = color;
   }
+  // 如果没有这个override, filled call的就是Rect.toString
+  toString() {
+    return `${super.toString()} ${this.color}`; // 用super call Rect.toString()
+  }
 }
-const rect = new Rectangle(3, 4);
+const rect = new Rect(3, 4);
 console.log(rect.toString()); // [3, 4]
-const filled = new FilledRectangle(10, 2, "red");
-console.log(filled.toString()); // [10, 2]
+
+const filled = new FilledRect(10, 2, "red");
+console.log(filled.toString()); // [10, 2] red
 ```
-- 注意上面`super`的用法. `super`写在constructor里, 且没有return
+- 在FilledRect里用Rect的methods: `super`
+  - `super`写在constructor里: `super(w, h)` 且没有return
+  - `super`call Rect的methods: `super.toString()`
+- 如果FilledRect没有toString, filled.toString call的就是Rect.toString
 	
 Ex2.
 	
@@ -4535,7 +4546,7 @@ class Span extends Range {
   }
 }
 const span1 = new Span(3, 4);
-console.log(span1.toString()); // [3, 7]
+console.log(span1.toString()); // [3, 7], 用的Range.toString, 没有override
 const span2 = new Span(10, -2);
 console.log(span2.toString()); // [8, 10]
 ```
@@ -4584,12 +4595,172 @@ console.log(span2.toString()); // [8, 10]
 >   }
 >   ```
 
-<span class="white-on-black">Instance Field and Method (Prototype Method)</span>
+> A `class` usually has these kinds of members:
+> - instance fields, instance methods: belongs to each object created with `new`
+> - static fields, static methods: belongs to the class itself
+> - getter / setter
+> - private (static) fields, private (static) methods: only accessible inside the class body
 
-- Instance Property
+#### <a name="94-class-lifecycle" id="94-class-lifecycle">9.4 Class Lifecycle</a>
 
-	- Ex1 Range的`this.from`, `this.to`是instance properties. 每个instance都有一份copy: `r.from`. 区别于<u>static property是针对class的, 只有一份</u>: `Range.someStaticProp`.
-	- Instance Property is added at <span class="orange bold">construction</span> time (<u>before constructor body runs</u>), 要 `new` init才会执行. 区别于static property/block, 它们are added at class <span class="orange bold">evaluation</span> time.
+Class lifecycle includes **class evaluation**, **instance construction**, and **method invocation**;
+- Class evaluation 
+  - Triggered when JavaScript executes the class declaration.
+  - **Run once**, regardless of how many instances are created.
+
+
+  ```javascript
+  class Rect { // evaluated here
+  }
+  ```
+
+  ##### <u>Created during class evaluation</u>
+
+  | Category | Member | Shared? | Lives on / Behavior |
+  |----------|--------|:-------:|---------------------|
+  | **Static** | `static field`<br>`static method()` | ✅ | Class constructor (`Rect`) |
+  | | static private:<br> `static #field`<br>`static #method()` | ✅ | Class's internal private storage |
+  | | `static { ... }` | N/A | Executes immediately during class evaluation |
+  | **Instance Method** | `method()` | ✅ | `Rect.prototype` |
+  | | `#method()` | ✅ | Class's internal private storage |
+
+  - Runs **once**, regardless of how many instances are created.
+
+- Instance construction (every `new`)
+  - Instance fields are initialized **before** the constructor body.
+  - Every `new` creates a fresh copy of instance fields.
+  ```javascript
+  const rect = new Rect(); // triggered by new
+  ```
+
+  ##### <u>Construction order</u>
+  - Create a new object.
+  - Set its prototype (`[[Prototype]] -> Rect.prototype`).
+  - Initialize instance fields.
+  - Run the constructor body.
+  - Return the instance.
+
+  Ex1.
+
+  ```javascript
+  class Rect {
+    width = 0;
+
+    constructor(width) {
+      console.log(this.width); // 0, instance field runs BEFORE constructor
+      this.width = width;
+    }
+  }
+  ```
+
+  ##### <u>Created during construction</u>
+
+  | Member | Example | Per instance? |
+  |--------|---------|---------------|
+  | Instance field | `width`, `name = "Rect"` | ✅ |
+  | Private instance field | `#width`, `#name = "Rect"` | ✅ |
+  | **Arrow function** | `handleClick = () => {}` | ✅  arrow function is **NOT** instance method, it's an <u>instance field whose value is a function</u>. (new function per instance) |
+
+  Ex1. `evt.target` VS `this`
+  ```html
+  <button>
+    <span>Click me</span>
+  </button>
+  ```
+
+  ```javascript
+  class Rect {
+    mount() {
+      document.querySelector("button")
+        .addEventListener("click", this.handleClick);
+    }
+    handleClick(evt) {
+      console.log(this); // button
+      console.log(evt.target); // span, the element that actually triggered the event
+    }
+  }
+  ```
+  - `this` is the element the listener is attached to (button)
+  - <span class="underline-orange">`evt.target` is the element that actually triggered the event</span>
+
+
+  Ex2. arrow function `this`
+
+  ```javascript
+  class Rect {
+    name = "Rect";
+    width = 0;
+    height;
+    // Arrow function, instance field, instance construction time
+    handleClick = () => { console.log(this.width); }; // rect.width
+
+    constructor(width, height) {
+      this.width = width;
+      this.height = height;
+    }
+
+    mount() {
+      document.querySelector("button")
+        .addEventListener("click", this.handleClick);
+    }
+
+    toString() {} // instance method, class evaluation time
+  }
+  ```
+
+  This avoids writing:
+
+  ```javascript
+  class Rect {
+    constructor(width, height) {
+      this.width = width; this.height = height;
+
+      // Bind once during construction
+      this.handleClick = this.handleClick.bind(this);
+    }
+
+    mount() {
+      document.querySelector("button")
+        .addEventListener("click", this.handleClick);
+    }
+
+    // instance method
+    handleClick() { console.log(this.width); } //如果没有前面的bind, 这里的this是button
+  }
+  ```
+  - 注意arrow function的`this`是where it's defined, 就是object itself
+  - 如果用handleClick(){}没有`bind`, `this`是button, 不是object
+
+- Method invocation
+
+  ```javascript
+  rect.toString();
+  Rect.create();
+  ```
+
+  ##### <u>`this` behavior</u>
+
+  | Member | `this` |
+  |--------|--------|
+  | Instance method | Determined by how it's called |
+  | Static method | Refers to the class (`Rect`) |
+  | Arrow function field | Lexically captured during construction |
+
+  Ex1.
+
+  ```javascript
+  const fn = rect.toString;
+  fn(); // this is undefined (strict mode)
+
+  const arrow = rect.handleClick;
+  arrow(); // this is still rect
+  ```
+
+
+<span class="white-on-black">Instance Field and Method</span>
+
+- **Instance fields** are copied onto each object. 区别于static fields只有一份: `Range.someStaticField`
+- Instance fields are added at **construction** time (<u>before constructor body runs</u>), 要 `new` init才会执行. 区别于static property/block, 它们are added at class <span class="orange bold">evaluation</span> time.
 
 	Ex5.1 注意log顺序
 	
@@ -5006,7 +5177,7 @@ console.log(Complex.ZERO.toString()); // 0 + 0i
 - 注意equals里<u>先查`that instanceof Complex`</u>, 再查相等
 - 注意factory functions used as predefined complex numbers (<u>Constants所以大写</u>): <u>`Complex.ZERO`, `Complex.ONE`, `Complex.I`</u>
 
-#### <a name="94-adding-methods-to-existing-classes" id="94-adding-methods-to-existing-classes">9.4 Adding Methods to Existing Classes</a>
+#### <a name="95-adding-methods-to-existing-classes" id="95-adding-methods-to-existing-classes">9.5 Adding Methods to Existing Classes</a>
 
 If the new String method `startsWith()` is not already defined
 
@@ -5017,7 +5188,7 @@ String.prototype.startsWith = String.prototype.startsWith || function(str) {
 console.log("abc".startsWith("ab")); // true
 ```
 
-#### <a name="95-subclasses" id="95-subclasses">9.5 Subclasses</a>
+#### <a name="96-subclasses" id="96-subclasses">9.6 Subclasses</a>
 
 - Subclasses in old way
 
