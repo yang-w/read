@@ -40,8 +40,9 @@
 * [9.2 Classes and Constructors](#92-classes-and-constructors)
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
 * [9.4 Class Lifecycle](#94-class-lifecycle)
-* [9.5 Adding Methods to Existing Classes](#94-adding-methods-to-existing-classes)
-* [9.6 Subclasses](#95-subclasses)
+* [9.5 Class Members](#95-class-members) 
+* [9.6 Adding Methods to Existing Classes](#96-adding-methods-to-existing-classes)
+* [9.7 Subclasses](#97-subclasses)
 * [8.7 Function Properties, Methods, and Constructor](#87-function-properties-methods-and-constructor)
 	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#871-funclength-funcname-funcprototype)
 	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#874-5-the-funcapply-funccall-and-funcbind-methods)
@@ -4596,18 +4597,22 @@ console.log(span2.toString()); // [8, 10]
 >   ```
 
 > A `class` usually has these kinds of members:
-> - instance fields, instance methods: belongs to each object created with `new`
-> - static fields, static methods: belongs to the class itself
-> - getter / setter
-> - private (static) fields, private (static) methods: only accessible inside the class body
+> - **instance fields**:  Created for each object during `new`.
+> - **instance methods**: Created once during **class evaluation**, shared by all instances.
+> - **static fields** / **methods**: belongs to the class itself
+> - **getter** / **setter**: for properties
+>
+> Members can also be **private** by prefixing them with `#`:
+> - **Private instance fields** / methods: Accessible only within the class body.
+> - Private static fields / methods: Accessible only within the class body and belong to the class itself.
 
 #### <a name="94-class-lifecycle" id="94-class-lifecycle">9.4 Class Lifecycle</a>
 
 Class lifecycle includes **class evaluation**, **instance construction**, and **method invocation**;
-- Class evaluation 
-  - Triggered when JavaScript executes the class declaration.
+- **Class evaluation** 
+  - Happens at JavaScript <u>runtime</u>.
+  - Triggered when execution reaches the `class` declaration.
   - **Run once**, regardless of how many instances are created.
-
 
   ```javascript
   class Rect { // evaluated here
@@ -4624,11 +4629,9 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   | **Instance Method** | `method()` | ✅ | `Rect.prototype` |
   | | `#method()` | ✅ | Class's internal private storage |
 
-  - Runs **once**, regardless of how many instances are created.
-
-- Instance construction (every `new`)
-  - Instance fields are initialized **before** the constructor body.
-  - Every `new` creates a fresh copy of instance fields.
+- **Instance construction** (every `new`)
+  - <u>Instance fields</u> are initialized **before** the constructor body.
+  - Every `new` creates <u>a fresh copy of instance fields</u>.
   ```javascript
   const rect = new Rect(); // triggered by new
   ```
@@ -4636,8 +4639,8 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   ##### <u>Construction order</u>
   - Create a new object.
   - Set its prototype (`[[Prototype]] -> Rect.prototype`).
-  - Initialize instance fields.
-  - Run the constructor body.
+  - <u>Initialize instance fields</u>.
+  - <u>Run the constructor body</u>.
   - Return the instance.
 
   Ex1.
@@ -4656,10 +4659,9 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   ##### <u>Created during construction</u>
 
   | Member | Example | Per instance? |
-  |--------|---------|---------------|
-  | Instance field | `width`, `name = "Rect"` | ✅ |
-  | Private instance field | `#width`, `#name = "Rect"` | ✅ |
-  | **Arrow function** | `handleClick = () => {}` | ✅  arrow function is **NOT** instance method, it's an <u>instance field whose value is a function</u>. (new function per instance) |
+  |--------|---------|:-------------:|
+  | Instance fields | **Public:**`width`, `name = "Rect"`<br>**Private:**`#width`, `#name = "Rect"` | ✅ |
+  | **Arrow function field** | `handleClick = () => {}`<br><br>**Note:** An arrow function is **NOT** an instance method. It's an <u>instance field whose value is a function</u>, so a **new function per instance**. | ✅ |
 
   Ex1. `evt.target` VS `this`
   ```html
@@ -4672,16 +4674,24 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   class Rect {
     mount() {
       document.querySelector("button")
-        .addEventListener("click", this.handleClick);
+        .addEventListener("click", this.handleClick); // 勿忘this.handleClick的this
     }
     handleClick(evt) {
       console.log(this); // button
-      console.log(evt.target); // span, the element that actually triggered the event
+      console.log(evt.target); // <span>Click me</span>, the element that actually triggered the event
+      console.log(evt.target.value); // undefined
+      console.log(evt.target.textContent); // Click me
     }
   }
   ```
-  - `this` is the element the listener is attached to (button)
+  - <span class="underline-orange">`this` is the element the listener is attached to</span> (button)
   - <span class="underline-orange">`evt.target` is the element that actually triggered the event</span>
+    - <span class="yellowBG">`evt.target.value` VS `evt.target.textContent`</span>
+
+    | Property      | Used for  | Common elements       |
+    | ------------- | ------ | ------------------------ |
+    | `value`       | Current user input or control value | `<input id="name" type="text" value="Alice" />`<br> `<textarea id="msg">Hello</textarea>`<br> `<select id="color"><option value="red">Red</option><option value="green" selected>Green</option></select>` |
+    | `textContent` | The text inside an element. | `<div>`, `<span>`, `<p>`, `<button>`, etc.            |
 
 
   Ex2. arrow function `this`
@@ -4728,10 +4738,10 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
     handleClick() { console.log(this.width); } //如果没有前面的bind, 这里的this是button
   }
   ```
-  - 注意arrow function的`this`是where it's defined, 就是object itself
-  - 如果用handleClick(){}没有`bind`, `this`是button, 不是object
+  - arrow function的`this`是where it's defined, 就是object itself
+  - 如果用handleClick(){}没有constructor里的`bind`, `this`是button, 不是object
 
-- Method invocation
+- **Method invocation**
 
   ```javascript
   rect.toString();
@@ -4746,16 +4756,327 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   | Static method | Refers to the class (`Rect`) |
   | Arrow function field | Lexically captured during construction |
 
-  Ex1.
+  Ex1. Normal instance method ❌
 
   ```javascript
   const fn = rect.toString;
-  fn(); // this is undefined (strict mode)
-
-  const arrow = rect.handleClick;
-  arrow(); // this is still rect
+  fn(); // TypeError (this is undefined)
   ```
 
+  Ex2.1 Arrow function field ✅
+  ```javascript
+  class Rect {
+    width = 10;
+    handleClick = () => console.log(this.width);
+
+    constructor(width, height) {
+      this.width = width;
+      this.height = height;
+    }
+
+    mount() {
+      document.querySelector("button")
+        .addEventListener("click", this.handleClick);
+    }
+  }
+
+  const rect = new Rect(2, 3);
+  const arrow = rect.handleClick;
+  arrow(); // 2
+  ```
+
+  Ex2.2 Normal instance method + .bind(this) ✅
+  ```javascript
+  class Rect {
+    width = 10;
+
+    constructor(width, height) {
+      this.width = width;
+      this.height = height;
+      this.handleClick = this.handleClick.bind(this);
+    }
+
+    mount() {
+      document.querySelector("button")
+        .addEventListener("click", this.handleClick);
+    }
+
+    handleClick() {
+      console.log(this.width);
+    }
+  }
+
+  const rect = new Rect(2, 3);
+  const bindClick = rect.handleClick;
+  bindClick(); // 2
+  ```
+  - `this.handleClick` is no longer shared across instances. <u>Each instance now has its own handleClick property</u> (a bound function). similar to arrow function field, `this` is preserved when the function is passed around as a callback.
+
+#### <a name="95-class-members" id="95-class-members">9.5 Class Members</a>
+
+A `class` usually has these kinds of members:
+- **instance fields**:  Created for **each** object during `new` (<u>instance construction</u>).
+- **instance methods**: Created once during <u>class evaluation</u>, **shared** by all instances.
+  - **getter** / **setter**: for properties, usually instance methods, **shared** by all instances.
+- **static fields** / **methods**: Run once during <u>class evaluation</u>, belongs to **class itself**.
+
+Members can also be **private** by prefixing them with `#`:
+- **Private instance fields**: Belong to **each** instance, and can only be used inside the class body.
+- Private instance mothods (not common)
+- Private static fields / methods (not common): Accessible only within the class body and belong to the class itself.
+
+Ex1.1
+
+```javascript
+class Rect {
+  // static field: belong to class itself
+  static count = 0;
+
+  // instance fields: one copy per object
+  width = 0;
+  height = 0;
+
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+
+    Rect.count++;
+  }
+
+  // instance method: shared across intances
+  area() {
+    return this.width * this.height;
+  }
+
+  toString() {
+    return `${this.constructor.name}(${this.width} x ${this.height}`;
+  }
+
+  // static method: call on the class, not on an instance
+  static compareByArea(r1, r2) {
+    return r1.area() - r2.area();
+  }
+
+  // static factory method: create an instance from the class itself
+  static square(size) {
+    return new this(size, size); // 用this new
+  }
+
+  static fromJSON(json) {
+    const { width, height } = JSON.parse(json);
+    return new this(width, height); // 用this new
+  }
+}
+
+const r1 = new Rect(3, 4, "red");
+const r2 = Rect.square(5);
+const r3 = Rect.fromJSON('{"width": 10, "height": 2}');
+
+console.log(r1.area()); // 12
+console.log(r1.toString()); // Rect(3 x 4, red)
+consolelog(r3.toString()); 
+
+console.log(Rect.count); // 3
+
+const rects = [r1, r2, r3];
+rects.sort(Rect.compareByArea);
+console.log(rects);
+
+console.log(Rect.compareByArea(r1, r2)); // negative / positive / 0
+```
+- 注意static field `Rect.count`: shared by class, 只有一个copy
+- static method: shared by class
+  - `Rect.square`: factory function, class level, not instance
+  - `Rect.fromJSON`: utility function, class level, not instance
+  - rects.sort(Rect.compareByArea), `Rect.compareByArea` used for comparison for sorting
+
+Ex1.2 subclass
+
+```javascript
+class FilledRect extends Rect {
+  static kind = "FilledRectangle";
+  static defaultColor = "red";
+
+  constructor(width, height, color = FilledRect.defaultColor) {
+    super(width, height);
+    this.color = color;
+  }
+
+  toString() { // override, otherwise will refer to super.toString
+    return `${super.toString()}, color=${this.color}`;
+  }
+}
+console.log(FilledRect.count); // 2, inherited static Rect.count
+console.log(FilledRect.square(4)); // inherited static Rect.square()
+
+const r1 = new FilledRect(3, 4, "green");
+console.log(r1.area()); // inherited Rect.area()
+console.log(r1.width); // 3, not inherited, its own copy
+console.log(FilledRect.count); // 4, refers to Rect.count
+console.log(Rect.count); // 4
+
+const r2 = new FilledRect();
+console.log(r2.width); // 0, not inherited, its own copy
+```
+- **Instance methods** are inherited through the prototype chain. A **subclass instance** does **NOT** have its own copy of inherited methods.
+- **Static fields/methods** are inherited through the constructor (class) prototype chain. The **subclass class** does **NOT** have its own copy of inherited static members, unless it overrides them.
+  - `FilledRect.count`: FilledRect没有自己的static count, it's reading from `Rect.count` - There is still only one `count`, on `Rect`.
+- **Instance fields** 和上面不一样. Each **subclass instance** gets <u>its own copy</u> of the fields when `super()` runs.
+  - when excution reaches `class FilledRect extends Rect {}`,
+    - create static `kind` and `defaultColor` on `FilledRect`
+      - no `count` created, it resolves to `Rect.count` thru class prototype chain
+  - when `const r2 = new FilledRect()`
+    - create a new instance and link it to `FilledRect.prototype`
+    - run `FillRect` constructor()
+      - `super(width, height)`
+        - initializes `Rect`'s instance fields on r2 (width, height, #id)
+        - run `Rect` constructor()
+      - back to `FillRect`: this.color=color
+
+Ex1.3 Neither class has a constructor
+
+```javascript
+class Rect {
+  static count = 0;
+}
+class FilledRect extends Rect {}
+```
+- JavaScript automatically inserts `constructor()` with `super()` in subclass. it's same as
+  ```javascript
+  class Rectangle {
+    static count = 0;
+    constructor() {}
+  }
+
+  class FilledRectangle extends Rectangle {
+    constructor(...args) {
+      super(...args);
+    }
+  }
+  ```
+
+Ex2. getter / setter
+
+```javascript
+class User {
+  #name = "";
+
+  constructor(name) {
+    this.name = name; // calls setter
+  }
+
+  get name() {
+    return this.#name;
+  }
+
+  set name(value) {
+    value = value.trim();
+
+    if (!value.length) {
+      throw new Error("Name cannot be empty.");
+    }
+
+    this.#name = value;
+  }
+
+  get displayName() {
+    return this.#name.toUpperCase();
+  }
+}
+
+const user = new User("  Alice  ");
+console.log(user.name);         // Alice
+console.log(user.displayName);  // ALICE
+
+user.name = " Bob ";
+console.log(user.name);         // Bob
+
+// user.#name; // SyntaxError
+```
+- `getter`/`setter`用于当value needs logic, eg: validation, computed values, etc
+- private field `#name`用于当需要hide internal implementation
+
+Ex3. static method用于cache
+
+```javascript
+class User {
+  static cache = new Map(); // shared by class
+
+  constructor(id, name) {
+    this.id = id;
+    this.name = name;
+  }
+
+  static findById(id) { // class level, not instance
+    // 1. Check cache
+    if (User.cache.has(id)) {
+      console.log("Cache hit");
+      return User.cache.get(id);
+    }
+
+    console.log("Cache miss");
+
+    // 2. Query database (pretend)
+    const row = fakeDatabase.find(user => user.id === id);
+
+    // 3. Not found
+    if (!row) {
+      return null;
+    }
+
+    // 4. Create object
+    const user = new User(row.id, row.name);
+
+    // 5. Save to cache
+    User.cache.set(id, user);
+
+    return user;
+  }
+}
+
+const fakeDatabase = [
+  { id: 1, name: "Alice" },
+  { id: 2, name: "Bob" }
+];
+
+const u1 = User.findById(1); // Cache miss
+const u2 = User.findById(1); // Cache hit
+
+console.log(u1 === u2); // true
+
+console.log(User.findById(99)); // null
+```
+- `User.cache` so only the first call hits db (expensive).
+
+Ex4. static method用于config
+
+```javascript
+class ApiClient {
+  static baseUrl = "https://api.example.com"; // class level
+  static timeout = 5000; // class level
+
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+  }
+
+  request(path) {
+    console.log(
+      `GET ${ApiClient.baseUrl}${path} (timeout=${ApiClient.timeout}ms)`
+    );
+  }
+}
+
+const client1 = new ApiClient("key1");
+const client2 = new ApiClient("key2");
+
+client1.request("/users");
+client2.request("/products");
+
+ApiClient.baseUrl = "https://staging.example.com";
+
+client1.request("/users"); // uses new baseUrl
+client2.request("/products"); // also uses new baseUrl
+```
 
 <span class="white-on-black">Instance Field and Method</span>
 
@@ -5177,7 +5498,7 @@ console.log(Complex.ZERO.toString()); // 0 + 0i
 - 注意equals里<u>先查`that instanceof Complex`</u>, 再查相等
 - 注意factory functions used as predefined complex numbers (<u>Constants所以大写</u>): <u>`Complex.ZERO`, `Complex.ONE`, `Complex.I`</u>
 
-#### <a name="95-adding-methods-to-existing-classes" id="95-adding-methods-to-existing-classes">9.5 Adding Methods to Existing Classes</a>
+#### <a name="96-adding-methods-to-existing-classes" id="96-adding-methods-to-existing-classes">9.6 Adding Methods to Existing Classes</a>
 
 If the new String method `startsWith()` is not already defined
 
@@ -5188,7 +5509,7 @@ String.prototype.startsWith = String.prototype.startsWith || function(str) {
 console.log("abc".startsWith("ab")); // true
 ```
 
-#### <a name="96-subclasses" id="96-subclasses">9.6 Subclasses</a>
+#### <a name="97-subclasses" id="97-subclasses">9.7 Subclasses</a>
 
 - Subclasses in old way
 
