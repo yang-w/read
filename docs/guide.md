@@ -4395,12 +4395,12 @@ console.log(range.methods.isPrototypeOf(range1)); // true
     ```javascript
     // logger.js - Singleton
     class Logger {
-      log(msg) {
+      log(msg) { // 没有return
         console.log(msg)
       }
     }
     // Every component gets the same logger object.
-    const logger = new Logger();
+    const logger = new Logger(); // class用new
     // export default logger; // 两种写法
     export { logger };
 
@@ -4553,59 +4553,6 @@ console.log(span2.toString()); // [8, 10]
 ```
 - 区别于Range需要的是(from, to), Span pass的是(start, length). 通过`super`把(start, length)变回Range需要的(from, to)
 
-
-> - 只要不是 **`static`** 的就都是**instance**的: instance field/instance method
->   - **Instance field**：每个instance都有自己的一份copy
->   - **Static field**：只有一份, 属于**class本身**，所有 instance共享
->
-> - **Static field**一般**不在`constructor`里定义**, 因为`constructor`里的`this`指的是**instance**, 而static属于 **class**
->   - 如果一定要在`constructor`里操作static field, 需要用 **`ClassName.staticProp`**(或`this.constructor.staticProp`)
->
-> - **Instance field/method**可以是**public**或**private**, 取决于有没有 **`#`**
->   - 如果是**private(`#`)**, 只能在**自己的class body**内访问(**不能**在subclass中访问)
->     - ✅ `this.#prop`
->     - ❌ `obj.#prop`
->     - ❌ `obj.#method()`
->   - **Private field**必须先在 class body 中声明, 不能直接在`constructor` 里首次定义
->
->     ```js
->     class Foo {
->       #count;
->
->       constructor() {
->         this.#count = 0;
->       }
->     }
->     ```
->
->   - **Private field**必须先声明(`#privateProp`), 才能使用`this.#privateProp`
->   - **Private field 不会被继承**, subclass无法访问:
->     - ❌ `this.#baseProp`
->   - **Private field不能被删除**:
->     - ❌ `delete this.#privateProp`
->   - 如果没有 **`#`**, 就是public, 可透过object存取:
->     - `obj.prop`
->     - `obj.method()`
->
-> - **Instance**/**Static field**在class body中声明时, 都**不用**`var`/`let`/`const`, 直接写即可:
->
->   ```js
->   class Example {
->     prop1 = "instanceProp";
->     static prop2 = "staticProp";
->   }
->   ```
-
-> A `class` usually has these kinds of members:
-> - **instance fields**:  Created for each object during `new`.
-> - **instance methods**: Created once during **class evaluation**, shared by all instances.
-> - **static fields** / **methods**: belongs to the class itself
-> - **getter** / **setter**: for properties
->
-> Members can also be **private** by prefixing them with `#`:
-> - **Private instance fields** / methods: Accessible only within the class body.
-> - Private static fields / methods: Accessible only within the class body and belong to the class itself.
-
 #### <a name="94-class-lifecycle" id="94-class-lifecycle">9.4 Class Lifecycle</a>
 
 Class lifecycle includes **class evaluation**, **instance construction**, and **method invocation**;
@@ -4638,7 +4585,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
 
   ##### <u>Construction order</u>
   - Create a new object.
-  - Set its prototype (`[[Prototype]] -> Rect.prototype`).
+  - link new object to Rect.prototype.
   - <u>Initialize instance fields</u>.
   - <u>Run the constructor body</u>.
   - Return the instance.
@@ -4684,13 +4631,13 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
     }
   }
   ```
-  - <span class="underline-orange">`this` is the element the listener is attached to</span> (button)
-  - <span class="underline-orange">`evt.target` is the element that actually triggered the event</span>
+  - <span class="underline-orange">**`this`** is the element the listener is attached to</span> (button)
+  - `evt.target` is <span class="underline-orange">the element actually triggered the event</span>
     - <span class="yellowBG">`evt.target.value` VS `evt.target.textContent`</span>
 
     | Property      | Used for  | Common elements       |
     | ------------- | ------ | ------------------------ |
-    | `value`       | Current user input or control value | `<input id="name" type="text" value="Alice" />`<br> `<textarea id="msg">Hello</textarea>`<br> `<select id="color"><option value="red">Red</option><option value="green" selected>Green</option></select>` |
+    | `value`       | Current user input or control value | `<input id="name" type="text" value="Alice" />`<br> `<textarea id="msg" name="msg" placeholder="type some...">Hello</textarea>`<br> `<select id="color"><option value="red">Red</option><option value="green" selected>Green</option></select>` |
     | `textContent` | The text inside an element. | `<div>`, `<span>`, `<p>`, `<button>`, etc.            |
 
 
@@ -4702,7 +4649,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
     width = 0;
     height;
     // Arrow function, instance field, instance construction time
-    handleClick = () => { console.log(this.width); }; // rect.width
+    handleClick = () => console.log(this.width); // rect.width
 
     constructor(width, height) {
       this.width = width;
@@ -4738,8 +4685,8 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
     handleClick() { console.log(this.width); } //如果没有前面的bind, 这里的this是button
   }
   ```
-  - arrow function的`this`是where it's defined, 就是object itself
-  - 如果用handleClick(){}没有constructor里的`bind`, `this`是button, 不是object
+  - arrow function的`this`是where it's defined, 就是rect
+  - 如果用handleClick没有constructor里的`bind`, `this`是button, 不是rect
 
 - **Method invocation**
 
@@ -4818,19 +4765,32 @@ A `class` usually has these kinds of members:
 - **instance fields**:  Created for **each** object during `new` (<u>instance construction</u>).
 - **instance methods**: Created once during <u>class evaluation</u>, **shared** by all instances.
   - **getter** / **setter**: for properties, usually instance methods, **shared** by all instances.
-- **static fields** / **methods**: Run once during <u>class evaluation</u>, belongs to **class itself**.
+- **static fields** / **methods**: Run once during <u>class evaluation</u>, **one copy**, belongs to **class itself**.
 
 Members can also be **private** by prefixing them with `#`:
 - **Private instance fields**: Belong to **each** instance, and can only be used inside the class body.
-- Private instance mothods (not common)
+  - <u>Private field必须**先**在class body中声明</u>, 不能直接在constructor 里首次定义
+  ```javascript
+  class Foo {
+    #count; // 先声明
+    constructor() {
+      this.#count = 0; // 后使用this.#count
+    }
+  }
+  ```
+  - **Private field 不会被继承**, subclass无法访问:
+    - ❌ `this.#baseProp`
+  - **Private field不能被删除**:
+    - ❌ `delete this.#privateProp`
+- Private instance methods (not common)
 - Private static fields / methods (not common): Accessible only within the class body and belong to the class itself.
 
 Ex1.1
 
 ```javascript
 class Rect {
-  // static field: belong to class itself
-  static count = 0;
+  // static field: Rect.count
+  static count = 0; // static前面没有const
 
   // instance fields: one copy per object
   width = 0;
@@ -4840,7 +4800,7 @@ class Rect {
     this.width = width;
     this.height = height;
 
-    Rect.count++;
+    Rect.count++; // 要用Rect.count, 不是this.count
   }
 
   // instance method: shared across intances
@@ -4852,41 +4812,51 @@ class Rect {
     return `${this.constructor.name}(${this.width} x ${this.height}`;
   }
 
-  // static method: call on the class, not on an instance
+  // static methods前面都没有function, 不是static function someFunc!!! 
+  // static method: class level, Rect.compareByArea
   static compareByArea(r1, r2) {
     return r1.area() - r2.area();
   }
 
-  // static factory method: create an instance from the class itself
-  static square(size) {
-    return new this(size, size); // 用this new
+  // static factory method, class level
+  static createSquare(size) {
+    return new this(size, size); // 用this new, 勿忘return
   }
 
-  static fromJSON(json) {
-    const { width, height } = JSON.parse(json);
-    return new this(width, height); // 用this new
+  // static, class level
+  static fromJSON(str) {
+    try {
+      const { width, height } = JSON.parse(str);
+      return new this(width, height); // 用this new
+    } catch {
+      throw new Error(`fromJSON: json parse failed`);
+    }
   }
 }
 
-const r1 = new Rect(3, 4, "red");
-const r2 = Rect.square(5);
+const r1 = new Rect(3, 4);
+const r2 = Rect.createSquare(5);
 const r3 = Rect.fromJSON('{"width": 10, "height": 2}');
 
 console.log(r1.area()); // 12
-console.log(r1.toString()); // Rect(3 x 4, red)
-consolelog(r3.toString()); 
+console.log(r1.toString()); // Rect(3 x 4)
+console.log(r3.toString());  // Rect(10 x 2)
 
 console.log(Rect.count); // 3
 
 const rects = [r1, r2, r3];
-rects.sort(Rect.compareByArea);
-console.log(rects);
+rects.sort(Rect.compareByArea); // pass进sort function
+console.log(rects); // [3,4], [10,2], [5,5]
 
-console.log(Rect.compareByArea(r1, r2)); // negative / positive / 0
+console.log(Rect.compareByArea(r1, r2)); // -13
 ```
+
 - 注意static field `Rect.count`: shared by class, 只有一个copy
+- instance field
+  - **<s>const</s>** width = 0; 直接写field, 没有const
 - static method: shared by class
-  - `Rect.square`: factory function, class level, not instance
+  - static **<s>function</s>** someFunc(){}, <u>和`static widht=0`一样, 没有function</u>
+  - `Rect.createSquare`: factory function, class level, not instance
   - `Rect.fromJSON`: utility function, class level, not instance
   - rects.sort(Rect.compareByArea), `Rect.compareByArea` used for comparison for sorting
 
@@ -4894,10 +4864,9 @@ Ex1.2 subclass
 
 ```javascript
 class FilledRect extends Rect {
-  static kind = "FilledRectangle";
   static defaultColor = "red";
 
-  constructor(width, height, color = FilledRect.defaultColor) {
+  constructor(width, height, color=FilledRect.defaultColor) {
     super(width, height);
     this.color = color;
   }
@@ -4906,32 +4875,42 @@ class FilledRect extends Rect {
     return `${super.toString()}, color=${this.color}`;
   }
 }
-console.log(FilledRect.count); // 2, inherited static Rect.count
-console.log(FilledRect.square(4)); // inherited static Rect.square()
+console.log(FilledRect.count); // 3, 读的Rect.count
+const filled = FilledRect.createSquare(6);
+console.log(filled.toString()); // FilledRect(6 x 6), undefined. 虽然super.toString, 但是this.constructor.name变成了FilledRect. color是undefined, 即使有default color=red, 但只针对new FilledRect()
 
-const r1 = new FilledRect(3, 4, "green");
-console.log(r1.area()); // inherited Rect.area()
-console.log(r1.width); // 3, not inherited, its own copy
-console.log(FilledRect.count); // 4, refers to Rect.count
-console.log(Rect.count); // 4
+console.log(FilledRect.count); // 3, refer的Rect.count
+const filled = FilledRect.createSquare(6);
+console.log(filled.toString()); // FilledRect(6 x 6), red
+console.log(FilledRect.count); // 4
+console.log(Rect.count); // 4, 新new的FilledRect改变了Rect.count
 
-const r2 = new FilledRect();
-console.log(r2.width); // 0, not inherited, its own copy
+const fr1 = new FilledRect(3,4,"green");
+console.log(fr1.toString()); // FilledRect(3 x 4), green
+console.log(fr1.area()); // 12, 用的Rect.prototype.area()
+
+const fr2 = new FilledRect();
+console.log(fr2.toString()); // FilledRect(undefined x undefined), red
 ```
 - **Instance methods** are inherited through the prototype chain. A **subclass instance** does **NOT** have its own copy of inherited methods.
-- **Static fields/methods** are inherited through the constructor (class) prototype chain. The **subclass class** does **NOT** have its own copy of inherited static members, unless it overrides them.
-  - `FilledRect.count`: FilledRect没有自己的static count, it's reading from `Rect.count` - There is still only one `count`, on `Rect`.
+  - fr1.area()用的是Rect.prototype.area()
+  - fr1.toString()虽然用的super.toString(), 但是this.contructor.name还是变成了FilledRect
+- **Static fields/methods** are inherited through the constructor (class) prototype chain. The **subclass** does **NOT** have its own copy of inherited static members, unless it overrides them.
+  - `FilledRect.count`: FilledRect没有自己的static count, it's reading from `Rect.count` - There is still only one `count`, on `Rect` - 所以<u>new FilledRect改变了Rect.count</u>
 - **Instance fields** 和上面不一样. Each **subclass instance** gets <u>its own copy</u> of the fields when `super()` runs.
   - when excution reaches `class FilledRect extends Rect {}`,
-    - create static `kind` and `defaultColor` on `FilledRect`
+    - create static `defaultColor` on `FilledRect`
       - no `count` created, it resolves to `Rect.count` thru class prototype chain
-  - when `const r2 = new FilledRect()`
+  - when `const fr2 = new FilledRect()`
     - create a new instance and link it to `FilledRect.prototype`
     - run `FillRect` constructor()
       - `super(width, height)`
-        - initializes `Rect`'s instance fields on r2 (width, height, #id)
+        - initializes `Rect`'s instance fields on r2 (width, height) - fr2 gets its own copy of width, height
         - run `Rect` constructor()
       - back to `FillRect`: this.color=color
+    - 注意fr2.toSting()得到的是FilledRect(undefined x undefined), red
+      - super(width, height)时width,height都是undefined
+      - 但是FilledRect的constructor, color有defaultColor red
 
 Ex1.3 Neither class has a constructor
 
@@ -4959,10 +4938,10 @@ Ex2. getter / setter
 
 ```javascript
 class User {
-  #name = "";
+  #name = ""; // private也没有const/function, 和static一样
 
   constructor(name) {
-    this.name = name; // calls setter
+    this.name = name; // call setter
   }
 
   get name() {
@@ -4970,13 +4949,13 @@ class User {
   }
 
   set name(value) {
-    value = value.trim();
+    const val = value.trim();
 
-    if (!value.length) {
+    if (!val) {
       throw new Error("Name cannot be empty.");
     }
 
-    this.#name = value;
+    this.#name = val;
   }
 
   get displayName() {
@@ -4984,17 +4963,38 @@ class User {
   }
 }
 
-const user = new User("  Alice  ");
-console.log(user.name);         // Alice
-console.log(user.displayName);  // ALICE
+const u1 = new User("   Alice ");
+console.log(u1.name); // Alice
+console.log(u1.displayName); // ALICE
 
-user.name = " Bob ";
-console.log(user.name);         // Bob
+u1.name = " Bob ";
+console.log(u1.name); // Bob
 
-// user.#name; // SyntaxError
+// u1.#name; // SytaxError, the whole js crash, nothing runs
+
+const u2 = new User("  "); // Uncaught Error: Name cannot be empty.
+console.log("end"); // 没有走到这一步!
 ```
 - `getter`/`setter`用于当value needs logic, eg: validation, computed values, etc
 - private field `#name`用于当需要hide internal implementation
+- 注意`u1.#name`会crash整个app (**SyntaxError** happens at **compile time**)
+- 对于u2, 如果想print end
+
+  ```javascript
+  try {
+    const u2 = new User("  "); // Uncaught Error: Name cannot be empty.
+  } catch(err) {
+    console.log(err);
+  }
+  console.log("end"); // 没有走到这一步!
+  /**
+  * Error: Name cannot be empty.
+      at set name (test.js:33:13)
+      at new User (test.js:22:15)
+      at test.js:53:14
+  * end - code继续了
+  */
+  ```
 
 Ex3. static method用于cache
 
@@ -5009,7 +5009,7 @@ class User {
 
   static findById(id) { // class level, not instance
     // 1. Check cache
-    if (User.cache.has(id)) {
+    if (User.cache.has(id)) { // 要用User.cache, 不是直接cache.has(id)
       console.log("Cache hit");
       return User.cache.get(id);
     }
@@ -5017,20 +5017,20 @@ class User {
     console.log("Cache miss");
 
     // 2. Query database (pretend)
-    const row = fakeDatabase.find(user => user.id === id);
+    const row = fakeDB.find(({id: userId}) => userId === id);
 
     // 3. Not found
     if (!row) {
       return null;
     }
 
-    // 4. Create object
-    const user = new User(row.id, row.name);
+    // 4. Create object, 不能直接User.cache.set(id, row)!! 要先把value变成User type
+    const user = new this(row.id, row.name);
 
     // 5. Save to cache
     User.cache.set(id, user);
 
-    return user;
+    return user; // return user不是row
   }
 }
 
@@ -5043,10 +5043,15 @@ const u1 = User.findById(1); // Cache miss
 const u2 = User.findById(1); // Cache hit
 
 console.log(u1 === u2); // true
+console.log(u1); // User {id: 1, name: 'Alice'}
 
 console.log(User.findById(99)); // null
 ```
 - `User.cache` so only the first call hits db (expensive).
+- in static method, 一般都`new this(...)`而不是`new User(...)`. 这样如果User有subclass, this会指向subclass, 而不是User
+- `fakeDB.find(({id: userId}) => userId === id)`
+  - 勿忘<span class="orange">**(**</span>{ id }<span class="orange">**)**</span> => {...} 括号
+  - cast id to userId {id: **userId**}
 
 Ex4. static method用于config
 
@@ -5061,21 +5066,16 @@ class ApiClient {
 
   request(path) {
     console.log(
-      `GET ${ApiClient.baseUrl}${path} (timeout=${ApiClient.timeout}ms)`
+      `${ApiClient.baseUrl}${path} (timeout=${ApiClient.timeout}ms)`
     );
   }
 }
 
-const client1 = new ApiClient("key1");
-const client2 = new ApiClient("key2");
-
-client1.request("/users");
-client2.request("/products");
+const client = new ApiClient("key1");
+client.request("/users"); // https://api.example.com/users (timeout=5000ms)
 
 ApiClient.baseUrl = "https://staging.example.com";
-
-client1.request("/users"); // uses new baseUrl
-client2.request("/products"); // also uses new baseUrl
+client.request("/users"); // https://staging.example.com/users (timeout=5000ms), uses new baseUrl
 ```
 
 <span class="white-on-black">Instance Field and Method</span>

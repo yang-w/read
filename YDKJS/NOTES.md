@@ -55,7 +55,7 @@
 - [x] [§11.1.2 The Map Class](../docs/guide.md#1112-the-map-class)
 - [x] [§9.2 Classes and Constructors](../docs/guide.md#92-classes-and-constructors) 
   — [x] [§9.3 class keyword](../docs/guide.md#93-classes-with-the-class-keyword) 
-  — [ ] [§9.4 Class Lifecycle](../docs/guide.md#94-class-lifecycle) 
+  — [x] [§9.4 Class Lifecycle](../docs/guide.md#94-class-lifecycle) 
   - [ ] [§9.5 Class Members](../docs/guide.md#95-class-members) 
   — [ ] [§9.6 Adding Methods to Existing Classes](../docs/guide.md#96-adding-methods-to-existing-classes) 
   — [ ] [§9.7 Subclasses](../docs/guide.md#97-subclasses)
