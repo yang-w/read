@@ -60,7 +60,6 @@
   - [ ] [public fields](objects-classes/ch3.md#public-fields)
   - [ ] [static](objects-classes/ch3.md#static-class-behavior)
   - [ ] [private #](objects-classes/ch3.md#private-class-behavior)
-- [ ] [§8.7 `func.bind`](../docs/guide.md#87-funcbind)
   - [4-rule this](objects-classes/ch4.md#this-is-it)
   - [arrow lexical this](objects-classes/ch4.md#an-arrow-points-somewhere)
 - [ ] [§8.8.2 Higher-Order Functions](../docs/guide.md#882-higher-order-functions)

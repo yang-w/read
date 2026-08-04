@@ -41,7 +41,6 @@
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
 * [9.4 Class Lifecycle](#94-class-lifecycle)
 * [9.5 Class Members](#95-class-members) 
-* [8.7 `func.bind()`](#87-funcbind)
 * [8.8.2 Higher-Order Functions](#882-higher-order-functions)
 * [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
 * [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
@@ -4560,6 +4559,61 @@ console.log(span2.toString()); // [8, 10]
 #### <a name="94-class-lifecycle" id="94-class-lifecycle">9.4 Class Lifecycle</a>
 
 Class lifecycle includes **class evaluation**, **instance construction**, and **method invocation**;
+
+Ex. 注意log顺序
+
+```javascript
+class MyClass {
+  static f1 = console.log(`static f1 called`);
+  static {
+    console.log(this); // class MyClass
+    console.log(`static block #1 called`);
+  }
+  static f2 = console.log(`static f2 called`);
+  static {
+    console.log(`static block #2 called`);
+  }
+  static f() {
+    console.log(`static method f called`)
+  }
+  constructor() {
+    console.log(this); // MyClass instance under construction
+    console.log(`constructor called`);
+  }
+  instanceProp1 = console.log(`instanceProp1 called`);
+  instanceProp2 = "instance prop 2";
+}
+/**
+ * 在不new MyClass()的情况下, 会有如下log in order
+  * static f1 called
+  * class MyClass {...}
+  * static block #1 called
+  * static f2 called
+  * static block #2 called
+  * 
+  * static f()没有进
+  */
+		
+const myClass = new MyClass();
+/**
+ * new MyClass()之后会有如下log in order
+ * instanceProp1 called
+ * 
+ * instanceProp2只是init了, 没有log
+ * 
+ * MyClass instance
+ * constructor called
+ */
+console.log(myClass.instanceProp2); // instance prop 2
+console.log(MyClass.f2); // undefined, 因为static f2没有return
+MyClass.f(); // static method f called. 区别于f2是var, 没有log
+```
+- `static f()`: 除非直接call MyClass.f(), 否则不会执行. 
+  - 区别于`static f1`, `static f2`都是var, 直接evaluate
+  - 以及`static {}`也是直接执行
+- 注意static的`this`是class MyClass, 是class本身. 区别于constructor/instance method的`this`是class的instance under construction.
+<br>
+
 - **Class evaluation** 
   - Happens at JavaScript <u>runtime</u>.
   - Triggered when execution reaches the `class` declaration.
@@ -4693,7 +4747,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   - 如果用handleClick没有constructor里的`bind`, `this`是button, 不是rect
   - this.handleClick.bind是在constructor里, 不是mount!
 
-- **Method invocation**
+- **Method invocation (`this`)**
 
   ```javascript
   rect.toString();
@@ -4704,18 +4758,37 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
 
   | Member | `this` |
   |--------|--------|
-  | Instance method | Determined by how it's called |
-  | Static method | Refers to the class (`Rect`) |
-  | Arrow function field | Lexically captured during construction |
+  | Regular method <br> (object / class) | Determined by the caller <br> (Regular method does **NOT** have `this`) |
+  | Static method (class) | Refers to the class (`Rect`) |
+  | Arrow function | Defined by surrounding lexical scope when the arrow is created
+  | | └─ Inside a regular method → `this` is the method's `this` |
+  | | └─ Class instance field → `this` is class instance - captures `this` during instance construction |
 
-  Ex1. Normal instance method ❌
+  Ex1.1 Normal instance method ❌
 
   ```javascript
-  const fn = rect.toString;
-  fn(); // TypeError (this is undefined)
-  ```
+  class Rect {
+    constructor(width) {
+      this.width = width;
+    }
+    getWidth() {
+      return this.width;
+    }
+  }
 
-  Ex2.1 Arrow function field ✅
+  const rect = new Rect(2);
+  const fn = rect.getWidth; // not Rect.getWidth!!
+  fn(); // TypeError: Cannot read properties of undefined (reading 'width') 
+  // crash the whole app
+  ```
+  - fn = **rect**.getWidth, 不是<u>Rect</u>.getWidth, getWidth是instance method
+  - `getWidth()` is a regular function, which does **not** have `this`
+    - `rect.getWidth()` will set `this` to rect in `getWidth`
+    - after `fn` points to rect.getWidth, the <u>caller rect is lost when invoke</u>, so `this` is undefined.
+      - it <u>crashes the whole app (TypeError)</u>
+
+  Ex1.2 Arrow function field ✅
+
   ```javascript
   class Rect {
     width = 10;
@@ -4728,7 +4801,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
 
     mount() {
       document.querySelector("button")
-        .addEventListener("click", this.handleClick);
+        .addEventListener("click", this.handleClick); // 勿忘this.handleClick的this
     }
   }
 
@@ -4736,8 +4809,11 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   const arrow = rect.handleClick;
   arrow(); // 2
   ```
+  - Arrow function `this` is determined by surroundinng lexical scope when it's created. 
+    - `handleClick` is an instance field, created during instance construction - `this` is Rect instance.
+  - Each instance gets its own `handleClick` function.
 
-  Ex2.2 Normal instance method + .bind(this) ✅
+  Ex1.3 Normal instance method + .bind(this) ✅
   ```javascript
   class Rect {
     width = 10;
@@ -4764,60 +4840,185 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   const bindClick = rect.handleClick;
   bindClick(); // 2
   ```
-  - `this.handleClick` is no longer shared across instances. <u>Each instance now has its own handleClick property</u> (a bound function). similar to arrow function field, `this` is preserved when the function is passed around as a callback.
+  - `bind()` returns a **new function** with `this` permanently bound.
+  - The original prototype method is still shared.
+  - The bound function becomes an own property of each instance, similar to an arrow function field.
 
-Ex. 注意log顺序
+  <br>
+
+**<u>`Function.prototype.bind()`</u>**
 
 ```javascript
-class MyClass {
-  static f1 = console.log(`static f1 called`);
-  static {
-    console.log(this); // class MyClass
-    console.log(`static block #1 called`);
-  }
-  static f2 = console.log(`static f2 called`);
-  static {
-    console.log(`static block #2 called`);
-  }
-  static f() {
-    console.log(`static method f called`)
-  }
-  constructor() {
-    console.log(this); // MyClass instance under construction
-    console.log(`constructor called`);
-  }
-  instanceProp1 = console.log(`instanceProp1 called`);
-  instanceProp2 = "instance prop 2";
-}
-/**
- * 在不new MyClass()的情况下, 会有如下log in order
-  * static f1 called
-  * class MyClass {...}
-  * static block #1 called
-  * static f2 called
-  * static block #2 called
-  * 
-  * static f()没有进
-  */
-		
-const myClass = new MyClass();
-/**
- * new MyClass()之后会有如下log in order
- * instanceProp1 called
- * 
- * instanceProp2只是init了, 没有log
- * 
- * MyClass instance
- * constructor called
- */
-console.log(myClass.instanceProp2); // instance prop 2
-console.log(MyClass.f2); // undefined, 因为static f2没有return
-MyClass.f(); // static method f called. 区别于f2是var, 没有log
+func.bind(thisArg, arg1, arg2, ..., argN)
 ```
-- `static f()`: 除非直接call MyClass.f(), 否则不会执行. 
-  - 区别于`static f1`, `static f2`都是var, 直接evaluate
-  - 以及`static {}`也是直接执行
-- 注意static的`this`是class MyClass, 是class本身. 区别于constructor/instance method的`this`是class的instance under construction.
+
+Ex2.1 Bind `this`
+
+```javascript
+const module = {
+  x: 81,
+
+  getX() {
+    return this.x;
+  }
+};
+
+console.log(module.getX()); // 81
+
+const getXCopy = module.getX;
+console.log(getXCopy()); // TypeError: Cannot read properties of undefined (reading 'x') 
+// crash app, or window.x in non-strict mode
+
+const boundGetX = module.getX.bind(module);
+console.log(boundGetX()); // 81
+```
+- same as Ex1.1中的getWidth， getX is a <u>regular function WO `this`</u>, `this` is determined by caller
+  - `module.getX`的getX的`this`是caller 'module'
+  - after `getXCopy` points to module.getX, the <u>caller 'module' is lost when invoke</u>, so `this` is undefined.
+    - TypeError and <u>crash the app</u>
+  - bind creates a new function with `this`=module
+
+Ex2.2 Partial application
+
+```javascript
+function sum(x, y) {
+  return x + y;
+}
+const sumOne = sum.bind(null, 1); // thisArg=null, x=1
+console.log(sumOne(2)); // 3 = 1+2
+```
+- sum/sumOne doesn't need `this`, so `thisArg` is `null`.
+
+**<u>`setTimeout`</u>**
+
+```javascript
+setTimeout(callback, delay)
+```
+
+Ex2.3 
+
+```javascript
+const person = {
+  fName: "alice",
+  getFName() {
+    console.log(this.fName);
+  }
+};
+person.getFName(); // alice
+setTimeout(person.getFName, 1000); // undefined
+/**
+ * person.getFName is passed as a function value
+ * The connection to person is lost because only the function is passed.
+ * when callback triggered, since it's not invoked as person.getName(), `this` is no longer person.
+ * /
+```
+
+- `getFName()` is a regular function, `this` is determined by caller
+  - `person.getFName()`, `this` = caller = person
+  - the callback in `setTimeout`: 
+    - only the function value of person.getFName is passed
+    - caller 'person' is lost when invoke - `this` is no longer person
+-  `setTimeout(person.getFName, 1000)` VS Ex2.1的`console.log(getXCopy())`
+    - in setTimeout, person.getFName is <u>triggered by browser, `this` is `window` in browser env</u>
+    - getXCopy is a plain function call, <u>triggered by Javacript, in strict mode, `this===undefined`</u>, 所以TypeError, cannot visit x of undefined, crash the app.
+
+✅ To fix: with `bind()`
+
+```javascript
+setTimeout(person.getFName.bind(person), 1000); // alice
+```
+
+✅ To fix: with an arrow callback
+
+```javascript
+setTimeout(() => person.getFName(), 1000); // alice
+```
+- arrow function is the callback, 虽然是在global下执行的, 但是执行的是person.getFName(), where caller=person. 
+  - 区别于callback直接是person.getFName - the function value of person.getFName, caller 'person' is lost.
+
+❌ Doesn't work (arrow function in person)
+
+```javascript
+// 2.3.1
+const person = {
+  name: "Alice",
+  getName: () => {
+    console.log(this.name);
+  }
+};
+
+person.getName(); // undefined
+```
+> **Objects do not create lexical scopes**.
+> Only functions, modules, and blocks create lexical scopes.
+
+JavaScript is conceptually doing this:
+
+```javascript
+const getName = () => {
+  console.log(this.name);
+};
+
+const person = {
+  name: "Alice",
+  getName,
+};
+```
+- The arrow function captures `this` from the surrounding module/global scope, **not** from `person`. here `this` is `window`
+
+✅ To fix: using class
+
+```javascript
+// 2.3.2
+class Person {
+  name = "Alice";
+
+  getName = () => {
+    console.log(this.name);
+  };
+}
+
+const person = new Person();
+
+person.getName(); // Alice
+```
+- The arrow is created during instance construction, where `this` is Person instance 'person'
+
+✅ To fix: using arrow functions inside methods
+
+```javascript
+// 2.3.3
+const person = {
+  fName: "alice",
+  getFNameLater() {
+    setTimeout(() => console.log(this.fName), 1000);
+  }
+}
+person.getFNameLater(); // alice after 1000ms
+```
+- `person.getFNameLater()` sets `this === person`.
+- The arrow function is created inside `getFNameLater()`, so it captures `this` is person
+
+❌ Doesn't work (compare with 2.3.3)
+
+```javascript
+// 2.3.4
+const person = {
+  fName: "alice",
+  getFNameLater() {
+    setTimeout(console.log(this.fName), 1000);
+  }
+};
+person.getFNameLater(); // alice printed out right away
+```
+- the first arg in `setTimeout` is not a function, when evaluating
+  - it prints 'alice' immediately and returns `undefined`
+    - similar to `static f1 = console.log(...)` VS `static f() { console.log(...)}`, f1 will be executed immediatly, but function f won't be executed unless explicitly call MyClass.f() 
+  - so it's actually doing `setTimeout(undefined, 1000);`
+- 区别于2.3.3`setTimeout(()=>console.log(this.fName),1000)`
+  - first arg is a function, cannot be executed
+  - setTimeout stores that function and calls it later
+
 
 #### <a name="95-class-members" id="95-class-members">9.5 Class Members</a>
 
@@ -5157,106 +5358,6 @@ ApiClient.baseUrl = "https://staging.example.com";
 client.request("/users"); // https://staging.example.com/users (timeout=5000ms), uses new baseUrl
 ```
 - static field是可以在class外改的: `ApiClient.baseUrl="https://fasdfa"`;
- 
-#### <a name="87-funcbind" id="87-funcbind">8.7 `func.bind()`</a>
-
-```javascript
-func.bind(thisArg, arg1, arg2, ..., argN)
-```
-	
-Ex1.
-
-```javascript
-this.x = 9;
-const module = {
-  x: 81,
-  getX() {
-    return this.x;
-  }
-};
-console.log(module.getX()); // 81, module.x
-
-const getXCopy = module.getX;
-console.log(getXCopy()); // 9, window.x
-
-const boundGetX = module.getX.bind(module);
-console.log(boundGetX()); // 81, module.x
-```
-- `getX()` itself does not have `this` = module, `this` is determined at the moment the function is called: `module.getX` so `this`=module;
-- getXCopy只是extract module.getX, but is invoked at the global scope: this是window, 不再是module了
-
-Ex2. Create partially applied functions
-
-```javascript
-function sum(x, y) { return x + y; }
-
-const sumOne = sum.bind(null, 1); // 1 is x
-console.log(sumOne(2)); // 3 = 1+2
-```
-- sum.bind不需要this, thisArg是null
-
-Ex3. `bind` with `setTImeout(func, delay)`
-
-```javascript
-const person = {
-  fName: "alice",
-  getFName() {
-    console.log(this.fName);
-  }
-};
-setTimeout(person.getFName, 1000); // undefined, this is window 
-```
-- `setTimeout(func, delay)`中, func的`this` is `window`, 因为实在global中执行的
-  
-✅ To fix:
-
-```javascript
-setTimeout(person.getFName.bind(person), 1000); // alice, 这里bind不用执行, setTimeout就是需要一个function
-```
-
-❌ Doesn't work
-
-```javascript
-const person = {
-  fName: "alice",
-  getFName: () => {
-    console.log(this.fName);
-  }
-};
-setTimeout(person.getFName, 1000); // undefined
-```
-- **Object doesn't create scopes**, only <u>functions, modules, and blocks (for let/const) create scopes</u>.
-
-javscript sees above like this:
-
-```javascript
-// Surrounding scope (global/module)
-const getFName = () => {
-  console.log(this); // captures `this` from HERE
-};
-
-const person = {
-  fName: "alice",
-  getFName: getFName,
-};
-```
-- getFName的`this`是window
-
-To fix:
-
-```javascript
-const person = {
-  fName: "alice",
-  getFName() {
-    setTimeout(() => {
-      console.log(this.fName);
-    }, 1000)
-  }
-};
-person.getFName(); // alice
-```
-- greetLater() is called as `person.greetLater()`, so `this` === person.
-- The arrow function is defined inside greetLater, so it captures that same `this`.
 	
 ##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
 
