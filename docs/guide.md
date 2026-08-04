@@ -41,12 +41,8 @@
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
 * [9.4 Class Lifecycle](#94-class-lifecycle)
 * [9.5 Class Members](#95-class-members) 
-* [9.6 Adding Methods to Existing Classes](#96-adding-methods-to-existing-classes)
-* [9.7 Subclasses](#97-subclasses)
-* [8.7 Function Properties, Methods, and Constructor](#87-function-properties-methods-and-constructor)
-	* [8.7.1 `func.length`, `func.name`, `func.prototype`](#871-funclength-funcname-funcprototype)
-	* [8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods](#874-5-the-funcapply-funccall-and-funcbind-methods)
-	* [8.8.2 Higher-Order Functions](#882-higher-order-functions)
+* [8.7 `func.bind()`](#87-funcbind)
+* [8.8.2 Higher-Order Functions](#882-higher-order-functions)
 * [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
 * [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
 * [async/await](#asyncawait)
@@ -3172,6 +3168,13 @@ arry.lastIndexOf(9); // 2, 从后面开始找
 arry.indexOf(9, 2);  // 2, 从index=2开始找9
 ```
 
+```javascript
+String.prototype.startsWith = String.prototype.startsWith || function(str) {
+    return this.indexOf(str) === 0; // this是下面的abc
+};
+console.log("abc".startsWith("ab")); // true
+```
+
 ##### <span class="white-on-black">includes</span>
 
 ```javascript
@@ -4522,6 +4525,7 @@ console.log(filled.toString()); // [10, 2] red
 ```
 - 在FilledRect里用Rect的methods: `super`
   - `super`写在constructor里: `super(w, h)` 且没有return
+    - `super()` MUST be called first, before you can use `this`.
   - `super`call Rect的methods: `super.toString()`
 - 如果FilledRect没有toString, filled.toString call的就是Rect.toString
 	
@@ -4637,7 +4641,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
 
     | Property      | Used for  | Common elements       |
     | ------------- | ------ | ------------------------ |
-    | `value`       | Current user input or control value | `<input id="name" type="text" value="Alice" />`<br> `<textarea id="msg" name="msg" placeholder="type some...">Hello</textarea>`<br> `<select id="color"><option value="red">Red</option><option value="green" selected>Green</option></select>` |
+    | `value`       | Current user input or control value | `<input id="name" name="name" type="text" value="Alice" />`<br> `<textarea id="msg" name="msg" placeholder="type some...">Hello</textarea>`<br> `<select id="color"><option value="red">Red</option><option value="green" selected>Green</option></select>` |
     | `textContent` | The text inside an element. | `<div>`, `<span>`, `<p>`, `<button>`, etc.            |
 
 
@@ -4687,6 +4691,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   ```
   - arrow function的`this`是where it's defined, 就是rect
   - 如果用handleClick没有constructor里的`bind`, `this`是button, 不是rect
+  - this.handleClick.bind是在constructor里, 不是mount!
 
 - **Method invocation**
 
@@ -4740,6 +4745,8 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
     constructor(width, height) {
       this.width = width;
       this.height = height;
+      // 没有这句的话, this.handleClick是shared across instances
+      // 但有了这句, this.handleClick就是每个instance有自己的copy
       this.handleClick = this.handleClick.bind(this);
     }
 
@@ -4759,13 +4766,70 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
   ```
   - `this.handleClick` is no longer shared across instances. <u>Each instance now has its own handleClick property</u> (a bound function). similar to arrow function field, `this` is preserved when the function is passed around as a callback.
 
+Ex. 注意log顺序
+
+```javascript
+class MyClass {
+  static f1 = console.log(`static f1 called`);
+  static {
+    console.log(this); // class MyClass
+    console.log(`static block #1 called`);
+  }
+  static f2 = console.log(`static f2 called`);
+  static {
+    console.log(`static block #2 called`);
+  }
+  static f() {
+    console.log(`static method f called`)
+  }
+  constructor() {
+    console.log(this); // MyClass instance under construction
+    console.log(`constructor called`);
+  }
+  instanceProp1 = console.log(`instanceProp1 called`);
+  instanceProp2 = "instance prop 2";
+}
+/**
+ * 在不new MyClass()的情况下, 会有如下log in order
+  * static f1 called
+  * class MyClass {...}
+  * static block #1 called
+  * static f2 called
+  * static block #2 called
+  * 
+  * static f()没有进
+  */
+		
+const myClass = new MyClass();
+/**
+ * new MyClass()之后会有如下log in order
+ * instanceProp1 called
+ * 
+ * instanceProp2只是init了, 没有log
+ * 
+ * MyClass instance
+ * constructor called
+ */
+console.log(myClass.instanceProp2); // instance prop 2
+console.log(MyClass.f2); // undefined, 因为static f2没有return
+MyClass.f(); // static method f called. 区别于f2是var, 没有log
+```
+- `static f()`: 除非直接call MyClass.f(), 否则不会执行. 
+  - 区别于`static f1`, `static f2`都是var, 直接evaluate
+  - 以及`static {}`也是直接执行
+- 注意static的`this`是class MyClass, 是class本身. 区别于constructor/instance method的`this`是class的instance under construction.
+
 #### <a name="95-class-members" id="95-class-members">9.5 Class Members</a>
 
 A `class` usually has these kinds of members:
-- **instance fields**:  Created for **each** object during `new` (<u>instance construction</u>).
-- **instance methods**: Created once during <u>class evaluation</u>, **shared** by all instances.
-  - **getter** / **setter**: for properties, usually instance methods, **shared** by all instances.
-- **static fields** / **methods**: Run once during <u>class evaluation</u>, **one copy**, belongs to **class itself**.
+
+| Member | When created | Copies | Inheritance |
+|--------|--------------|--------|-------------|
+| **Instance fields** | During `new` (*instance construction*) | One copy per instance | Each subclass instance gets **its own copy** of inherited instance fields. |
+| **Instance methods** | During *class evaluation* | Shared by all instances | Subclasses **share parent's** methods unless overriden. |
+| ↳ **Getters / Setters**<br>`get name()`<br>`set name(val)` | Usually instance methods | Shared by all instances | Subclasses **share parent's** methods unless overriden. |
+| **Static fields** | Run once during *class evaluation* | One copy per class | Subclasses **share parent's** unless overriden.  |
+| **Static methods** | Run once during *class evaluation* | One copy per class | Subclasses **share parent's** unless overriden. |
 
 Members can also be **private** by prefixing them with `#`:
 - **Private instance fields**: Belong to **each** instance, and can only be used inside the class body.
@@ -4803,7 +4867,7 @@ class Rect {
     Rect.count++; // 要用Rect.count, 不是this.count
   }
 
-  // instance method: shared across intances
+  // instance method: object level, 不是static
   area() {
     return this.width * this.height;
   }
@@ -4828,7 +4892,7 @@ class Rect {
     try {
       const { width, height } = JSON.parse(str);
       return new this(width, height); // 用this new
-    } catch {
+    } catch { // catch后没有(err)
       throw new Error(`fromJSON: json parse failed`);
     }
   }
@@ -4848,17 +4912,24 @@ const rects = [r1, r2, r3];
 rects.sort(Rect.compareByArea); // pass进sort function
 console.log(rects); // [3,4], [10,2], [5,5]
 
-console.log(Rect.compareByArea(r1, r2)); // -13
+console.log(Rect.compareByArea(r1, r2)); // -13=12-25
 ```
-
-- 注意static field `Rect.count`: shared by class, 只有一个copy
 - instance field
   - **<s>const</s>** width = 0; 直接写field, 没有const
+- static field `Rect.count`:
+  - shared by class, 只有一个copy
+  - static **<s>const</s>** count=0; 没有const, 直接field
+  - often used for data dont' want to be replicated across instances
+    - **cache** (`User.cache`)
+    - **config** (`ApiClient.basePath`)
 - static method: shared by class
-  - static **<s>function</s>** someFunc(){}, <u>和`static widht=0`一样, 没有function</u>
-  - `Rect.createSquare`: factory function, class level, not instance
-  - `Rect.fromJSON`: utility function, class level, not instance
-  - rects.sort(Rect.compareByArea), `Rect.compareByArea` used for comparison for sorting
+  - static **<s>function</s>** someFunc(){}, <u>和`static width=0`一样, 没有function</u>
+  - Static methods are often used to create 
+    - **utility function** (`Rect.fromJSON`)
+    - **sort function** (`Rect.compareByArea`)
+    - **factory method** (`Rect.createSquare`) 
+    - <u>database related operation</u> (search/save/delete entires form db, eg: `Article.delete({ id: 123 }`)
+- area()是object level, 和当前object有关, 所以不是static
 
 Ex1.2 subclass
 
@@ -4867,7 +4938,7 @@ class FilledRect extends Rect {
   static defaultColor = "red";
 
   constructor(width, height, color=FilledRect.defaultColor) {
-    super(width, height);
+    super(width, height); // 没有return
     this.color = color;
   }
 
@@ -4875,13 +4946,10 @@ class FilledRect extends Rect {
     return `${super.toString()}, color=${this.color}`;
   }
 }
-console.log(FilledRect.count); // 3, 读的Rect.count
-const filled = FilledRect.createSquare(6);
-console.log(filled.toString()); // FilledRect(6 x 6), undefined. 虽然super.toString, 但是this.constructor.name变成了FilledRect. color是undefined, 即使有default color=red, 但只针对new FilledRect()
-
 console.log(FilledRect.count); // 3, refer的Rect.count
+
 const filled = FilledRect.createSquare(6);
-console.log(filled.toString()); // FilledRect(6 x 6), red
+console.log(filled.toString()); // FilledRect: [6, 6], color=red. 虽然super.toString(), 但是this.constructor.name变成了FilledRect. color是FilledRect.defaultColor
 console.log(FilledRect.count); // 4
 console.log(Rect.count); // 4, 新new的FilledRect改变了Rect.count
 
@@ -4905,7 +4973,7 @@ console.log(fr2.toString()); // FilledRect(undefined x undefined), red
     - create a new instance and link it to `FilledRect.prototype`
     - run `FillRect` constructor()
       - `super(width, height)`
-        - initializes `Rect`'s instance fields on r2 (width, height) - fr2 gets its own copy of width, height
+        - <u>initializes `Rect`'s instance fields</u> on r2 (width, height) - fr2 gets its own copy of width, height
         - run `Rect` constructor()
       - back to `FillRect`: this.color=color
     - 注意fr2.toSting()得到的是FilledRect(undefined x undefined), red
@@ -4941,7 +5009,7 @@ class User {
   #name = ""; // private也没有const/function, 和static一样
 
   constructor(name) {
-    this.name = name; // call setter
+    this.name = name; // name setter called, 不是this.#name=name!!
   }
 
   get name() {
@@ -4955,7 +5023,7 @@ class User {
       throw new Error("Name cannot be empty.");
     }
 
-    this.#name = val;
+    this.#name = val; // name setter won't be called
   }
 
   get displayName() {
@@ -4967,6 +5035,9 @@ const u1 = new User("   Alice ");
 console.log(u1.name); // Alice
 console.log(u1.displayName); // ALICE
 
+u1.displayName = "hello";
+console.log(u1.displayName); // ALICE, 没变成hello
+
 u1.name = " Bob ";
 console.log(u1.name); // Bob
 
@@ -4977,6 +5048,11 @@ console.log("end"); // 没有走到这一步!
 ```
 - `getter`/`setter`用于当value needs logic, eg: validation, computed values, etc
 - private field `#name`用于当需要hide internal implementation
+- <span class="underline-orange">constructor里是 **`this.name`** = value, 不是this.#name</span>
+  - `this.#name=value`不会trigger name setter
+    - 在constructor里, use public prop (`this.name = val`) so setter(validation) is reused.
+    - 在`setter`/`getter`里: 用the backing field (`this.#name`) to avoid recursion(如果setter里再用this.name=..., name的setter又会被recursive call).
+- 注意只有getter没有setter的`displayName`是read only, 无法赋值 (赋值不报错,但是没用)
 - 注意`u1.#name`会crash整个app (**SyntaxError** happens at **compile time**)
 - 对于u2, 如果想print end
 
@@ -5000,11 +5076,14 @@ Ex3. static method用于cache
 
 ```javascript
 class User {
-  static cache = new Map(); // shared by class
+  static cache = new Map(); // User.cache
 
   constructor(id, name) {
     this.id = id;
     this.name = name;
+
+    // 不是在这里User.cache.set(..). 
+    // cache是为了findById更快, 所以在findById里set
   }
 
   static findById(id) { // class level, not instance
@@ -5045,9 +5124,9 @@ const u2 = User.findById(1); // Cache hit
 console.log(u1 === u2); // true
 console.log(u1); // User {id: 1, name: 'Alice'}
 
-console.log(User.findById(99)); // null
+console.log(User.findById(99)); // Cache miss + null
 ```
-- `User.cache` so only the first call hits db (expensive).
+- `User.cache`是为了findById更快, <u>不是在constructor里set</u>, 而应该在findById里, <u>在db找到后set</u>, 所以下次可以直接从cache里get, 而不用再去db找了(expensive)
 - in static method, 一般都`new this(...)`而不是`new User(...)`. 这样如果User有subclass, this会指向subclass, 而不是User
 - `fakeDB.find(({id: userId}) => userId === id)`
   - 勿忘<span class="orange">**(**</span>{ id }<span class="orange">**)**</span> => {...} 括号
@@ -5077,966 +5156,107 @@ client.request("/users"); // https://api.example.com/users (timeout=5000ms)
 ApiClient.baseUrl = "https://staging.example.com";
 client.request("/users"); // https://staging.example.com/users (timeout=5000ms), uses new baseUrl
 ```
-
-<span class="white-on-black">Instance Field and Method</span>
-
-- **Instance fields** are copied onto each object. 区别于static fields只有一份: `Range.someStaticField`
-- Instance fields are added at **construction** time (<u>before constructor body runs</u>), 要 `new` init才会执行. 区别于static property/block, 它们are added at class <span class="orange bold">evaluation</span> time.
-
-	Ex5.1 注意log顺序
-	
-	```javascript
-	class MyClass {
-	    static f1 = console.log(`static f1 called`);
-	    static {
-			console.log(this); // class MyClass, class constructor (MyClass itself)
-			console.log(`static block #1 called`);
-	    }
-	    static f2 = console.log(`static f2 called`);
-	    static {
-			console.log(`static block #2 called`);
-	    }
-	    static f() {
-			console.log(`static method f called`)
-	    }
-	    constructor() {
-			console.log(this); // MyClass instance under construction
-			console.log(`constructor called`);
-	    }
-	    instanceProp1 = console.log(`instanceProp1 called`);
-	    instanceProp2 = "instance prop 2";
-	}
-	/**
-	 * 在不new MyClass()的情况下, 会有如下log in order
-	 * static f1 called
-	 * static block #1 called
-	 * static f2 called
-	 * static block #2 called
-	 */
-		
-	const myClass = new MyClass();
-	/**
-	 * new MyClass()之后会有如下log in order
-	 * instanceProp1 called
-	 * constructor called
-	 */
-	console.log(myClass.instanceProp2); // instance prop 2
-	MyClass.f2; // undefined, 因为static f2没有return
-	MyClass.f(); // static method f called. 区别于f2是var, 没有log
-	```
-	
-	- 注意所有static prop/block出现在class evaluation time, 不需要`new` init
-	- static method f() 无论有没有init都不会进, 除非直接call MyClass.f(). 区别于MyClass.f2是var, 没有log. MyClass.f()是有log的.
-	- instance properties are added at construction time, 出现在`new` init之后, constructor前
-	- 注意<b>static</b>的<span class="orange">`this`</span>是class constructor MyClass itself, 是class本身. 区别于constructor/instance method的<span class="orange">`this`</span>是class的instance under construction.
-	
-- <b>Prototype Method</b> (Getter, Setter, and other Method)
-	
-	Ex1 Range的`includes(x)`, `toString()`是prototype methods: `r.toString()`. 区别于static method是针对class本身: `Range.someStaticMethod()`
-	
-	Ex5.2
-	
-	```javascript
-	class ClassWithGetSet {
-	    #msg = "private msg"; // private instance property
-	
-	    // msg和#msg是不同的properties
-	    get msg() {
-	        return `get ${this.#msg} from getter`;
-	    }
-	    set msg(txt) {
-	        this.#msg = txt;
-	    }
-		// getter without setter: test只能get 无法被set
-        get test() {
-            return `getter test`;
-        }
-	    toString() { // prototype method
-	        return `msg = ${this.#msg}`; // 只要在class里就可以access private property
-	    }
-	}
-	const msgClass = new ClassWithGetSet();
-	// console.log(msgClass.#msg); // SyntaxError. class外无法access private property
-	console.log(msgClass.msg); // get private msg from getter
-	msgClass.msg = "updated msg";
-	console.log(msgClass.msg); // get updated msg from getter
-	console.log(msgClass.toString()); // msg = updated msg
-
-	console.log(msgClass.test); // getter test
-    msgClass.test = "setter test";
-    console.log(msgClass.test); // getter test. 注意test没变, 因为test没有setter, 所以test是个read only, 上句没能赋值
-	```
-
-	- 注意上面private property `#msg` is ONLY accessible inside class body
-	- 上面的`#msg`和`msg`是两个不同的properties
-	- 注意<span class="orange">只有getter没有setter</span>的`test`, test是<span class="orange">read only</span>, 无法赋值 (赋值不报错,但是没用)
-
-<span class="white-on-black">Static Property and Method</span>
-
-Static members (properties and methods) are called <u>without</u> instantiating their class and <u>cannot be called through a class instance</u>.
-
-<u>Static methods</u> are often used to create <u>utility functions</u> (eg: 用来sort的`Article.compare`, database related `Article.delete({ id: 123 }`)) or a <u>factory method</u> (eg: `Article.createToday()`) for an application or <u>database related operation</u> (search/save/delete entires form db), whereas <u>static properties</u> are useful for caches, fixed-configuration, or any other data you <u>don't need to be replicated across instances</u>.
-
-Ex6.1
-
-```javascript
-class Article {
-	constructor(name, date) {
-		this.name = name;
-		this.date = date;
-	}
-	static publisher = "O\"Reilly";
-	static compare(article1, article2) {
-		return article1.date - article2.date;
-	}
-	static createToday() { // factory method
-		return new this("Today\"s Digest", new Date()); // 注意这里用的this, 等同于new Article. static里的this是class本身
-	}
-}
-let articles = [
-	new Article("A1", new Date(2022, 5, 1)),
-	new Article("A2", new Date(2022, 1, 1)),
-	new Article("A3", new Date(2022, 9, 1))
-];
-
-articles.sort(Article.compare); // 注意是Article.compare, 用class call
-const sorted = articles.reduce((prev, cur) => {
-	prev.push(cur.name);
-	return prev; // 勿忘return prev, 否则push返回的是arry的长度, 第二轮的prev就变成了length
-}, []);
-console.log(sorted); // ["A2", "A1", "A3"]
+- static field是可以在class外改的: `ApiClient.baseUrl="https://fasdfa"`;
  
-console.log(JSON.stringify(Article.createToday())); // {"name":"Today"s Digest","date":"2022-05-25T22:23:32.860Z"}
-console.log(Article.publisher); // O"Reilly
-```
-
-- 上面`Article.compare`是static method, 用于sort: <span class="underline-orange">`articles.sort(Article.compare)`</span>. It"s not a method of an article, but rather of the whole class. 而且是articles.sort, 不是Article.sort.
-- 注意`reduce`的用法, 要return prev. 因为push返回的是length.
-- `Article.createToday()`是一个<u>factory method</u>. It's not a method of an article, but a method of the whole class.
-- `static createToday()`里用的是<span class="underline-orange">`new this(...)`</span>, `this`就是class本身Article.
-- Static methods are also used in database-related classes to search/save/remove entries from the database, like this:
-
-	```javascript
-	Article.remove({ id: 12345 });
-	```
-- `Article.publisher`只有一份copy, 区别于instance prop.
-
-Ex6.2 Static properties / methods are inherited
+#### <a name="87-funcbind" id="87-funcbind">8.7 `func.bind()`</a>
 
 ```javascript
-class Animal {
-	static category = "Animal"; // 不用放在constructor里, static, 一个class一份就够了
-	static planet = "Earth";
-		
-	constructor(name, speed) {
-		this.name = name;
-		this.speed = speed;
-	}
-		
-	run(speed = 0) {
-		this.speed += speed;
-		return `${this.name} runs at speed ${this.speed}`;
-	}
-		
-	static compare(a1, a2) {
-		return a1.speed - a2.speed;
-	}
-}
-class Rabbit extends Animal {
-	hide() {
-		return `${this.name} hides!`;
-	}
-	static category = "Rabbit";
-}
-let rabbits = [
-	new Rabbit("White Rabbit",  10),
-	new Rabbit("Black Rabbit", 5)
-];
-console.log(Rabbit.planet); // Earth. static prop inherited from Animal
-console.log(Rabbit.category); // Rabbit.
-
-rabbits.sort(Rabbit.compare); // static method inherited from Animal
-sorted = rabbits.reduce((prev, cur) => {
-	prev.push(cur.name);
-	return prev;
-}, []);
-console.log(sorted); // ["Black Rabbit", "White Rabbit"]
-
-// instance method inheritance
-console.log(rabbits[0].run()); // Black Rabbit runs at speed 5. 注意rabbits经过sort本身的arry改了
-```
-
-- 注意<span class="underline-orange">category和planet都是static prop, 一个class一份. 不用放在constructor里</span>, 否则就是每个obj都有自己的copy了
-- static property (Rabbit.planet) 和method (Rabbit.compare) 都可以inherit
-- static的inheritance也是follow chain (Rabbit.category)
-- `sort`会改变本身的rabbits array
-
-<span class="white-on-black">Public Fields and Methods</span>
-
-Public Fileds包括public <u>instance</u> properties 和 public <u>static</u> properties.
-
-Public Methods包括public <u>instance</u> methods 和 public <u>static</u> methods.
-
-Ex7.
-
-```javascript
-class Rect {
-    width; // 这跟写在constructor里this.width一样, 只是提前declare，可以此时init
-    height = 0;
-    heightCopy = this.height; // this是Rect instance, 不能写成heightCopy=height!! 只有定义等号左边可以省略this
-
-    arry = [];
-    arryCopy = this.arry;
-
-    heightArry = [];
-    heightArryCopy = this.heightArry;
-
-    static category = "Rect";
-    static categoryCopy = this.category; // this是Rect constructor, 最好用Rect.category
-
-    #privateWidth;
-
-    constructor(width, height, arry) {
-        this.width = width;
-        this.height = height; // 在没有=height之前, this.height=0
-        this.arry = arry;
-
-        this.heightArry.push(height);
-
-        this.#privateWidth = width;
-        // delete this.#privateWidth; // syntax error, can NOT delete private fields
-
-        // #privateheight; // private props不能在constructor里declare
-        // this.#privateHeight = height; // syntax error, #privateHeight之前没定义, can NOT use private fields before declared
-    }
-}
-const r1 = new Rect();
-/**
- * 1. 注意height是undefined但是heightCopy是0, 因为他们是primitive. 
- * heightCopy只是用height做了初始值, 后面height发生了什么和heightCopy无关. 所以虽然height变成了undefined, 但是heightCopy依然保留了初始值
- * 2. 注意heightCopy VS arryCopy
- * 虽然arryCopy是ref, 但是constructor里相当于是把this.arry指向了别的地址, 而arryCopy依然指向原来的地址[]
- * 所以虽然arry变成了undefined, 但是arryCopy没有跟着arry变, arryCopy依然是初始值
- * 3. 注意arryCopy VS heightArryCopy
- * heightArry在constructor里并没有像arry一样被重新赋值, 所以heightArry和heightArryCopy依然指向同一个地址
- * 所以heightArryCopy随着heightArry变而变
- */
-console.log(r1.width, r1.height, r1.heightCopy) // undefined undefined 0
-console.log(r1.arry, r1.arryCopy); // undefined []
-console.log(r1.heightArry, r1.heightArryCopy); // [undefined] [undefined]
-console.log(Rect.categoryCopy); // Rect
-
-const r2 = new Rect(5, 10, [1,2]);
-console.log(r2.width, r2.height, r2.heightCopy); // 5 10 0, 注意heightCopy依然是初始值0, 因为后面没有对他再赋值了
-console.log(r2.arry, r2.arryCopy) // [1,2] [], 注意arryCopy依然是[]
-console.log(r2.heightArry, r2.heightArryCopy); // [10] [10]
-
-// console.log(r.#privateWidth); // syntax error, can NOT be referred outside class body
-```
-
-- 注意instance property可以在constructor<b>外</b>先declare/init然后在constructor<b>里</b>再init (width, height), 也可以只在constructor<b>外</b>declare/init (heightCopy)
-- By declaring fields up-front, 可以先赋初始值 (height = 0).
-- 写在最前面的<u>width/height/heightCopy没有const/let是因为他们是this.width/this.height/this.heightCopy</u>, 只是this.省略了
-- 注意在外面declare的时候`heightCopy = this.height`, <span class="orange">`this`不能省略</span>. 不能写成<s>heightCopy=height</s>, 只有定义等号左边可以省略this
-- 注意static的`this`和instance的`this`: 
-	- `static categoryCopy = this.category`的`this`是Rect constructor. 最好不要用`this` access static, 用class access: `static categoryCopy = Rect.category`. 见Ex8.2
-	- `heightCopy = this.height`的`this`是Rect instance
-- 注意private property
-	- private property必须<span class="orange">先declare再用, 而且declare不能在constructor里</span>，必须在constructor外: <s>`this.#privateHeight = height; // syntax error`</s>
-	- private property<span class="orange">不能delete</span>: <s>`delete this.#privateWidth; // syntax error`</s>.
-	- private property只能accessible inside class, 出了class就不能用了 <s>`r.#privateWidth; // syntax error`</s>
-- new Rect()后, 进入constructor里, 在this.height赋值=height之前, this.height等于初始值0. 只是因为new Rect()时没有传入width和height, height是undefined, 所以r.height才是undefined
-- 注意<span class="underline-orange">`r1.height`是undefined但是`r1.heightCopy`是0</span>, 因为他们是primitive. heightCopy只是用height做了初始值, 后面height发生了什么和heightCopy无关. 所以虽然height变成了undefined, 但是heightCopy依然保留了初始值. 同理`r2.heightCopy`也没有随着`r2.height`变化, 依然是0.
-- 注意<span class="underline-orange">`r1.heightCopy` VS `r1.arryCopy`</span>: 虽然arryCopy是ref, 但是constructor里相当于是把this.arry指向了别的地址, 而arryCopy依然指向原来的地址[], 所以虽然arry变成了undefined, 但是arryCopy没有跟着arry变, arryCopy依然是初始值[]
-- 注意<span class="underline-orange">`r1.arryCopy` VS `r1.heightArryCopy`</span>: heightArry在constructor里并没有像arry一样被重新赋值, 所以heightArry和heightArryCopy依然指向同一个地址, 所以heightArryCopy随着heightArry变而变
-
-<span class="white-on-black">Private Fields and Methods</span>
-
-Private Fields包括private <u>instance</u> properties 和 private <u>static</u> properties.
-
-Private Methods包括private <u>instance</u> methods 和 private <u>static</u> methods.
-
-Private Fields and Methods are declared using a hash `#` prefix.
-
-Private Fields/Methods是没有inherit的
-
-Ex8.1
-
-```javascript
-class BaseWithPrivateField {
-	#privateField;
-	
-	constructor() {
-		this.#privateField = 42;
-		delete this.#privateField;   // syntax error, can NOT delete private fields
-		this.#undeclaredField = 444; // syntax error, can NOT use private fields before declared
-	}
-}
-const instance = new BaseWithPrivateField()
-instance.#privateField === 42;   // syntax error, can NOT be referred outside class body
+func.bind(thisArg, arg1, arg2, ..., argN)
 ```
 	
-- Private fields can <u>ONLY be declared up-front</u> in a field declaration: `this.#undeclaredField = 444; // syntax error`. 区别于public fields: 之前的Rect的width/height, 即使不先declare也可以在constructor里直接赋值`this.width=width`
-- Private fields不能`delete`: `delete this.#privateField; // syntax error `
-- Private fields ONLY accessible inside class body
-
-Ex8.2 注意static property and methods, 特别是在subclass里access baseclass的static property时
-	
-```javascript
-class BaseWithPrivateField {
-    #privateField;
-    static #privateStatic = 12;
-    static publicStatic = 22;
-    constructor() {
-        this.#privateField = 42;
-
-        /**
-         * 区别于前面declare的 static #privateStatic
-         * 因为用的this, 所以和前面不是一个var, 虽然名字一样, static要用ClassName.static
-         * 这里this.#privateStatic是一个private instance prop, 前面没有declare, 所以ERROR
-         * 除非前面有 #privateStatic;
-         * 
-         * 同理下面的publicStatic和前面的static publicStatic不是一个var
-         * base.publicStatic=40 VS BaseWithPrivateField.publicStatic
-         */
-        // this.#privateStatic = 12; // TypeError, cannot write private member #privateStatic to an object whose class did not declare it 
-        this.publicStatic = 40; // 这个和之前的static publicStatic不是一个variable, 这个是instance prop
-    }
-    static getPrivateStatic1() {
-        return this.#privateStatic; // 不能用this.#privateField, 因为是static, this是constructor, BaseClass.#privateField不存在, 只能access class的property
-    }
-    static getPrivateStatic2() {
-        return BaseWithPrivateField.#privateStatic;
-    }
-}
-class SubClass extends BaseWithPrivateField {
-    #subPrivateField;
-    constructor() {
-        super();
-        this.#subPrivateField = 23;
-    }
-    checkField() {
-        // console.log(this.#privateField); // syntax error, private fields from base class is NOT accessible from subclass
-        console.log(this.#subPrivateField); // 23
-
-        // 不能用this.getPrivateStatic(), 因为getPrivateStatic是static, 只属于class, 这里的this是class instance
-        // console.log(SubClass.getPrivateStatic1()); // syntax error, private field from base class is NOT accessible by this, even in original base class
-        console.log(SubClass.getPrivateStatic2()); // 12, 是SubClass, 不是Base
-    }
-}
-const base = new BaseWithPrivateField();
-console.log(BaseWithPrivateField.getPrivateStatic1()); // 12
-console.log(BaseWithPrivateField.getPrivateStatic2()); // 12
-
-// 区别下面两个var, 虽然名字一样
-console.log(base.publicStatic); // 40
-console.log(BaseWithPrivateField.publicStatic); // 22
-
-const sub = new SubClass();
-sub.checkField(); // 23 12
-```
-	
-- 对于static，最好用class access, 不要用`this`. 因为只有在static中`this`才是class constructor, 其余时候`this`都是class instance.
-	- constructor中<b>不能</b>用this.#privateStatic赋值, 因为前面 `static #privateStatic`是class的. 而这里this是instance, 如果这样用, 那code认为#privateStatic是一个新的private instance prop, 前面没有declare, private field要先declare才能use, 所以会报错
-	- 而且<span class="orange">static property没有必要在constructor里init</span>, 它不是每个instance一个, 是一个class一个
-	- 注意区别<span class="underline-orange">constructor里的`this.publicStatic`和constructor外的`static publicStatic`, 虽然名字一样, 但不是一个var, 用法也不一样</span>: `base.publicStatic` VS `BaseWithPrivateField.publicStatic`
-	- Subclass虽然继承了getPrivateStatic(), 但是得用class call, <b>不能</b>this.getPrivateStatic()
-	- `SubClass.getPrivateStatic2()`是用<u>SubClass call, 不是Base</u>.
-	- SubClass.getPrivateStatic1()报错, 因为subclass<b>不能</b>access private fields in its base class by using `this`, 虽然call了super(). 区别于SubClass.getPrivateStatic2()
-- static method里是无法access instance property的, 因为this不同.
-	- getPrivateStatic1()中<b>不能</b>this.#privateField, 因为getPrivateStatic1时static, 里面的this是class, 而#privateField是class instance的
-- subclass can NOT access private fields in its base class
-	- checkField()中<b>不能</b>this.#privateField
-
-Ex9.2
+Ex1.
 
 ```javascript
-class Complex {
-    #r;
-    #i;
-    constructor(real, imaginary) {
-        this.#r = real;
-        this.#i = imaginary;
-    }
-
-    // getters. c.real和c.imaginary都是read-only, 没有setter
-    get real() { return this.#r; }
-    get imaginary() { return this.#i; }
-
-    // Classes should almost always have a toString() method
-    toString() {
-        return `${this.#r} + ${this.#i}i`
-    }
-
-    equals(that) { // 注意先查that是不是complex
-        return that instanceof Complex &&
-        this.#r === that.#r && this.#i === that.#i;
-    }
-
-    plus(that) {
-        return new Complex(this.real + that.real, this.imaginary + that.imaginary); // this.#i和this.real一样, 都在class里
-    }
-    // 区别于c1.plus(c2), 对于static, 这里得用Complex.sum(c1, c2)
-    static sum(c1, c2) {
-        return c1.plus(c2); // 注意不是this.plus(...), static里的this时class本身
-    }
-
-    // factory functions
-    static ZERO = new Complex(0, 0);
-    static ONE = new Complex(1, 0);
-    static I = new Complex(0, 1);
-}
-let c1 = new Complex(2, 3);
-let c2 = new Complex(c1.imaginary, c1.real);
-console.log(c1.plus(c2).toString()); // 5 + 5i
-console.log(Complex.ZERO.toString()); // 0 + 0i
-```
-
-- 注意instance plus和static sum的区别, `Complex.sum(c1, c2)`和sum的定义<span class="underline-orange">`return c1.plus(c2)`</span>, 不是this.plus()
-- c.real / c.imaginary是read-only, 只有getter没有setter. 这两个getters是针对private fields this.#r / this.#i
-- <span class="underline-orange">每个class基本都有toString(), 大部分都有static compare()</span>, 这里有equals, 虽然equals不是static
-- 注意equals里<u>先查`that instanceof Complex`</u>, 再查相等
-- 注意factory functions used as predefined complex numbers (<u>Constants所以大写</u>): <u>`Complex.ZERO`, `Complex.ONE`, `Complex.I`</u>
-
-#### <a name="96-adding-methods-to-existing-classes" id="96-adding-methods-to-existing-classes">9.6 Adding Methods to Existing Classes</a>
-
-If the new String method `startsWith()` is not already defined
-
-```javascript
-String.prototype.startsWith = String.prototype.startsWith || function(str) {
-    return this.indexOf(str) === 0;
+this.x = 9;
+const module = {
+  x: 81,
+  getX() {
+    return this.x;
+  }
 };
-console.log("abc".startsWith("ab")); // true
+console.log(module.getX()); // 81, module.x
+
+const getXCopy = module.getX;
+console.log(getXCopy()); // 9, window.x
+
+const boundGetX = module.getX.bind(module);
+console.log(boundGetX()); // 81, module.x
 ```
+- `getX()` itself does not have `this` = module, `this` is determined at the moment the function is called: `module.getX` so `this`=module;
+- getXCopy只是extract module.getX, but is invoked at the global scope: this是window, 不再是module了
 
-#### <a name="97-subclasses" id="97-subclasses">9.7 Subclasses</a>
-
-- Subclasses in old way
-
-	Ex1. create Span as a subclass of Range
-	
-	```javascript
-	function Range(from, to) {
-	    this.from = from; this.to = to;
-	}
-	Range.prototype.toString = function() {
-	    return `[${this.from}, ${this.to}]`;
-	}
-	function Span(start, length) {
-	    if (length >= 0) {
-	        this.from = start;
-	        this.to = start + length;
-	    } else {
-	        this.from = start + length;
-	        this.to = start;
-	    }
-	}
-	Span.prototype = Object.create(Range.prototype);
-	Span.prototype.constructor = Span; // (new Span()).constrcutor指回Span, 否则指向的是Range
-	    
-	const span = new Span(5, -3);
-	console.log(span.from, span.to); // 2 5
-	console.log(span.toString()); // [2, 5], 因为前面的Span.prototype = Object.create(Range.prototype)才成立
-	```
-	
-	- Span的constructor里set the same from/to as Range, 所以用的时候和Range一样，是span.from, span.to
-	- Span是Range的subclass的关键是下面两句
-		
-		```javascript
-		// ensure Span.prototype inherits from Range.prototype
-		Span.prototype = Object.create(Range.prototype);
-		// prototype.constructor back-reference Span, 所以span.constructor才是Span
-		Span.prototype.constructor = Span;
-		```
-		
-		L2保证了Span objects will inherit from both `Span.prototype` and `Range.prototype`, <u>勿忘同时也inherit了Span.prototype</u>. 思考span.toString()是因为这句才成立的.
-
-	- 注意上面的写法只保证了Span objects will inherit Range的instance props/methods, 但是static的没有inherit. <u>There is no automatic inheriting of <b>static</b> props/methods before ES6 `extends`</u>.
-
-- <span class="border">Subclasses with <b>`extends`</b> and <b>`super`</b></span>
-
-	Ex2.1.1 subclass custom classes
-	
-	```javascript
-	class Range {
-	    constructor(from, to) {
-	        this.from = from;
-	        this.to = to;
-	    }
-	    static cat = "Range";
-	    toString() {
-	        return `[${this.from}, ${this.to}]`;
-	    }
-	}
-	class Span extends Range {
-	    constructor(start, length) {
-	        if(length >= 0) {
-	            super(start, start + length);
-	        } else {
-	            super(start + length, start);
-	        }
-	        // if there is a constructor present in the subclass, need to call super() first before using "this".
-	    }
-	    static cat = "Span";
-	    toString() {
-	        return `it's a span, start = ${this.from}, length = ${this.to - this.from}`;
-	    }
-	}
-	```
-	
-	- 注意用`extends`时, if there is a constructor present in the subclass, <span class="orange">`super()` MUST be called before you can use "this". Leaving this out will cause a reference error</span>. 如果subclass没有constructor, one will be defined automatically for you and takes whatever values are passed to it and pass to super()
-	
-	Ex2.1.2 subclass traditional function-based class
-	
-	```javascript
-	function Range(from, to) {
-		this.from = from; this.to = to;
-	}
-	class Span extends Range {
-		constructor(start, length) {
-		    ...
-		}
-		toString() { ... }
-	}
-	```
-	
-	- Any constructor that can be called with `new` (that is, <u>it has the `prototype` property</u>) can be the candidate for the parent class.
-
-	Ex2.2 subclass built-in classes
-	
-	```javascript
-	class EZArray extends Array {
-	    get first() { return this[0]; }
-	    get last() { return this[this.length-1]; }
-	}
-	// 也可以 let arry = new EZArray(1,2,3)
-	let arry = new EZArray(); // array init的一种方式, arry是一个empty arry
-	arry instanceof Array; // true
-	arry instanceof EZArray; // true
-	
-	// Array本身的methods都可以用
-	arry.push(1, 2, 3, 4); 
-	console.log(arry.pop()); // 4
-	console.log(arry[1]); // 2
-	    
-	// 自定义的first/last
-	console.log(arry.first, arry.last); // 1 3
-	
-	// Array的static methods也都inherit了
-	console.log(Array.isArray(arry)); // true
-	console.log(EZArray.isArray(arry)); // true
-	```
-	
-	- 注意Array init的方式可以`new Array()`然后push, 也可以`new Array(1,2,3)`
-	- 注意`Array.isArray()`和<span class="orange">`EZArray.isArray()`</span>的用法
-	- `extends` will <span class="orange">set prototype for both ChildClass and ChildClass.prototype</span>. 注意ParentClass的static properties的继承, 这在ES6 `extends`之前是无法自动继承的
-
-		```javascript
-		class ParentClass {}
-		class ChildClass extends ParentClass {}
-		
-		// extends做了以下两件事
-		// 1. 区别于old way的继承, extends allows inheritance of "static" properties
-		Object.getPrototypeOf(ChildClass) === ParentClass
-		// 2. 类似old way中, Span.prototype = Object.create(Range.prototype)
-		// allows inheritance of "instance" properties
-		Object.getPrototypeOf(ChildClass.prototype) === ParentClass.prototype
-		```
-	- 注意EZArray继承了Array所有的instance props/methods + <span class="orange bold">static</span> props/methods: EZArray.isArray()
-
-	Ex2.3 super class calls with `super`
-	
-	```javascript
-	class Cat {
-	    constructor(name) { this.name = name; }
-	    speak() {
-	        console.log(`${this.name} makes a noise.`);
-	    }
-	}
-	class Lion extends Cat {
-	    speak() {
-	        super.speak();
-	        console.log(`${this.name} roars.`);
-	    }
-	}
-	let l = new Lion("Fuzzy");
-	l.speak(); 
-	// Fuzzy makes a noise.
-	// Fuzzy roars.
-	```
-	
-	- use `super` to call corresponding methods of super class: 注意上面<span class="underline-orange">`super.speak()`</span> call了parentClass的speak
-
-`new.target`
-
-- 在normal function call中, `new.target` is `undefined` in functions that are invoked without the `new` keyword. 
-
-	```javascript
-	function Foo() {
-	    if(!new.target) {
-	        throw `Foo() must be called with new`; 
-	    }
-	    console.log(new.target.name);
-	}
-	try {
-	    Foo();
-	} catch (err) {
-	    console.log(err); // Foo() must be called with new
-	}
-	new Foo(); // Foo
-	```
-
-- In class constructors, `new.target` refers to the constructor that was directly invoked by `new`. This is also the case if the constructor is in a parent class and was delegated from a child constructor. A well-designed superclass should not need to know whether it has been subclassed, but it might be useful to be able to use <span class="orange">`new.target.name`</span> in logging messages, for example.
-
-	```javascript
-	class A {
-	    constructor() {
-	        console.log(new.target.name); // new.target是class A/B
-	    }
-	}
-	class B extends A {} // constructor will be generated automatically with super()
-	new A(); // A
-	new B(); // B
-	```
-
-
- 
-#### <a name="87-function-properties-methods-and-constructor" id="87-function-properties-methods-and-constructor">8.7 Function Properties, Methods, and Constructor</a>
-##### <a name="871-funclength-funcname-funcprototype" id="871-funclength-funcname-funcprototype">8.7.1 `func.length`, `func.name`, `func.prototype`</a>
-
-<span class="white-on-black">Function.length</span>
-
-- Read-only
-- <span class="orange">Returns</span> the number of parameters it <u>declares</u> in its parameter list. This number <u>excludes the rest parameter</u> and only includes parameters <u>before the first one with a default value</u>. 
-
-区别于`arguments.length` is local to a function and provides the number of arguments <u>actually</u> passed to the function.
+Ex2. Create partially applied functions
 
 ```javascript
-console.log(Function.length); // 1
+function sum(x, y) { return x + y; }
 
-function func1() {}
-console.log(func1.length); // 0
-function func2(a, b) {}
-console.log(func2.length); // 2
-
-// only includes parameters before the first one with a default value
-console.log((function(a=3){}).length); // 0
-console.log((function(a){}).length); // 1
-console.log((function(a=3, b){}).length); // 0
-console.log((function(a, b=1){}).length); // 1
-
-// rest parameter is not counted
-console.log((function(a, ...args) {}).length); // 1
+const sumOne = sum.bind(null, 1); // 1 is x
+console.log(sumOne(2)); // 3 = 1+2
 ```
+- sum.bind不需要this, thisArg是null
 
-<span class="white-on-black">Function.name</span>
-
-- Read-only
-- <span class="orange">Returns</span> the function's name as specified when it was created, or it may be either anonymous or '' (an empty string) for functions created anonymously.
+Ex3. `bind` with `setTImeout(func, delay)`
 
 ```javascript
-console.log(Function.name); // Function
-
-// function的两种定义方式
-const func2 = function() {}; // 右边是anonymous
-console.log(func2.name); // func2
-console.log((function func3() {}).name); // func3
-
-const obj = {
-    func4() {}
+const person = {
+  fName: "alice",
+  getFName() {
+    console.log(this.fName);
+  }
 };
-console.log(obj.func4.name) // func4
-
-// anonymous
-console.log((function(){}).name); // "", empty string
+setTimeout(person.getFName, 1000); // undefined, this is window 
 ```
-
-Use `obj.constructor.name` to check the "class" of an object 
-
-```javascript    
-// class
-function Foo() {} // class Foo {}
-const f = new Foo();
-console.log(f.constructor.name); // Foo
-```
-
-Be careful when using `Function.name` and source code transformations, such as those carried out by JavaScript compressors (<u>minifiers</u>). These tools are often used as part of a JavaScript build pipeline to reduce the size of a program prior to deploying it to production. <u>Such transformations often change a function's name at build-time</u>. Above might change to the following after minifying
+- `setTimeout(func, delay)`中, func的`this` is `window`, 因为实在global中执行的
+  
+✅ To fix:
 
 ```javascript
-function a() {}
-let b = new a();
-console.log(b.constructor.name); // a, 注意不是Foo了
+setTimeout(person.getFName.bind(person), 1000); // alice, 这里bind不用执行, setTimeout就是需要一个function
 ```
 
-<span class="white-on-black">Function.prototype</span>
-
-All functions, except arrow functions, have a `prototype` property that refers to an object known as the prototype object. <u>Every function
-has a <b>different</b> prototype object</u>. 即使看上去一样也不相等.
-
-##### <a name="874-5-the-funcapply-funccall-and-funcbind-methods" id="874-5-the-funcapply-funccall-and-funcbind-methods">8.7.4-5 The `func.apply()`, `func.call()` and `func.bind()` Methods</a>
-
-`apply()`和`call()`基本一样, 除了`apply` accepts <u>an array of arguments</u>, `call` accepts <u>an argument list</u>.
-
-<span class="white-on-black">Function.prototype.apply()</span>
+❌ Doesn't work
 
 ```javascript
-func.apply(thisArg, argsArray)
+const person = {
+  fName: "alice",
+  getFName: () => {
+    console.log(this.fName);
+  }
+};
+setTimeout(person.getFName, 1000); // undefined
 ```
+- **Object doesn't create scopes**, only <u>functions, modules, and blocks (for let/const) create scopes</u>.
 
-- `argsArray ` is optional, can be an array or an array-like object.
-
-基本本身要求pass进是list of arguments(一个一个的)的都可以用apply + argsArray, 同时也可以用spread operator: `...argsArray`
-
-Ex1. `Math.max`, `Math.min`
+javscript sees above like this:
 
 ```javascript
-let arry1 = [4,3,6,1];
-console.log(Math.max.apply(null, arry1)); // 6
+// Surrounding scope (global/module)
+const getFName = () => {
+  console.log(this); // captures `this` from HERE
+};
 
-// 等同于spread operator
-console.log(Math.max(...arry1)); // 6
+const person = {
+  fName: "alice",
+  getFName: getFName,
+};
 ```
+- getFName的`this`是window
 
-Ex2. `push`
+To fix:
 
 ```javascript
-let arry2 = [5,7];
-arry1.push.apply(arry1, arry2); // 这里thisArg必须是arry1, 不能是null
-console.log(arry1); // [4, 3, 6, 1, 5, 7]
-
-arry1 = [4,3,6,1]
-// 等同于spread operator
-arry1.push(...arry2);
-console.log(arry1); // [4, 3, 6, 1, 5, 7]
-
-// 区别于concat会create a new array and return
-arry1 = [4,3,6,1];
-console.log(arry1.concat(arry2)); // [4, 3, 6, 1, 5, 7], arry1不变
+const person = {
+  fName: "alice",
+  getFName() {
+    setTimeout(() => {
+      console.log(this.fName);
+    }, 1000)
+  }
+};
+person.getFName(); // alice
 ```
-
-- 注意`arry1.push.apply`的时候thisArg必须是arry1, 不是null, 区别于`Math.max.apply`
-- `concat`不会改变原arry, 会create a new array and return
-
-
-<span class="white-on-black">Function.prototype.call()</span>
-
-```javascript
-func.call(thisArg, arg1, ..., argN)
-```
-
-- `arg1, ..., argN` is optional.
-
-`call()`的用法
-
-- `Array.prototype.slice.call(arguments)` 等同于 `Array.from(arguments)`
-- Using call() to chain constructors for an object
-
-	Ex1.
-	
-	```javascript
-	function Product(name, price) {
-	    this.name = name;
-	    this.price = price;
-	}
-	function Toy(name, price) {
-	    Product.call(this, name, price);
-	    this.category = "toy";
-	}
-	function Food(name, price) {
-	    Product.call(this, name, price);
-	    this.category = "food";
-	}
-	const fun = new Toy("robot", 40);
-	const cheese = new Food("feta", 5);
-	console.log(fun.name, fun.price, fun.category); // robot 40 toy
-	console.log(cheese.name, cheese.price, cheese.category); // feta 5 food
-	```
-	
-- Using call() to invoke an anonymous function
-
-	Ex2. 
-	
-	```javascript
-	const animals = [
-	    { species: "Lion", name: "King"},
-	    { species: "Whale", name: "Fail"}
-	];
-	for(var i=0, size=animals.length; i<size; ++i) {
-	    (function(i) { // 不传入i也可以 会向上到for loop找到i
-	        this.print = function() {
-	            console.log(`#${i} ${this.species}: ${this.name}`);
-	        };
-	        this.print();
-	    }).call(animals[i], i); // 如果用bind要bind(animals[i], i)()才会执行
-	}
-	// #0 Lion: King
-	// #1 Whale: Fail
-	```
-	
-	- 区别call和bind, bind勿忘执行的<span class="orange">()</span>
-
-<span class="white-on-black">Function.prototype.bind()</span>
-
-```javascript
-func.bind(thisArg, arg1, ..., argN)
-```
-
-- `arg1, ..., argN` is optional.
-- <span class="orange">Returns</span> <u>a new function</u>.
-
-<div class="border">
-Unlike the call() and apply() methods, the bind() method <u>doesn’t immediately execute the function</u>. It just returns a new version of the function whose this sets to thisArg argument. bind必须要加func.bind(ctx, arguments)<span class="orange">()</span>才执行.
-</div>
-
-`bind()`的用法
-
-- Creating a bound function, no matter how it is called, is called with a particular this value.
-	
-	Ex1.1
-	
-	```javascript
-	this.x = 9;
-	const module = {
-	    x: 81,
-	    getX() {
-	        return this.x;
-	    }
-	};
-	console.log(module.getX()); // 81
-	
-	const retrieveX = module.getX;
-	console.log(retrieveX()); // 9, the function gets invoked at the global scope, returns window.x
-	
-	const boundGetX = retrieveX.bind(module);
-	console.log(boundGetX()); // 81
-	```
-	- module.getX()返回的是module.x, 不是this.x
-	- 注意retrieveX只是extract the method from object, but is invoked at the global scope: this是window, 不再是module了
-
-	Ex1.2
-	
-	```javascript
-	function f(y) {
-	    return this.x + y;
-	}
-	let o = { x: 1 };
-	let g = f.bind(o);
-	console.log(g(2)); // o.x+2=3 其实就是f.bind(o)(2)
-	
-	let p = { x: 10, g };
-	console.log(p.g(2)); // 还是o.x+2=3, g is still bound to o, not p
-	```
-	
-	- g一直bound to o, 即使作为p.g
-
-	Ex1.3
-	
-	```javascript
-	const monica = {
-	    name: "Monica Geller",
-	    total: 400,
-	    deductFee(fee) {
-	       this.total -= fee;
-	       return `${this.name} remaining balance is ${this.total}`; 
-	    }
-	  }
-	console.log(monica.deductFee(10)); // Monica Geller remaining balance is 390
-	
-	const rachel = { name: "Rachel Green", total: 1500 };
-	/**
-	 * 1. 注意deductFee处没有括号 是一个function
-	 * 2. bind后面没有括号 rachelDeductor依然是一个funciton
-	 * 3. 可以bind时就传进了fee, 也可以rd = monica.deductFee.bind(rachel); rd(200);
-	 */
-	const rachelDeductorBind = monica.deductFee.bind(rachel, 200); 
-	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1300
-	console.log(rachelDeductorBind()); // Rachel Green remaining balance is 1100
-	
-	// 也可以这么写
-	console.log(monica.deductFee.bind(rachel)(200)); // Rachel Green remaining balance is 1300
-	
-	/**
-	 * 也可以用apply和call
-	 * 1. apply和call都是直接出结果, 只有bind需要()代表执行
-	 * 2. apply的args必须用[]传进去, 即使只有一个arg
-	 */
-	console.log(monica.deductFee.apply(rachel, [200])); // Rachel Green remaining balance is 900
-	console.log(monica.deductFee.call(rachel, 200)); // Rachel Green remaining balance is 700
-	```
-
-- Create partially applied functions: <b>Currying</b>: make a function with pre-specified initial arguments
-
-	Ex1.
-	
-	```javascript
-	let sum = (x, y) => x+y;
-	let sumOne = sum.bind(null, 1); // bind the first argument to 1
-	console.log(sumOne(2)); // 1+2=3, x is bound to 1,and we pass 2 for y
-	console.log(sumOne.name); // bound sum
-		
-	function f2(y, z) {
-	    return this.x + y + z;
-	}
-	let g2 = f2.bind({ x: 1 }, 2); // bind this and y
-	console.log(g2(3)); // 1+2+3=6
-	```
-	
-	- 取决于本身的function需不需要this, 注意上面两种bind, sumOne的thisArg是null, g2的thisArg是一个object.
-	- 注意上面`sumOne.name`, 对于bind的function, 它的func.name是bound + 本身func.name
-
-- `bind` with `setTImeout()`
-
-	By default within `setTimeout()`, the `this` keyword <span class="orange">will be set to the window</span> (or global) object in non-strict mode and `undefined` in strict mode. When working with class methods that require `this` to refer to class instances, you may explicitly bind `this` to the callback function, in order to maintain the instance.
-	
-	Ex1. 
-	
-	```javascript
-	let person = {
-        name: "John Doe",
-        getName() {
-            console.log(this.name);
-        }
-    };
-    setTimeout(person.getName, 1000); // undefined
-    ```
-    
-    上面`setTimeout(person.getName, 1000)`和下面是等价的, 所以this不是person
-    
-    ```javascript
-    const f = person.getName;
-    setTimeout(f, 1000);
-    ```
-    
-    To fix:
-    
-    ```javascript
-    // 法一
-    setTimeout(person.getName.bind(person), 1000); // John Doe. 这里bind不用执行, setTimeout就是需要一个function
-    
-    // 法二 This works because it gets the person from the outer scope and then calls the method getName().
-    setTimeout(function() {
-        person.getName(); // John Doe
-    }, 1000); 
-	```
-	
-	- `setTimeout(func, delay, arg1, ..., argN)`: 注意pass进的func就是function, bind不需要执行
-	- 法二work的原因是closure scope: it gets the person from the outer scope
-
-	Ex2. 
-	
-	```javascript
-	function RandomCount(min, max) { // [min, max)
-        this.count = Math.floor(Math.random() * (max - min)) + min;
-    }
-    RandomCount.prototype.delayPrint = function() {
-        setTimeout(this.print.bind(this), 1000);
-    };
-    RandomCount.prototype.print = function() {
-        console.log(`random number generated: ${this.count}`);
-    };
-    const num = new RandomCount(1,10);
-    num.delayPrint(); // after 1sec, random number generated: 3
-	```
+- greetLater() is called as `person.greetLater()`, so `this` === person.
+- The arrow function is defined inside greetLater, so it captures that same `this`.
 	
 ##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
 
