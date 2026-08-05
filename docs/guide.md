@@ -4585,19 +4585,19 @@ class MyClass {
 }
 /**
  * 在不new MyClass()的情况下, 会有如下log in order
-  * static f1 called
+  * static f1 called - print immediately during evaluation
   * class MyClass {...}
   * static block #1 called
   * static f2 called
   * static block #2 called
   * 
-  * static f()没有进
+  * static f()没有进 - 区别于f1/f2, which is a value, executed during evaluation
   */
 		
 const myClass = new MyClass();
 /**
  * new MyClass()之后会有如下log in order
- * instanceProp1 called
+ * instanceProp1 called - 和f1/f2一样, print when evaluate
  * 
  * instanceProp2只是init了, 没有log
  * 
@@ -4609,9 +4609,9 @@ console.log(MyClass.f2); // undefined, 因为static f2没有return
 MyClass.f(); // static method f called. 区别于f2是var, 没有log
 ```
 - `static f()`: 除非直接call MyClass.f(), 否则不会执行. 
-  - 区别于`static f1`, `static f2`都是var, 直接evaluate
+  - 区别于`static f1`, `static f2`都是var, executed during evaluation
   - 以及`static {}`也是直接执行
-- 注意static的`this`是class MyClass, 是class本身. 区别于constructor/instance method的`this`是class的instance under construction.
+- 注意static的`this`是class MyClass, 是class本身. 区别于constructor/instance method的`this`是MyClass的instance under construction.
 <br>
 
 - **Class evaluation** 
@@ -4626,13 +4626,13 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   ##### <u>Created during class evaluation</u>
 
-  | Category | Member | Shared? | Lives on / Behavior |
+  | Category | Member | Per Instance? | Lives on / Behavior |
   |----------|--------|:-------:|---------------------|
-  | **Static** | `static field`<br>`static method()` | ✅ | Class constructor (`Rect`) |
-  | | static private:<br> `static #field`<br>`static #method()` | ✅ | Class's internal private storage |
+  | **Static** | `static field`<br>`static method()` | ❌<br> One per Class| Class constructor (`Rect`) |
+  | | static private:<br> `static #field`<br>`static #method()` | ❌ | Class constructor (`Rect`) |
   | | `static { ... }` | N/A | Executes immediately during class evaluation |
-  | **Instance Method** | `method()` | ✅ | `Rect.prototype` |
-  | | `#method()` | ✅ | Class's internal private storage |
+  | **Instance Method** | `method()` | ❌<br> shared across instances | `Rect.prototype` |
+  | | `#method()` | ❌<br> shared across instances | but only accessible inside the class |
 
 - **Instance construction** (every `new`)
   - <u>Instance fields</u> are initialized **before** the constructor body.
@@ -4665,7 +4665,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   | Member | Example | Per instance? |
   |--------|---------|:-------------:|
-  | Instance fields | **Public:**`width`, `name = "Rect"`<br>**Private:**`#width`, `#name = "Rect"` | ✅ |
+  | Instance fields | **Public:** `width`, `name = "Rect"`<br>**Private:** `#width`, `#name = "Rect"` | ✅ |
   | **Arrow function field** | `handleClick = () => {}`<br><br>**Note:** An arrow function is **NOT** an instance method. It's an <u>instance field whose value is a function</u>, so a **new function per instance**. | ✅ |
 
   Ex1. `evt.target` VS `this`
@@ -4743,7 +4743,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     handleClick() { console.log(this.width); } //如果没有前面的bind, 这里的this是button
   }
   ```
-  - arrow function的`this`是where it's defined, 就是rect
+  - arrow function的`this`是where it's defined - during instance construction time - rect
   - 如果用handleClick没有constructor里的`bind`, `this`是button, 不是rect
   - this.handleClick.bind是在constructor里, 不是mount!
 
@@ -4758,10 +4758,10 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   | Member | `this` |
   |--------|--------|
-  | Regular method <br> (object / class) | Determined by the caller <br> (Regular method does **NOT** have `this`) |
-  | Static method (class) | Refers to the class (`Rect`) |
-  | Arrow function | Defined by surrounding lexical scope when the arrow is created
-  | | └─ Inside a regular method → `this` is the method's `this` |
+  | **Regular method** <br> (object / class) | Determined by the caller <br> (Regular method does **NOT** have `this`) |
+  | **Static method** (class) | Refers to the class (`Rect`) |
+  | **Arrow function** | Defined by surrounding lexical scope when the arrow is created
+  | | └─ Inside a regular method → `this` is the method's `this`, determined by **caller**. |
   | | └─ Class instance field → `this` is class instance - captures `this` during instance construction |
 
   Ex1.1 Normal instance method ❌
@@ -4786,6 +4786,8 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     - `rect.getWidth()` will set `this` to rect in `getWidth`
     - after `fn` points to rect.getWidth, the <u>caller rect is lost when invoke</u>, so `this` is undefined.
       - it <u>crashes the whole app (TypeError)</u>
+  
+  <br>
 
   Ex1.2 Arrow function field ✅
 
@@ -4810,8 +4812,10 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   arrow(); // 2
   ```
   - Arrow function `this` is determined by surroundinng lexical scope when it's created. 
-    - `handleClick` is an instance field, created during instance construction - `this` is Rect instance.
+    - `handleClick` is an instance field, created during instance construction - `this` is Rect instance - rect.
   - Each instance gets its own `handleClick` function.
+
+  <br>
 
   Ex1.3 Normal instance method + .bind(this) ✅
   ```javascript
@@ -4841,10 +4845,8 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   bindClick(); // 2
   ```
   - `bind()` returns a **new function** with `this` permanently bound.
-  - The original prototype method is still shared.
+  - The original prototype method handleClick is still shared.
   - The bound function becomes an own property of each instance, similar to an arrow function field.
-
-  <br>
 
 **<u>`Function.prototype.bind()`</u>**
 
@@ -4857,7 +4859,6 @@ Ex2.1 Bind `this`
 ```javascript
 const module = {
   x: 81,
-
   getX() {
     return this.x;
   }
@@ -4872,8 +4873,8 @@ console.log(getXCopy()); // TypeError: Cannot read properties of undefined (read
 const boundGetX = module.getX.bind(module);
 console.log(boundGetX()); // 81
 ```
-- same as Ex1.1中的getWidth， getX is a <u>regular function WO `this`</u>, `this` is determined by caller
-  - `module.getX`的getX的`this`是caller 'module'
+- same as Ex1.1中的getWidth, getX is a <u>regular function WO `this`</u>, `this` is determined by caller
+  - `module.getX()`的getX的`this`是caller 'module'
   - after `getXCopy` points to module.getX, the <u>caller 'module' is lost when invoke</u>, so `this` is undefined.
     - TypeError and <u>crash the app</u>
   - bind creates a new function with `this`=module
@@ -4919,7 +4920,7 @@ setTimeout(person.getFName, 1000); // undefined
     - only the function value of person.getFName is passed
     - caller 'person' is lost when invoke - `this` is no longer person
 -  `setTimeout(person.getFName, 1000)` VS Ex2.1的`console.log(getXCopy())`
-    - in setTimeout, person.getFName is <u>triggered by browser, `this` is `window` in browser env</u>
+    - in setTimeout, person.getFName is <u>triggered by browser, `this` is `window` in browser env</u> -  `undefined`, not TypeError.
     - getXCopy is a plain function call, <u>triggered by Javacript, in strict mode, `this===undefined`</u>, 所以TypeError, cannot visit x of undefined, crash the app.
 
 ✅ To fix: with `bind()`
@@ -4941,15 +4942,14 @@ setTimeout(() => person.getFName(), 1000); // alice
 ```javascript
 // 2.3.1
 const person = {
-  name: "Alice",
-  getName: () => {
-    console.log(this.name);
+  fName: "alice",
+  getFName: () => {
+    console.log(this.fName)
   }
 };
-
-person.getName(); // undefined
+person.getFName();// undefined
 ```
-> **Objects do not create lexical scopes**.
+> **Object does NOT create lexical scopes**.
 > Only functions, modules, and blocks create lexical scopes.
 
 JavaScript is conceptually doing this:
@@ -4964,25 +4964,23 @@ const person = {
   getName,
 };
 ```
-- The arrow function captures `this` from the surrounding module/global scope, **not** from `person`. here `this` is `window`
+- The arrow function captures `this` from the surrounding module/global scope, **not** from `person`. here `this === window`
 
 ✅ To fix: using class
 
 ```javascript
 // 2.3.2
 class Person {
-  name = "Alice";
+  fName = "alice";
 
-  getName = () => {
-    console.log(this.name);
-  };
-}
-
+  getFName = () => {
+    console.log(this.fName)
+  }
+};
 const person = new Person();
-
-person.getName(); // Alice
+person.getFName(); // alice
 ```
-- The arrow is created during instance construction, where `this` is Person instance 'person'
+- The arrow is created during instance construction, where `this === person`
 
 ✅ To fix: using arrow functions inside methods
 
