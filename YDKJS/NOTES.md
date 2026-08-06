@@ -57,7 +57,7 @@
   — [x] [§9.3 class keyword](../docs/guide.md#93-classes-with-the-class-keyword) 
   — [x] [§9.4 Class Lifecycle](../docs/guide.md#94-class-lifecycle) 
   - [x] [§9.5 Class Members](../docs/guide.md#95-class-members) 
-  - [ ] [public fields](objects-classes/ch3.md#public-fields)
+  - [x] [public fields](objects-classes/ch3.md#public-fields)
   - [ ] [static](objects-classes/ch3.md#static-class-behavior)
   - [ ] [private #](objects-classes/ch3.md#private-class-behavior)
   - [4-rule this](objects-classes/ch4.md#this-is-it)

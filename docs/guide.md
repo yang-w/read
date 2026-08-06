@@ -4648,19 +4648,6 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   - <u>Run the constructor body</u>.
   - Return the instance.
 
-  Ex1.
-
-  ```javascript
-  class Rect {
-    width = 0;
-
-    constructor(width) {
-      console.log(this.width); // 0, instance field runs BEFORE constructor
-      this.width = width;
-    }
-  }
-  ```
-
   ##### <u>Created during construction</u>
 
   | Member | Example | Per instance? |
@@ -4668,6 +4655,41 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   | Instance fields | **Public:** `width`, `name = "Rect"`<br>**Private:** `#width`, `#name = "Rect"` | ✅ |
   | **Arrow function field** | `handleClick = () => {}`<br><br>**Note:** An arrow function is **NOT** an instance method. It's an <u>instance field whose value is a function</u>, so a **new function per instance**. | ✅ |
 
+  <u>**Subclass construction**</u>
+  For subclass, construction starts from **parent** class then to **subclass**.
+
+  ```javascript
+  class Rect {
+    static count = 0;
+    width = 0; height = 0;
+
+    constructor(width, height) {
+      this.width = width; this.height = height;
+      Rect.count++;
+    }
+  }
+  class FilledRect extends Rect {
+    static defaultColor = "red"; 
+    name = "Filled";
+
+    constructor(width, height, color) {
+      super(width, height); // 没有return
+      this.color = color;
+    }
+  }
+  const filledRect = new FilledRect(3, 4, "green");
+  ```
+  `const filledRect = new FilledRect(...)`顺序是
+  - Run FilledRect constructor, <u>**NOT** FilledRect instance fields</u>
+    - `super()`
+      - Rect instance fields
+      - Rect constructor 
+  - Back to FilledRect
+    - **FilledRect instance fields** (name="Filled")
+      - FilledRect instance fields are created **after** Rect super() done.
+    - Rest of FilledRect constructor (this.color=color)
+  <br>
+  
   Ex1. `evt.target` VS `this`
   ```html
   <button>
@@ -5135,6 +5157,7 @@ Ex1.2 subclass
 ```javascript
 class FilledRect extends Rect {
   static defaultColor = "red";
+  name = "Filled";
 
   constructor(width, height, color=FilledRect.defaultColor) {
     super(width, height); // 没有return
@@ -5158,23 +5181,54 @@ console.log(fr1.area()); // 12, 用的Rect.prototype.area()
 
 const fr2 = new FilledRect();
 console.log(fr2.toString()); // FilledRect(undefined x undefined), red
+
+console.log(Object.hasOwn(fr1, "width")); // true
+
+// "Inheritance" Is Sharing, Not Copying
+console.log(Object.hasOwn(fr1, "count")); // false
+console.log(Object.hasOwn(Rect, "count")); // true
+console.log(Object.hasOwn(FilledRect, "count")); // false
+
+console.log(Object.hasOwn(Rect, "createSquare")); // true
+console.log(Object.hasOwn(fr1, "createSquare")); // false
+
+console.log(Object.hasOwn(Rect.prototype, "area")); // true
+console.log(Object.hasOwn(FilledRect.prototype, "area")); // false
+console.log(Object.hasOwn(fr1, "area")); // false
+
+console.log(Object.hasOwn(fr1, "toString")); // false, 注意!!
+console.log(Object.hasOwn(FilledRect.prototype,  "toString")); // true, instance methods are shared across instance, 并不属于某个instance
 ```
-- **Instance methods** are inherited through the prototype chain. A **subclass instance** does **NOT** have its own copy of inherited methods.
+- **Subclass instance** does **NOT** have its own copy of inherited **instance methods**, unless overridden. Instance methods are inherited through the prototype chain. 
   - fr1.area()用的是Rect.prototype.area()
   - fr1.toString()虽然用的super.toString(), 但是this.contructor.name还是变成了FilledRect
-- **Static fields/methods** are inherited through the constructor (class) prototype chain. The **subclass** does **NOT** have its own copy of inherited static members, unless it overrides them.
-  - `FilledRect.count`: FilledRect没有自己的static count, it's reading from `Rect.count` - There is still only one `count`, on `Rect` - 所以<u>new FilledRect改变了Rect.count</u>
-- **Instance fields** 和上面不一样. Each **subclass instance** gets <u>its own copy</u> of the fields when `super()` runs.
+  - FilledRect虽然有toString, 但是toString是属于FilledRect.prototype的, 并不属于某个instance 
+    - `Object.hasOwn(FilledRect.prototype, "toString"); // true`
+    - `Object.hasOwn(fr1, "toString"); // false`
+    - `Object.hasOwn(Rect.prototype, "area"); // true`
+    - `Object.hasOwn(FilledRect.prototype, "area"); // false`
+    - `Object.hasOwn(fr1, "area"); // false`
+- **Subclass** does **NOT** have its own copy of inherited **static members**, unless overridden. Static fields/methods are inherited through the constructor (class) prototype chain. 
+  - `FilledRect.count`: FilledRect没有自己的static count, it's reading from `Rect.count` - There is only one `count`, on `Rect` - 所以<u>new FilledRect改变了Rect.count</u>
+  - static member属于class本身, 不属于某个instance 
+    - `Object.hasOwn(Rect, "count") // true`
+    - `Object.hasOwn(FilledRect, "count") // false`
+    - `Object.hasOwn(fr1, "count") // false`
+    - `Object.hasOwn(Rect, "createSquare")); //true`
+    - `Object.hasOwn(fr1, "createSquare") // false` 
+- Each **subclass instance** gets **its own copy** of parent <u>instance fields</u> when `super()` runs, 和上面不一样
   - when excution reaches `class FilledRect extends Rect {}`,
     - create static `defaultColor` on `FilledRect`
       - no `count` created, it resolves to `Rect.count` thru class prototype chain
   - when `const fr2 = new FilledRect()`
     - create a new instance and link it to `FilledRect.prototype`
-    - run `FillRect` constructor()
+    - run `FilledRect` constructor(), <u>**NOT** FilledRect instance fields</u> (name="filled")
       - `super(width, height)`
         - <u>initializes `Rect`'s instance fields</u> on r2 (width, height) - fr2 gets its own copy of width, height
         - run `Rect` constructor()
-      - back to `FillRect`: this.color=color
+      - back to `FilledRect`
+        - create instance field name="filled" - Rect super都run完了才create
+        - rest of FilledRect constructor (this.color=color)
     - 注意fr2.toSting()得到的是FilledRect(undefined x undefined), red
       - super(width, height)时width,height都是undefined
       - 但是FilledRect的constructor, color有defaultColor red
@@ -5188,6 +5242,7 @@ class Rect {
 class FilledRect extends Rect {}
 ```
 - JavaScript automatically inserts `constructor()` with `super()` in subclass. it's same as
+
   ```javascript
   class Rectangle {
     static count = 0;
@@ -5200,6 +5255,49 @@ class FilledRect extends Rect {}
     }
   }
   ```
+
+Ex1.4
+
+```javascript
+class Point2d {
+  x = 0;
+  y = 0;
+  constructor(x = 0, y) {
+    this.x = x; this.y = y;
+  }
+  toString() {
+    return `(${this.x}, ${this.y})`;
+  }
+}
+class Point3d extends Point2d {
+  z = this.y * 2; // by now, super(x, y) already done, 可以用this.y
+
+  constructor(x, y, z) {
+    super(x, y);
+    this.z = z;
+  }
+  
+  toString() {
+    return `${super.toString()}, z = ${this.z}`;
+  }
+}
+const p1 = new Point3d(2, 1, 3);
+console.log(p1.toString()); // (2, 1), z = 3
+const p2 = new Point3d();
+console.log(p2.toString()); // (0, undefined), z = undefined
+```
+- Point3d没有constructor, javascript会auto inject constructor() { super()}
+- 对于Point3d, when `new`
+  - run super(x, y) **first**
+    - create Point2d instance fields (x=0, y=0)
+    - Point2d constructor
+  - back to Point3d
+    - 此时才**create instance field** z=this.y*2
+      - for p1, 经过super(2,1), 此时this.x=2, this.y=1 -> z=2
+      - for p2, 经过super(), 此时this.x=0, this.y=undefined -> **this.z=NaN**
+    - rest of constructor
+      - for p1, this.z=z=3
+      - for p2, this.z=undefined
 
 Ex2. getter / setter
 
