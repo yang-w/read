@@ -5048,27 +5048,29 @@ A `class` usually has these kinds of members:
 |--------|--------------|--------|-------------|
 | **Instance fields** | During `new` (*instance construction*) | One copy per instance | Each subclass instance gets **its own copy** of inherited instance fields. |
 | **Instance methods** | During *class evaluation* | Shared by all instances | Subclasses **share parent's** methods unless overriden. |
-| ↳ **Getters / Setters**<br>`get name()`<br>`set name(val)` | Usually instance methods | Shared by all instances | Subclasses **share parent's** methods unless overriden. |
+| ↳ **Getters / Setters**<br>`get name()`<br>`set name(val)` | Used on property (public most, private rarely), **NOT instance field**<br>Usually instance methods | Shared by all instances | Subclasses **share parent's** methods unless overriden. |
 | **Static fields** | Run once during *class evaluation* | One copy per class | Subclasses **share parent's** unless overriden.  |
 | **Static methods** | Run once during *class evaluation* | One copy per class | Subclasses **share parent's** unless overriden. |
 
 Members can also be **private** by prefixing them with `#`:
 - **Private instance fields**: Belong to **each** instance, and can only be used inside the class body.
-  - <u>Private field必须**先**在class body中声明</u>, 不能直接在constructor 里首次定义
+  - <u>Private field必须**先**declare in class body</u>, 不能直接在constructor 里首次定义
   ```javascript
   class Foo {
-    #count; // 先声明
+    #count; // 先declare
     constructor() {
       this.#count = 0; // 后使用this.#count
     }
   }
   ```
-  - **Private field 不会被继承**, subclass无法访问:
+  - 和instance fields一样, each **subclass** has its **own copy of parent's private fields**
+  - 但是**Private field can NOT be accessed in subclass**:
     - ❌ `this.#baseProp`
+    - if **subclass needs access**, need <u>expose in BaseClass</u> thru public method `getBaseProp() { return this.#baseProp}` `setBaseProp(val){...}`
   - **Private field不能被删除**:
     - ❌ `delete this.#privateProp`
-- Private instance methods (not common)
-- Private static fields / methods (not common): Accessible only within the class body and belong to the class itself.
+- Private instance methods, including private `get #name() {}`/`set #name(val) {}` (not common), <u>不用先declare</u>
+- Static private fields / methods (not common): Accessible only within the class body and belong to the class itself.
 
 Ex1.1
 
@@ -5136,6 +5138,9 @@ console.log(rects); // [3,4], [10,2], [5,5]
 console.log(Rect.compareByArea(r1, r2)); // -13=12-25
 ```
 - instance field
+  - 要不要把property写成instance field取决于if it's part of every instance's structure. It <u>makes the class easier to read because the fields at the top act like a concise declaration of the object's shape</u>
+    - width, height of Rect - instance field
+    - an optional field, a temp variable used during construction or computation - not instance field
   - **<s>const</s>** width = 0; 直接写field, 没有const
 - static field `Rect.count`:
   - shared by class, 只有一个copy
@@ -5192,17 +5197,26 @@ console.log(Object.hasOwn(FilledRect, "count")); // false
 console.log(Object.hasOwn(Rect, "createSquare")); // true
 console.log(Object.hasOwn(fr1, "createSquare")); // false
 
+// instance methods are shared across instance, 并不属于某个instance
+// 是"area", 不是"area()"
 console.log(Object.hasOwn(Rect.prototype, "area")); // true
 console.log(Object.hasOwn(FilledRect.prototype, "area")); // false
 console.log(Object.hasOwn(fr1, "area")); // false
 
 console.log(Object.hasOwn(fr1, "toString")); // false, 注意!!
-console.log(Object.hasOwn(FilledRect.prototype,  "toString")); // true, instance methods are shared across instance, 并不属于某个instance
+// 区别于area, FilledRect没有override area, 所以FilledRect.prototype没有自己的area
+console.log(Object.hasOwn(FilledRect.prototype, "toString")); // true
+console.log(Object.hasOwn(Rect.prototype, "toString")); // true
 ```
+> 只有**instance fields (public+private)**, subclass会有自己的copy
+> 其他都是inherit: **Inheritance Is Sharing, Not Copying**
+> - inherited **instance methods**, no copy, unless overriden
+> - inherited **static members** fields / methods, no copy, unless overriden
 - **Subclass instance** does **NOT** have its own copy of inherited **instance methods**, unless overridden. Instance methods are inherited through the prototype chain. 
+  - 即使overridden, 也是属于FilledRect.prototype, 而不是instance本身
   - fr1.area()用的是Rect.prototype.area()
   - fr1.toString()虽然用的super.toString(), 但是this.contructor.name还是变成了FilledRect
-  - FilledRect虽然有toString, 但是toString是属于FilledRect.prototype的, 并不属于某个instance 
+  - FilledRect虽然override了toString, 但是toString是属于FilledRect.prototype的, 并不属于某个instance 
     - `Object.hasOwn(FilledRect.prototype, "toString"); // true`
     - `Object.hasOwn(fr1, "toString"); // false`
     - `Object.hasOwn(Rect.prototype, "area"); // true`
@@ -5218,11 +5232,12 @@ console.log(Object.hasOwn(FilledRect.prototype,  "toString")); // true, instance
     - `Object.hasOwn(fr1, "createSquare") // false` 
 - Each **subclass instance** gets **its own copy** of parent <u>instance fields</u> when `super()` runs, 和上面不一样
   - when excution reaches `class FilledRect extends Rect {}`,
-    - create static `defaultColor` on `FilledRect`
+    - create static members: `defaultColor` on `FilledRect`
       - no `count` created, it resolves to `Rect.count` thru class prototype chain
+    - create its own instance methods if any
   - when `const fr2 = new FilledRect()`
     - create a new instance and link it to `FilledRect.prototype`
-    - run `FilledRect` constructor(), <u>**NOT** FilledRect instance fields</u> (name="filled")
+    - run `FilledRect` constructor()的super(), <u>**NOT** FilledRect instance fields</u> (name="filled")
       - `super(width, height)`
         - <u>initializes `Rect`'s instance fields</u> on r2 (width, height) - fr2 gets its own copy of width, height
         - run `Rect` constructor()
@@ -5299,6 +5314,33 @@ console.log(p2.toString()); // (0, undefined), z = undefined
       - for p1, this.z=z=3
       - for p2, this.z=undefined
 
+Ex1.5 when to use `super`
+
+```javascript
+class Point2d {
+  getID() {
+    return "2d";
+  }
+}
+class Point3d extends Point2d {
+  getID() {
+    return "3d";
+  }
+  print1() {
+    console.log(this.getID());
+  }
+  print2() {
+    console.log(super.getID()); // shouldn't use super here.
+  }
+}
+const p = new Point3d();
+p.print1(); // 3d
+p.print2(); // 2d
+```
+- use `super.someFunc` only when <u>overriding a method and want to reuse the parent's implementation</u>
+  - eg: FilledRect.toString()
+  - 如果不是override, 用`this.someFunc`, 即使subclass没有, 也可以通过prototype chain读到
+
 Ex2. getter / setter
 
 ```javascript
@@ -5310,21 +5352,21 @@ class User {
   }
 
   get name() {
-    return this.#name;
+    return this.#name; // name getter won't be called
   }
 
   set name(value) {
-    const val = value.trim();
+    value = value.trim(); // 可以用value=value, value不是const, 是local var, 可以覆盖
 
-    if (!val) {
+    if (!value) {
       throw new Error("Name cannot be empty.");
     }
 
-    this.#name = val; // name setter won't be called
+    this.#name = value; // name setter won't be called
   }
 
   get displayName() {
-    return this.#name.toUpperCase();
+    return this.#name.toUpperCase(); // name getter won't be called
   }
 }
 
@@ -5343,6 +5385,37 @@ console.log(u1.name); // Bob
 const u2 = new User("  "); // Uncaught Error: Name cannot be empty.
 console.log("end"); // 没有走到这一步!
 ```
+- 对于property, 它可以either是instance field, or是getter/setter (function name)
+  
+  ```javascript
+  class A {
+    x = 0;
+    set x(v) {}   // ❌ SyntaxError, x不能既是instance field, 又是function name
+  }
+  class B {
+    #x = 0;
+    constructor(x) { 
+      this.x = x; // setter called, x是property
+    }
+    set x(val) {} // ✅ #x和x不一样
+  }
+  ```
+- `getter`/`setter`既可用于public prop (common), 也可用于private prop (rarely)
+
+  ```javascript
+  class Person {
+    #name = ""; // #name是instance field, 要先declare后面才能用this.#name
+
+    get #upperName() { // no need decalre #upperName outisde or in constructor 
+        return this.#name.toUpperCase();
+    }
+    set #upperName(value) {
+        this.#name = value.trim();
+    }
+  }
+  ```
+  - 区别于private instance field要declare before use. <u>private getter/setter是instance method, 不需要declare</u>
+  - private getter/setter很少用到, 因为无法在class外visit
 - `getter`/`setter`用于当value needs logic, eg: validation, computed values, etc
 - private field `#name`用于当需要hide internal implementation
 - <span class="underline-orange">constructor里是 **`this.name`** = value, 不是this.#name</span>
@@ -5373,6 +5446,7 @@ Ex3. static method用于cache
 
 ```javascript
 class User {
+  // 不需要private, 如果有subclass, 也可以用
   static cache = new Map(); // User.cache
 
   constructor(id, name) {
@@ -5423,6 +5497,8 @@ console.log(u1); // User {id: 1, name: 'Alice'}
 
 console.log(User.findById(99)); // Cache miss + null
 ```
+- `cache`和`findById`都是static, 都是class level, 和individual instance没有关心
+- `cache`不需要private, subclass也可以用
 - `User.cache`是为了findById更快, <u>不是在constructor里set</u>, 而应该在findById里, <u>在db找到后set</u>, 所以下次可以直接从cache里get, 而不用再去db找了(expensive)
 - in static method, 一般都`new this(...)`而不是`new User(...)`. 这样如果User有subclass, this会指向subclass, 而不是User
 - `fakeDB.find(({id: userId}) => userId === id)`
@@ -5454,6 +5530,160 @@ ApiClient.baseUrl = "https://staging.example.com";
 client.request("/users"); // https://staging.example.com/users (timeout=5000ms), uses new baseUrl
 ```
 - static field是可以在class外改的: `ApiClient.baseUrl="https://fasdfa"`;
+
+Ex5.
+
+```javascript
+class CalendarItem {
+  static #count = 0; // count必须static, 所以用来做id, 勿论new那一个subclass, count+1
+  // #count是private, in case it's used outside class body as CalendarItem.count=100, messed up with id
+
+  #id;
+  #complete = false; // private instance field
+  // subclass有自己的copy, 但是不能reminder.#id or this.#id in Reminder class body
+  // 但是可以通过inherited CalendarItem的public instance method 
+  // isComplete()/markComplete()visit和update
+
+  constructor() {
+    // 不要用new.target.name === "CalendarItem": 
+    // in case class name changed after minification
+    // 不能用new.target.name === this.constructor.name: 
+    // new Remindar(), this.constructor.name = Remindar, 但我们要check against CalendarItem
+    if (new.target === CalendarItem) {
+      throw new Error("CalendarItem is abstract and cannot be instantiated directly.");
+    }
+
+    CalendarItem.#count++;
+    this.#id = CalendarItem.#count;
+  }
+
+  getID() {
+    return this.#id;
+  }
+
+  getTimeString(dateTime) {
+    if (dateTime instanceof Date) {
+      return dateTime.toUTCString();
+    } 
+    return "No date or date not valid";
+  }
+
+  // 如果写成get #complete(){}, class body外无法得到是否complete
+  isComplete() {
+    return this.#complete;
+  }
+  markComplete() {
+    this.#complete = true;
+  }
+
+  summary() {
+    if (this.isComplete()) {
+      return `${this.constructor.name}: ${this.getID()} complete.`;
+    }
+    throw new Error("Subclasses must implement summary().");
+  }
+}
+class Reminder extends CalendarItem {
+  desc = "";
+  startDateTime = null;
+
+  constructor(desc, startDateTime) {
+    super();
+    this.desc = desc;
+    this.startDateTime = startDateTime;
+  }
+
+  summary() {
+    // 不能直接this.#complete, subclass不能直接访问parent的private field
+    if (this.isComplete()) {
+      return super.summary(); // 勿忘return
+    }
+    // this.constructor.name will change after minification
+    // Reminder有从CalendarItem得到的#id, 但是无法直接访问
+    // 和#complete一样, 必须用this.getID()访问
+    return `${this.constructor.name}: ${this.getID()}: ${this.desc} at ${this.getTimeString(this.startDateTime)}`
+  }
+}
+
+class Meeting extends CalendarItem {
+  desc = "";
+  startDateTime = null;
+  endDateTime = null;
+
+  constructor(desc, startDateTime, endDateTime) {
+    super();
+    this.desc = desc;
+    this.startDateTime = startDateTime;
+    this.endDateTime = endDateTime;
+  }
+  summary() {
+    if (this.isComplete()) {
+      return super.summary();
+    }
+    return `${this.constructor.name}: ${this.getID()}: ${this.desc} from ${this.getTimeString(this.startDateTime)} to ${this.getTimeString(this.endDateTime)}`;
+  }
+}
+
+const callMyParents = new Reminder(
+  "Call my parents",
+  new Date() // Sun Aug 09 2026 15:10:18 GMT-0700 (Pacific Daylight Time)
+);
+console.log(callMyParents.summary()); // Reminder: 1: Call my parents at Sun, 09 Aug 2026 22:12:22 GMT
+callMyParents.markComplete();
+console.log(callMyParents.summary()); // Reminder: 1 complete.
+
+const interview = new Meeting(
+  "Job Interview: ABC Tech",
+  new Date("2026-05-24T11:00:00Z"),
+  new Date("2026-05-24T12:00:00Z")
+);
+console.log(interview.summary()); // Meeting: 2: Job Interview: ABC Tech from Sun, 24 May 2026 11:00:00 GMT to Sun, 24 May 2026 12:00:00 GMT
+interview.markComplete();
+console.log(interview.summary()); // Meeting: 2 complete.
+
+console.log(callMyParents instanceof Reminder); // true
+console.log(callMyParents instanceof CalendarItem); // true
+console.log(interview instanceof Meeting); // true
+```
+- **`new.target`** returns constructor function
+
+  ```javascript
+  new.target === CalendarItem
+
+  // similar to
+  const obj1 = { a: 1 };
+  const obj2 = obj1;
+  obj1 === obj2;
+  ```
+  - `new.target`和`calendarItem`类似于obj1和obj2, 比的是refer to的function
+  - 不能用`new.target.name === "CalendarItem"`
+    - code minify后, className变成class A {...}, failed
+  - 不能用`new.target.name === this.constructor.name`
+    - `new Reminder(...)`, this.constructor.name=Reminder, 而我们要check against的是CalendarItem
+- `static #count=0`
+  - 必须static: inherited, new subclass的时候count+1, 才能做id
+  - 必须**#count**: in case outside class, `CalendarItem.count=100`, messed up with id
+- CalendarItem的`#id`, `#complete`
+  - 虽然是CalendarItem的private field, 但是each subclass instance (reminder, meeting) has its **own copy** of `#id`, `#complete`
+  - 但是因为private
+    - ❌ `reminder.#id`
+    - or inside `class Reminder { ❌ this.#id }`
+  - Only **code inside CalendarItem** may touch `#id`/`#complete`.
+  - If **subclasses need access**, expose it through CalendarItem public methods like getID(), isComplete(), or markComplete()
+- `Date`
+  - UTC string: `2026-05-24T11:00:00Z`
+    - `T` separates the date and time.
+    - `Z` means UTC.
+  - `new Date()` returns <u>now</u>: "Sun Aug 09 2026 15:10:18 GMT-0700 (Pacific Daylight Time)" as a `Date` object
+  - `date.toUTCString()` vs `data.toISOString()`
+    ```javascript
+    const d = new Date("2026-05-24T11:00:00Z");
+
+    console.log(d.toISOString()); // 2026-05-24T11:00:00.000Z
+    console.log(d.toUTCString()); // Sun, 24 May 2026 11:00:00 GMT
+    ```
+    - `toISOString()` → machine-readable, standardized, best for storage and communication.
+    - `toUTCString()` → human-readable, best for display or debugging.
 	
 ##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
 
