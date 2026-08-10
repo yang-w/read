@@ -4721,11 +4721,71 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     | `textContent` | The text inside an element. | `<div>`, `<span>`, `<p>`, `<button>`, etc.            |
 
 
-  Ex2. arrow function `this`
+  Ex2. arrow function `this` 
 
   ```javascript
+  // Ex2.1
   class Rect {
-    name = "Rect";
+    width = 0;
+    height;
+
+    constructor(width, height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    mount() {
+        document.querySelector("button")
+          .addEventListener("click",
+            () => this.handleClick()
+          );
+        // OR
+        document.querySelector("button")
+          .addEventListener("click",
+            this.handleClick.bind(this)
+          );
+    }
+
+    handleClick() {
+        console.log(this.width); // rect.width
+    }
+  }
+  const rect = new Rect(100, 50);
+  rect.mount();
+  ```
+  - these two are the same
+
+    ```javascript
+    // lexical this
+    () => this.handleClick()
+
+    // explicitly bound this
+    this.handleClick.bind(this)
+    ```
+  - 对于`() => this.handleClick()`
+    - `rect.mount()` -> inside mount, `this === caller rect`
+    - `() => this.handleClick()` -> arrow function `this` is determined by surrounding lexcial scope, here `this === rect`, 所以handleClick的this.width = rect.width
+  - 但他们有共同的问题: <u>Every call to `bind()` creates a new function, same as arrow function</u>, **listener can NOT be removed**
+
+    ```javascript
+    mount() {
+      button.addEventListener(
+        "click",
+        this.handleClick.bind(this)
+      );
+    }
+
+    unmount() {
+      button.removeEventListener(
+        "click",
+        this.handleClick.bind(this) // DIFFERENT function!
+      );
+    }
+    ```
+
+  ```javascript
+  // Ex2.2
+  class Rect {
     width = 0;
     height;
     // Arrow function, instance field, instance construction time
@@ -4741,7 +4801,10 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
         .addEventListener("click", this.handleClick);
     }
 
-    toString() {} // instance method, class evaluation time
+    unmount() {
+      document.querySelector("button")
+        .removeEventListener("click", this.handleClick);
+    }
   }
   ```
 
@@ -4761,13 +4824,19 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
         .addEventListener("click", this.handleClick);
     }
 
+    unmount() {
+      document.querySelector("button")
+        .removeEventListener("click", this.handleClick);
+    }
+
     // instance method
     handleClick() { console.log(this.width); } //如果没有前面的bind, 这里的this是button
   }
   ```
+  - mount() and unmount() both use the exact same reference: `this.handleClick`, 所以listner can be successfully removed.
   - arrow function的`this`是where it's defined - during instance construction time - rect
   - 如果用handleClick没有constructor里的`bind`, `this`是button, 不是rect
-  - this.handleClick.bind是在constructor里, 不是mount!
+  - <span class="underline-orange">this.handleClick.bind是在constructor里, 不是mount!</span>
 
 - **Method invocation (`this`)**
 
@@ -4860,6 +4929,12 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     handleClick() {
       console.log(this.width);
     }
+
+    unmount() {
+      document.querySelector("button")
+        .removeEventListener("click", this.handleClick);
+    }
+
   }
 
   const rect = new Rect(2, 3);
@@ -4881,9 +4956,12 @@ Ex2.1 Bind `this`
 ```javascript
 const module = {
   x: 81,
+  init(x) {
+    this.x = x;
+  },
   getX() {
     return this.x;
-  }
+  },
 };
 
 console.log(module.getX()); // 81
@@ -4893,13 +4971,29 @@ console.log(getXCopy()); // TypeError: Cannot read properties of undefined (read
 // crash app, or window.x in non-strict mode
 
 const boundGetX = module.getX.bind(module);
-console.log(boundGetX()); // 81
+console.log(boundGetX()); // 81, bind需要extra ()
+
+console.log(getXCopy.call(module)); // 81, call不需要extra ()
+
+const initCopy = module.init;
+initCopy.bind(module)(3); 
+// or
+initCopy.call(module, 3);
+
+console.log(module.x); // 3
 ```
 - same as Ex1.1中的getWidth, getX is a <u>regular function WO `this`</u>, `this` is determined by caller
   - `module.getX()`的getX的`this`是caller 'module'
   - after `getXCopy` points to module.getX, the <u>caller 'module' is lost when invoke</u>, so `this` is undefined.
     - TypeError and <u>crash the app</u>
   - bind creates a new function with `this`=module
+- same as `module.init`, initCopy lost module as the caller
+  - initCopy.**bind**(module)**(3)** // extra () for bind to execute
+  - initCopy.**call(module, 3)**; // no extra ()
+
+  ```javacript
+  fun.call(thisArg, arg1, ..., argN) // 直接执行, no extra ()
+  ```
 
 Ex2.2 Partial application
 
@@ -5064,9 +5158,9 @@ Members can also be **private** by prefixing them with `#`:
   }
   ```
   - 和instance fields一样, each **subclass** has its **own copy of parent's private fields**
-  - 但是**Private field can NOT be accessed in subclass**:
-    - ❌ `this.#baseProp`
-    - if **subclass needs access**, need <u>expose in BaseClass</u> thru public method `getBaseProp() { return this.#baseProp}` `setBaseProp(val){...}`
+    - 但是**Private field can NOT be accessed in subclass**:
+      - ❌ `this.#baseProp`
+      - if **subclass needs access**, need <u>expose in BaseClass</u> thru public method `getBaseProp() { return this.#baseProp}` `setBaseProp(val){...}`
   - **Private field不能被删除**:
     - ❌ `delete this.#privateProp`
 - Private instance methods, including private `get #name() {}`/`set #name(val) {}` (not common), <u>不用先declare</u>
@@ -5535,20 +5629,22 @@ Ex5.
 
 ```javascript
 class CalendarItem {
-  static #count = 0; // count必须static, 所以用来做id, 勿论new那一个subclass, count+1
+  static #count = 0; // count必须static, 因为用来做id, 勿论new哪一个subclass, count+1
   // #count是private, in case it's used outside class body as CalendarItem.count=100, messed up with id
 
+  // private instance field
   #id;
-  #complete = false; // private instance field
+  #complete = false; 
   // subclass有自己的copy, 但是不能reminder.#id or this.#id in Reminder class body
   // 但是可以通过inherited CalendarItem的public instance method 
-  // isComplete()/markComplete()visit和update
+  // isComplete()/markComplete() visit和update
 
   constructor() {
     // 不要用new.target.name === "CalendarItem": 
-    // in case class name changed after minification
+    // in case className changed after minification
     // 不能用new.target.name === this.constructor.name: 
-    // new Remindar(), this.constructor.name = Remindar, 但我们要check against CalendarItem
+    // new Reminder(), this.constructor.name = Reminder, 但我们要check against CalendarItem
+    // 要先throw error, 写在#count++, this.#id之前
     if (new.target === CalendarItem) {
       throw new Error("CalendarItem is abstract and cannot be instantiated directly.");
     }
@@ -5557,6 +5653,8 @@ class CalendarItem {
     this.#id = CalendarItem.#count;
   }
 
+  // 不能用get #id() {..}, outside class body和subclass都用不了
+  // 必须public, subclass才能用
   getID() {
     return this.#id;
   }
@@ -5645,7 +5743,7 @@ console.log(callMyParents instanceof Reminder); // true
 console.log(callMyParents instanceof CalendarItem); // true
 console.log(interview instanceof Meeting); // true
 ```
-- **`new.target`** returns constructor function
+- **`new.target`** returns <u>constructor function</u>
 
   ```javascript
   new.target === CalendarItem
@@ -5661,8 +5759,8 @@ console.log(interview instanceof Meeting); // true
   - 不能用`new.target.name === this.constructor.name`
     - `new Reminder(...)`, this.constructor.name=Reminder, 而我们要check against的是CalendarItem
 - `static #count=0`
-  - 必须static: inherited, new subclass的时候count+1, 才能做id
-  - 必须**#count**: in case outside class, `CalendarItem.count=100`, messed up with id
+  - 必须static: inherited, new subclass的时候才能count+1, 才能做id
+  - 必须 **`#count`**: in case outside class, `CalendarItem.count=100`, messed up with id
 - CalendarItem的`#id`, `#complete`
   - 虽然是CalendarItem的private field, 但是each subclass instance (reminder, meeting) has its **own copy** of `#id`, `#complete`
   - 但是因为private
@@ -5675,7 +5773,7 @@ console.log(interview instanceof Meeting); // true
     - `T` separates the date and time.
     - `Z` means UTC.
   - `new Date()` returns <u>now</u>: "Sun Aug 09 2026 15:10:18 GMT-0700 (Pacific Daylight Time)" as a `Date` object
-  - `date.toUTCString()` vs `data.toISOString()`
+  - `date.toUTCString()` vs `date.toISOString()`
     ```javascript
     const d = new Date("2026-05-24T11:00:00Z");
 
@@ -5687,74 +5785,20 @@ console.log(interview instanceof Meeting); // true
 	
 ##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
 
-<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments or by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument or returns the function as output.
+<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments **OR** by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument **OR** returns the function as output.
 
-- Built-in Higher-Order Functions 
-	- `Array.prototype.map`
-	
-		```javascript
-		arry.map(callbackFn)
-		```
-		
-		Ex.
-		
-		```javascript
-		const arryHigherOrder = [1, 2, 3];
-		const mapped = arryHigherOrder.map((item) => item * 2);
-		console.log(mapped); // [2, 4, 6]
-		```
-		
-	- `Array.prototype.filter`
+- Take functions as args: `arry.map`, `arry.filter`, `arry.reducue`
+- Return a function
 
-		```javascript
-		arry.filter(callbackFn)
-		```
-		
-		Ex. 
-		
-		```javascript
-		const filtered = arryHigherOrder.filter((item) => item%2 === 0);
-		console.log(filtered); // [2]
-		```
-		
-	- `Array.prototype.reduce`
+  ```javascript
+  function foo() {
+    return function() {
+        console.log("hello");
+    };
+  }
+  foo()(); // hello
+  ```
 
-		```javascript
-		arry.reduce(callbackFn, initialVal)
-		```
-		
-		Ex.
-		
-		```javascript
-		const sumup = arryHigherOrder.reduce((acc, cur) => acc + cur);
-		console.log(sumup); // 6
-		
-		// 等同于写成callback
-		const sumFn = (x, y) => x + y;
-		console.log(arryHigherOrder.reduce(sumFn)); // 6
-		```
-		
-- Our own Higher-order Functions
-
-	Ex. 先算fn2, 然后用fn2的结果算fn1
-	
-	```javascript
-	function compose(fn1, fn2) {
-		// 这里...args是传进来的2, 3
-		return function(...args) { // return的是一个function, 直到(2,3)才执行
-		    return fn1(fn2(...args));
-		    // 等价于
-			// return fn1.call(null, fn2.apply(null, args));
-		};
-	}
-	const fn1 = (x) => x * x;
-	const fn2 = (x, y) => x + y;
-	console.log(compose(fn1, fn2)(2, 3)); // (2+3)*(2+3)=25   
-	```
-	
-	- 注意compose return的是一个function, 并没有执行. 直到(2,3)才执行
-	- compose里`...args`是执行时传进来的2,3
-	- 注意fn2用apply的原因是`...args`是array, fn1用call的原因是fn2的结果是一个数
 
 #### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
 

@@ -60,9 +60,9 @@
   - [x] [public fields](objects-classes/ch3.md#public-fields)
   - [x] [static](objects-classes/ch3.md#static-class-behavior)
   - [x] [private #](objects-classes/ch3.md#private-class-behavior)
-  - [4-rule this](objects-classes/ch4.md#this-is-it)
-  - [arrow lexical this](objects-classes/ch4.md#an-arrow-points-somewhere)
-- [ ] [§8.8.2 Higher-Order Functions](../docs/guide.md#882-higher-order-functions)
+  - [x][4-rule this](objects-classes/ch4.md#this-is-it)
+  - [x][arrow lexical this](objects-classes/ch4.md#an-arrow-points-somewhere)
+- [x] [§8.8.2 Higher-Order Functions](../docs/guide.md#882-higher-order-functions)
 
 ### Book 4: Types & Grammar
 - [ ] [§4.13.3 `typeof` and `instanceof`](../docs/guide.md#4133-the-typeof-and-instanceof-operator)
