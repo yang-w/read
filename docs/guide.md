@@ -43,6 +43,9 @@
 * [9.5 Class Members](#95-class-members) 
 * [8.8.2 Higher-Order Functions](#882-higher-order-functions)
 * [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
+* [4.13.4 Coercion](#4134-coercion)
+* [4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)](#4135-nullish-coalescing-and-optional-chaining-undefined-null)
+* [4.13.6 Template Literals](#4136-template-literals)
 * [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
@@ -5799,19 +5802,18 @@ console.log(interview instanceof Meeting); // true
   foo()(); // hello
   ```
 
-
 #### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
 
-<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
+##### **<u>`typeof`</u>**
 
-All <span class="orange bold">non-primitive</span> are **objects**, with `typeof (() => {}) === "function"` and `typeof null === "object"` due to historical quirks.
-- 注意"function"和"object"都是小写, 有双引号是string
+<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
 
 Ex1. typeof和primitive
 
 ```javascript
 function isPrimitive(value) {
-  return value === null || (typeof value !== "object" && typeof value !== "function");
+  return value === null || 
+    (typeof value !== "object" && typeof value !== "function");
 }
 ```
 
@@ -5820,62 +5822,230 @@ Ex1.
 ```javascript
 typeof 1; // number
 
-let foo = 1;
-typeof foo; // number
-
-typeof NaN; // number
-
-typeof null; // object
+const foo = 1;
+typeof foo; // number, 还是number, 和var没关系, 看的是foo的value
 
 typeof false; // boolean
 
-```
+typeof NaN; // number
 
-Ex2. Anything that is created using the `new` operator is of type `object`, including `String`, `Boolean`, and `Number` :
+typeof undefined; // undefined
+typeof null; // object
+
+typeof []; // object, array is object
+
+typeof { a: 1 }; // object
+
+typeof function a() {}; // function
+
+const func = function() {};
+typeof func; // function, 还是function, 和var没关系, 看的是func的value
+
+typeof class A {}; // function, class是function!!
+```
+- `NaN`是number
+- `class`是function
+
+Ex2.
 
 ```javascript
-// 注意区别下面三种情况. 一旦用new了, 就是object了
-typeof Boolean(0) === "boolean"; // true; 注意这里是true, 
-typeof new Boolean(0) === "boolean"; // false
-typeof new Boolean(0) === "object"; // true
+console.log(Boolean(0)); // false
+console.log(new Boolean(0)); // Boolean {false}, 不是boolean是object
+
+typeof Boolean(0); // boolean
+typeof new Boolean(0); // object
 ```
+- Anything created with `new` is of type `object`, including `String`, `Boolean`, and `Number`, etc.
 
-<span class="white-on-black">instanceof</span>
+##### **<u>`instanceof`</u>**
 
-The <b>`instanceof`</b> operator tests whether the prototype property of a constructor <b>appears anywhere in the prototype chain</b> of an object. 就是看这个object的prototype chain上有没有这个constructor.
+The `instanceof` operator tests whether the prototype property of a constructor appears anywhere in the prototype chain of an object. 
+`a instanceof A`就是看<u>Is `A.prototype` somewhere in a's prototype chain</u>.
 
-Ex3. 
+Ex3.
 
+```javascript
+class A {}
+const a = new A();
+
+console.log(typeof a); // object
+console.log(typeof A); // function
+
+console.log(a instanceof A); // true
+console.log(a instanceof Object) // true
+```
 - 注意`typeof`和`instanceof`的区别
-- foo的prototype chain上先有String, 再有Object
+- a的prototype chain上先有A, 再有Object
+
+  ```
+  // a's prototype chain
+  a
+  ↓ [[Prototype]]
+  A.prototype
+  ↓ [[Prototype]]
+  Object.prototype
+  ↓
+  null
+  ```
+
+#### <a name="4134-coercion" id="4134-coercion">4.13.4 Coercion</a>
 
 ```javascript
-let foo = new String("foo");
-console.log(typeof foo); // object
-console.log(foo instanceof String); // true
-console.log(foo instanceof Object); // true
+// returns a number OR NaN
+Number(value) // tries to coerce value to a number
+
+// returns a floating number OR NaN
+parseFloat(string) 
+
+// returns an integer or NaN
+parseInt(string, radix) // Coerce string to an integer OR NaN
 ```
+- Use `Number()` if value is expected to be a numeric string.
 
-Ex4. **Explicit coercion** — calling `Number()` intentionally converts a string to a number.
+Ex1.1
 
 ```javascript
-const dayStart = "07:30";  // string
+Number("1.234"); // 1.234
+parseFloat("1.234"); // 1.234
 
-function toHr(time) {
-  const [hr, min] = time.split(":").map(str => Number(str));
-  //                                              Number("07") → 7, Number("30") → 30
-  return hr + min / 60;
+Number("12"); // 12
+parseFloat("12"); // 12
+
+Number("-5"); // -5
+parseFloat("-5"); // -5
+
+parseInt("1.234", 10); // 1, preferred
+parseInt("1.234"); // 1, default radix to 10
+
+parseInt("12", 10); // 12
+parsreInt("-5", 10)
+```
+- `Number()` and `parseFloat()` usually **returns the same** if value is a clean **numeric string**
+- `parseInt(str, 10)`, if no radix, usually default to 10. Common practice is to explicitly pass 10 when you expect decimal.
+
+Ex1.2 
+
+```javascript
+Number("12px"); // NaN
+parseFloat("12px"); // 12
+
+Number("12 not a number"); // NaN
+parseFloat("12 not a number"); // 12
+parseFloat("not a number 12"); // NaN
+
+Number(""); // 0, coerce
+parseFloat(""); // NaN
+
+Number(true); // 1, coerce
+parseFloat(true); // NaN, true -> "true"
+
+Number(null); // 0
+Number(undefined); // NaN
+parseFloat(null); // NaN, null -> "null"
+parseFloat(undefined); // NaN, undefined -> "undefined"
+```
+- `Number()` and `parseFloat()` differs when value constains other characters.
+  - `Number()` tries to <u>coerce</u> the value into a number
+  - `parseFloat()` treats the value more like <u>string</u>. Parses from the beginning and stops when it hits something that isn't part of a number.
+  
+Ex2.
+
+```javascript
+function toHr(timeStr) {
+  const [hr, min] = timeStr.split(":").map(Number);
+  return Number((hr + min/60).toFixed(2)); // coerce tofixed String to Number
 }
+console.log(toHr("07:50")); // 7.83, number
+```
+- Coerce String to Number: `Number("07")` → 7, `Number("30")` → 30
+- Implicit coercion: `"30"/60; // 0.5`
+- `Number.prototype.toFixed(digits)`
+  - `digit`: default = 0
+  - returns **string**, 所以上面Coerce toFixed的结果回Number
+  
+  ```javascript
+  // JavaScript interprets the . after 12 as part of the number literal, so the parser gets confused.
+  12.toFixed(2) // ❌ SyntaxError
+  (12).toFixed(2) // "12.00", string, 要把number括起来
 
-toHr(dayStart); // 7.5
+  (7.236).toFixed(2); // "7.24", string
+  
+  const num = 7.236;
+  num.toFixed(2); // "7.24", var不用括
+  ```
 
-// Coercing a parameter — caller might pass "30" (string) or 30 (number)
-const dur = Number(durationMinutes) / 60;
+#### <a name="4135-nullish-coalescing-and-optional-chaining-undefined-null" id="4135-nullish-coalescing-and-optional-chaining-undefined-null">4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
 
-"30" / 60;  // 0.5 — implicit coercion, / forces numeric context
+##### **<u>`??` nullish-coalescing</u>**
+
+nullish coalescing `??` uses the <u>right side</u> only when the left side is **`null`/`undefined`**.
+
+`??` provide a fallback when the result is **`null`/`undefined`**
+
+```javascript
+const name = null;
+const displayName = name ?? "guest";
+
+console.log(displayName); // "guest"
+
+const count = 0;
+
+console.log(count ?? 10); // 0, 0 won't trigger nullish??
+console.log(count || 10); // 10
+```
+- 区别`??`和`||` 
+  - `??` 只**check `null`和`undefined`**, 不包括0, false, empty string, etc
+  - `||` check所有!!val, 包括**0, false, ""**, undefined, null
+
+##### **<u>`?.` nullish conditional-chaining</u>**
+
+`?.` safely access something that might be **`null`/`undefined`**, same as nullish `??`
+
+```javascript
+const user = {
+  profile: null
+};
+console.log(user?.profile?.name); // undefined
+
+const a = null;
+a?.foo; // undefined
+
+const b = "";
+b?.length; // 0, empty string won't trigger ?.
 ```
 
-Contrast: **implicit coercion** — JS converts automatically without you asking. See: `x < y; // true!! string compare, no number coerce` in [§11.1.1](#set).
+#### **<u>`null` VS `undefined`</u>**
+
+Ex. param default value
+
+```js
+function greet(msg = "hello") {
+  console.log(msg);
+}
+greet("hey!"); // hey!
+greet(); // hello
+greet(undefined); // hello
+greet(null); // null, 不是default hello
+greet(0); // 0, 不是default hello
+```
+- **Param default value only triggers when arg is `undefined`** - missing OR is exactly `undefined`. 
+  - <u>`null` does not trigger the default</u> — `null` is assigned to the parameter directly.
+
+#### <a name="4136-template-literals" id="4136-template-literals">4.13.6 Template Literals</a>
+
+<u>Newlines in template literals</u> are included literally in the string value.
+
+```javascript
+const str = `
+hello
+world
+!`;
+console.log(str);
+// hello
+// world
+// !
+```
+- newline是看string后, hello前面没有newline
 
 #### <a name="4111-assignment-with-operation" id="4111-assignment-with-operation">4.11.1 Assignment with Operation</a>
 

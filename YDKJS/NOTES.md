@@ -65,7 +65,7 @@
 - [x] [§8.8.2 Higher-Order Functions](../docs/guide.md#882-higher-order-functions)
 
 ### Book 4: Types & Grammar
-- [ ] [§4.13.3 `typeof` and `instanceof`](../docs/guide.md#4133-the-typeof-and-instanceof-operator)
+- [x] [§4.13.3 `typeof` and `instanceof`](../docs/guide.md#4133-the-typeof-and-instanceof-operator)
   - [ch1.md — Primitive Values](types-grammar/ch1.md)
 - [ ] [§4.11.1 Assignment with Operation](../docs/guide.md#4111-assignment-with-operation)
   - [ch2.md — Primitive Behaviors](types-grammar/ch2.md)
