@@ -7,9 +7,18 @@
 * [3.10.1 `var` + Hoisting](#3101-var--hoisting)
 * [3.10.2 `let`/`const` + TDZ](#3102-letconst--tdz)
 * [3.10.3 `catch` Block Scope](#3103-catch-block-scope)
+* [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
+* [4.13.4 Coercion](#4134-coercion)
+* [4.13.4.1 Number](#41341-number)
+* [4.13.4.2 String](#41342-string)
+* [4.13.4.3 String Methods](#41343-string-methods)
+* [4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)](#4135-nullish-coalescing-and-optional-chaining-undefined-null)
+* [4.13.6 Template Literals](#4136-template-literals)
+* [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
 * [8.1 Defining Functions](#81-defining-functions)
 * [8.2 Invoking Functions](#82-invoking-functions)
 * [8.3 Function Arguments and Parameters](#83-function-arguments-and-parameters)
+* [8.8.2 Higher-Order Functions](#882-higher-order-functions)
 * [8.6 Closure](#86-closure)
 * [8.6.1 Closure in Loops](#861-closure-in-loops)
 * [8.6.2 The Closure Lifecycle and Garbage Collection (GC)](#862-the-closure-lifecycle-and-garbage-collection-gc)
@@ -41,12 +50,6 @@
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
 * [9.4 Class Lifecycle](#94-class-lifecycle)
 * [9.5 Class Members](#95-class-members) 
-* [8.8.2 Higher-Order Functions](#882-higher-order-functions)
-* [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
-* [4.13.4 Coercion](#4134-coercion)
-* [4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)](#4135-nullish-coalescing-and-optional-chaining-undefined-null)
-* [4.13.6 Template Literals](#4136-template-literals)
-* [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -656,6 +659,411 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
 
   - Outside the function, the outer sum is unaffected.
 
+#### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
+
+##### **<u>`typeof`</u>**
+
+<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
+
+All primitive values are **immutable**: can NOT modify, can NOT add props - `TypeError`
+
+Ex1.1
+
+```javascript
+const text = "abc";
+
+console.log(text[0]); // a
+text[0] = "1"; // Uncaught TypeError: Cannot assign to read only property '0' of string 'abc'
+
+text.isRendered = true; // Uncaught TypeError: Cannot create property 'isRendered' on string 'abc'
+
+// all string values have a read-only `length` property
+text.length = 2; // Uncaught TypeError: Cannot assign to read only property 'length' of string 'abc'
+```
+- str.length is read-only, can NOT modify
+
+Ex1.2
+
+```javascript
+let index1 = 1, index2 = index1; 
+index1++;
+console.log(index1); // 2
+console.log(index2); // 1, independent
+```
+- index1 and index2, each have their own value copy, independent, 区别于reference value: arry, object, etc
+
+
+Ex2. typeof和primitive
+
+```javascript
+function isPrimitive(value) {
+  return value === null || 
+    (typeof value !== "object" && typeof value !== "function");
+}
+```
+
+Ex3.
+
+```javascript
+typeof 1; // number
+
+const foo = 1;
+typeof foo; // number, 还是number, 和var没关系, 看的是foo的value
+
+typeof false; // boolean
+
+typeof NaN; // number
+
+typeof undefined; // undefined
+typeof null; // object
+
+typeof []; // object, array is object
+
+typeof { a: 1 }; // object
+
+typeof function a() {}; // function
+
+const func = function() {};
+typeof func; // function, 还是function, 和var没关系, 看的是func的value
+
+typeof class A {}; // function, class是function!!
+```
+- `NaN`是number
+- `class`是function
+
+Ex4.
+
+```javascript
+console.log(Boolean(0)); // false
+console.log(new Boolean(0)); // Boolean {false}, 不是boolean是object
+
+typeof Boolean(0); // boolean
+typeof new Boolean(0); // object
+```
+- Anything created with `new` is of type `object`, including `String`, `Boolean`, and `Number`, etc.
+
+##### **<u>`instanceof`</u>**
+
+The `instanceof` operator tests whether the prototype property of a constructor appears anywhere in the prototype chain of an object. 
+`a instanceof A`就是看<u>Is `A.prototype` somewhere in a's prototype chain</u>.
+
+Ex1.
+
+```javascript
+class A {}
+const a = new A();
+
+console.log(typeof a); // object
+console.log(typeof A); // function
+
+console.log(a instanceof A); // true
+console.log(a instanceof Object) // true
+```
+- 注意`typeof`和`instanceof`的区别
+- a的prototype chain上先有A, 再有Object
+
+  ```
+  // a's prototype chain
+  a
+  ↓ [[Prototype]]
+  A.prototype
+  ↓ [[Prototype]]
+  Object.prototype
+  ↓
+  null
+  ```
+
+#### <a name="4134-coercion" id="4134-coercion">4.13.4 Coercion</a>
+
+##### <a name="41341-number" id="41341-number">4.13.4.1 Number</a>
+
+```javascript
+42 === 42.000; // true
+
+0.1 + 0.2; // 0.30000000000000004, 不是0.3
+// Work in cents
+10 + 20
+
+0.25 + 0.5; // 0.75, no error, 1/4+1/2
+0.1 + 2; // 2.1
+```
+- if numbers involved are exactly representable in binary (integer OR 分母是a power of 2的小数), there is no representation error.
+- for money, a common approach is to work in integer cents
+
+**Generate a random number in a range**
+
+```javascript
+Math.random(); // [0, 1), 不包括1
+```
+- `Math.random() * (max - min) + min` -> [min, max), 不包括max
+- `Math.floor(Math.random() * (max - min + 1)) + min` -> [min, max], 包括max
+
+```javascript
+// [10, 20)
+const random1 = Math.random() * (20 - 10) + 10;
+
+// [10, 20]
+const random2 = Math.floor(Math.random() * (20-10 + 1)) + 10;
+```
+
+**Coerce to Number**
+
+```javascript
+// returns a number OR NaN
+Number(value); // tries to coerce value to a number if it's a valid numeric string, NaN if not
+
+// returns a floating number OR NaN
+parseFloat(string); 
+
+// returns an integer or NaN
+parseInt(string, radix);
+```
+- `Number(value)`的value can be any type: string, boolean, etc
+  - 区别于parseInt(**string**), parseFloat(**string**), value都是string
+- Use `Number()` if value is expected to be a valid numeric string, returns `NaN` if not.
+- Check if a value is data type `Number` (excluding `NaN`)
+
+  ```javascript
+  typeof value === 'number' && !Number.isNaN(value);
+
+  // NaN never equals
+  // need use Number.isNaN(val) check if NaN
+  NaN === NaN; // false!!!
+  ```
+
+Ex1.1
+
+```javascript
+Number("1.234"); // 1.234
+parseFloat("1.234"); // 1.234
+
+parseInt("1.234", 10); // 1, preferred with radix
+parseInt("1.234"); // 1, default radix to 10
+
+Number("12"); // 12
+parseFloat("12"); // 12
+parseInt("12", 10); // 12
+
+Number("-5"); // -5
+parseFloat("-5"); // -5
+parsreInt("-5", 10); // -5
+```
+- `Number()` and `parseFloat()` usually **returns the same** if value is a **valid numeric string**
+- `parseInt(str, 10)`, if no radix, usually default to 10. Common practice is to explicitly pass 10 when you expect decimal.
+
+Ex1.2
+
+```javascript
+parseInt("1.6", 10); // 1, 不是2! 区别于Math.round(1.6) = 2
+
+Math.round(1.6); // 2
+Math.round("1.6"); // 2, coerce "1.6" to number first
+
+Math.round(-32.6);   // -33, nearest
+```
+- `Math.round(number)`
+  - input: `Number`
+  - Returns a **number** rounded to the **nearest integer** (四舍五入)
+- `1.236.toFixed(2); // "1.24"`, 四舍五入+变成string
+- 区别于`parseInt(1.6, 10); // 1`, 就是停止在小数点之前, 没有四舍五入
+
+Ex1.3
+
+```javascript
+Number("12px"); // NaN
+parseFloat("12px"); // 12
+
+Number("12 not a number"); // NaN
+parseFloat("12 not a number"); // 12
+parseFloat("not a number 12"); // NaN
+
+Number(""); // 0, coerce
+parseFloat(""); // NaN
+
+Number(true); // 1, coerce
+parseFloat(true); // NaN, true -> "true"
+
+Number(null); // 0
+Number(undefined); // NaN
+parseFloat(null); // NaN, null -> "null"
+parseFloat(undefined); // NaN, undefined -> "undefined"
+```
+- `Number()` and `parseFloat()` differs when value constains other characters.
+  - `Number()` tries to <u>coerce</u> the value into a number
+  - `parseFloat()` treats the value more like <u>string</u>. Parses from the beginning and stops when it hits something that isn't part of a number.
+  
+Ex2.
+
+```javascript
+function toHr(timeStr) {
+  const [hr, min] = timeStr.split(":").map(Number);
+  return Number((hr + min/60).toFixed(2)); // coerce tofixed String to Number
+}
+console.log(toHr("07:50")); // 7.83, number
+```
+- Coerce String to Number: `Number("07")` → 7, `Number("30")` → 30
+- Implicit coercion: `"30"/60; // 0.5`
+- `Number.prototype.toFixed(digits)`
+  - `digit`: default = 0
+  - returns **string**, **四舍五入**, 所以上面Coerce toFixed的结果回Number
+  
+  ```javascript
+  // JavaScript interprets the . after 12 as part of the number literal, so the parser gets confused.
+  12.toFixed(2) // ❌ SyntaxError
+  (12).toFixed(2) // "12.00", string, 要把number括起来
+
+  (7.236).toFixed(2); // "7.24", string
+  
+  const num = 7.236;
+  num.toFixed(2); // "7.24", var不用括
+  ```
+
+**Rounding Comparison**
+| Method | Input Type | Return Type | What it does |
+|---|---|---|---|
+| `Math.floor(1.6); // 1` <br>`Math.floor(-1.2); // -2` | number | number (integer) | Rounds **down** to nearest **integer** |
+| `Math.round(1.2); // 1`<br>`Math.round(1.6); // 2`<br>`Math.round(-1.2); // -1`<br>`Math.round(-1.6); // -2` | number | number (integer) | Rounds to **nearest integer** 四舍五入 |
+| `(1.236).toFixed(2); // "1.24"`<br>`(-1.236).toFixed(2); // "-1.24"` | number | **string** | Rounds to 2 decimal places<br>类似 `Math.round()`, 四舍五入，但是返回 string，不要求integer |
+| `parseInt("1.236"); // 1` | <u>string</u> | number (integer) | Parses the string and returns an integer |
+| `parseFloat("1.236"); // 1.236` | <u>string</u> | number | Parses the string and returns a decimal number |
+
+##### <a name="41342-string" id="41342-string">4.13.4.2 String</a>
+
+```javascript
+String(true);           // "true", 不是"1"
+String(42);             // "42"
+String(undefined);      // "undefined"
+```
+
+##### <a name="41343-string-methods" id="41343-string-methods">4.13.4.3 String Methods</a>
+
+
+
+#### <a name="4135-nullish-coalescing-and-optional-chaining-undefined-null" id="4135-nullish-coalescing-and-optional-chaining-undefined-null">4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
+
+##### **<u>`??` nullish-coalescing</u>**
+
+nullish coalescing `??` uses the <u>right side</u> only when the left side is **`null`/`undefined`**.
+
+`??` provide a fallback when the result is **`null`/`undefined`**
+
+```javascript
+const name = null;
+const displayName = name ?? "guest";
+
+console.log(displayName); // "guest"
+
+const count = 0;
+
+console.log(count ?? 10); // 0, 0 won't trigger nullish??
+console.log(count || 10); // 10
+```
+- 区别`??`和`||` 
+  - `??` 只**check `null`和`undefined`**, 不包括0, false, empty string, etc
+  - `||` check所有!!val, 包括**0, false, ""**, undefined, null
+
+##### **<u>`?.` nullish conditional-chaining</u>**
+
+`?.` safely access something that might be **`null`/`undefined`**, same as nullish `??`
+
+```javascript
+const user = {
+  profile: null
+};
+console.log(user?.profile?.name); // undefined
+
+const a = null;
+a?.foo; // undefined
+
+const b = "";
+b?.length; // 0, empty string won't trigger ?.
+```
+
+#### **<u>`null` VS `undefined`</u>**
+
+Ex. param default value
+
+```js
+function greet(msg = "hello") {
+  console.log(msg);
+}
+greet("hey!"); // hey!
+greet(); // hello
+greet(undefined); // hello
+greet(null); // null, 不是default hello
+greet(0); // 0, 不是default hello
+```
+- **Param default value only triggers when arg is `undefined`** - missing OR is exactly `undefined`. 
+  - <u>`null` does not trigger the default</u> — `null` is assigned to the parameter directly.
+
+#### <a name="4136-template-literals" id="4136-template-literals">4.13.6 Template Literals</a>
+
+<u>Newlines in template literals</u> are included literally in the string value.
+
+```javascript
+const str = `
+hello
+world
+!`;
+console.log(str);
+// hello
+// world
+// !
+```
+- newline是看string后, hello前面没有newline
+
+#### <a name="4111-assignment-with-operation" id="4111-assignment-with-operation">4.11.1 Assignment with Operation</a>
+
+```javascript
+a op= b; // a is evaluated once
+a = a op b // a is evaluated twice
+```
+
+Ex1.
+
+```javascript
+let a = 1; // 必须用let, 否则不能a++ 
+console.log(a++); // 1, a++此时还是1
+console.log(a); // 2
+
+a= 1;
+console.log(++a); // 2, ++a此时已经是2了
+console.log(a); // 2
+```
+- 注意`a++`和`++a`的区别
+
+Ex2.
+
+```javascript
+// Ex2.1
+const arry = [1,2,3,4]; // arry是ref, 虽然里面变了, 但是ref没变, 可以用const
+let index=1; // 必须用let, 因为index++ 
+arry[index++] = arry[index++] * 10;
+// arry[1++] = arry[2++]*10 -> arry[1] = arry[2]*10 = 3*10
+// arry[1++] -> arry[1] and index=2 now, 注意arry[1++]还是arry[1], 然后index变成2
+// = arry[2++] * 10 -> arry[2] and index=3 now
+console.log(arry); // [1,30,3,4]
+console.log(index); // 3
+
+// Ex2.2
+// arry = [1,2,3,4]; // ERROR!! const不能reassign. 
+// 区别于上面可以改arry里的值. 但是这里相当于改了ref
+const arry2 = [1,2,3,4];
+index = 1;
+arry2[index++] *= 10;
+// arry2[1++] *= 10 -> arry2[1] *= 10, index=2, 只evaluate一遍
+console.log(arry2); // [1,20,3,4]
+console.log(index); // 2
+
+let a=1, b=a++;
+console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
+```
+- Ex2.1中, arry[index++] evaluate了两次. 区别于Ex2.2, arry2[index++]只evaluate了一次.
+- 注意`const`/`let`
+  - index是primitive, 要用index++必须let index, 不能const
+  - arry是ref, 如果只是改变arry里的elem, 可以const arry, 因为ref没变
+    - 但是如果重新arry=[..], 就必须let arry, 因为ref变了
+
 #### <a name="81-defining-functions" id="81-defining-functions">8.1 Defining Functions</a>
 
 四种方法define function: function declaration, function expression, arrow function, nested function.
@@ -961,6 +1369,23 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	- <span class="orange">注意first = -Infiintiy里的-Infinity只是default value</span>, 如果max没有params, 那么first defaults to -Infinity
 	- rest是从第二个param开始的剩下所有params的合集. 如果max()没有params, rest = [], 即空arry;
   - 也可以写成`Math.max.apply(null, arry)`
+
+  	
+##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
+
+<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments **OR** by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument **OR** returns the function as output.
+
+- Take functions as args: `arry.map`, `arry.filter`, `arry.reducue`
+- Return a function
+
+  ```javascript
+  function foo() {
+    return function() {
+        console.log("hello");
+    };
+  }
+  foo()(); // hello
+  ```
 
 #### <a name="86-closure" id="86-closure">8.6 Closure</a>
 
@@ -5785,297 +6210,6 @@ console.log(interview instanceof Meeting); // true
     ```
     - `toISOString()` → machine-readable, standardized, best for storage and communication.
     - `toUTCString()` → human-readable, best for display or debugging.
-	
-##### <a name="882-higher-order-functions" id="882-higher-order-functions">8.8.2 Higher-Order Functions</a>
-
-<b>Higher-Order Functions</b> are functions that operate on other functions, either by taking them as arguments **OR** by returning them. In simple words, A <u>Higher-Order function</u> is a function that receives a function as an argument **OR** returns the function as output.
-
-- Take functions as args: `arry.map`, `arry.filter`, `arry.reducue`
-- Return a function
-
-  ```javascript
-  function foo() {
-    return function() {
-        console.log("hello");
-    };
-  }
-  foo()(); // hello
-  ```
-
-#### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
-
-##### **<u>`typeof`</u>**
-
-<span class="orange bold">Primitives </span>are: `undefined`, `null`, `number`, `string`, `boolean`, `symbol`. 他们没有constructor, 不存在instanceof.
-
-Ex1. typeof和primitive
-
-```javascript
-function isPrimitive(value) {
-  return value === null || 
-    (typeof value !== "object" && typeof value !== "function");
-}
-```
-
-Ex1.
-
-```javascript
-typeof 1; // number
-
-const foo = 1;
-typeof foo; // number, 还是number, 和var没关系, 看的是foo的value
-
-typeof false; // boolean
-
-typeof NaN; // number
-
-typeof undefined; // undefined
-typeof null; // object
-
-typeof []; // object, array is object
-
-typeof { a: 1 }; // object
-
-typeof function a() {}; // function
-
-const func = function() {};
-typeof func; // function, 还是function, 和var没关系, 看的是func的value
-
-typeof class A {}; // function, class是function!!
-```
-- `NaN`是number
-- `class`是function
-
-Ex2.
-
-```javascript
-console.log(Boolean(0)); // false
-console.log(new Boolean(0)); // Boolean {false}, 不是boolean是object
-
-typeof Boolean(0); // boolean
-typeof new Boolean(0); // object
-```
-- Anything created with `new` is of type `object`, including `String`, `Boolean`, and `Number`, etc.
-
-##### **<u>`instanceof`</u>**
-
-The `instanceof` operator tests whether the prototype property of a constructor appears anywhere in the prototype chain of an object. 
-`a instanceof A`就是看<u>Is `A.prototype` somewhere in a's prototype chain</u>.
-
-Ex3.
-
-```javascript
-class A {}
-const a = new A();
-
-console.log(typeof a); // object
-console.log(typeof A); // function
-
-console.log(a instanceof A); // true
-console.log(a instanceof Object) // true
-```
-- 注意`typeof`和`instanceof`的区别
-- a的prototype chain上先有A, 再有Object
-
-  ```
-  // a's prototype chain
-  a
-  ↓ [[Prototype]]
-  A.prototype
-  ↓ [[Prototype]]
-  Object.prototype
-  ↓
-  null
-  ```
-
-#### <a name="4134-coercion" id="4134-coercion">4.13.4 Coercion</a>
-
-```javascript
-// returns a number OR NaN
-Number(value) // tries to coerce value to a number
-
-// returns a floating number OR NaN
-parseFloat(string) 
-
-// returns an integer or NaN
-parseInt(string, radix) // Coerce string to an integer OR NaN
-```
-- Use `Number()` if value is expected to be a numeric string.
-
-Ex1.1
-
-```javascript
-Number("1.234"); // 1.234
-parseFloat("1.234"); // 1.234
-
-Number("12"); // 12
-parseFloat("12"); // 12
-
-Number("-5"); // -5
-parseFloat("-5"); // -5
-
-parseInt("1.234", 10); // 1, preferred
-parseInt("1.234"); // 1, default radix to 10
-
-parseInt("12", 10); // 12
-parsreInt("-5", 10)
-```
-- `Number()` and `parseFloat()` usually **returns the same** if value is a clean **numeric string**
-- `parseInt(str, 10)`, if no radix, usually default to 10. Common practice is to explicitly pass 10 when you expect decimal.
-
-Ex1.2 
-
-```javascript
-Number("12px"); // NaN
-parseFloat("12px"); // 12
-
-Number("12 not a number"); // NaN
-parseFloat("12 not a number"); // 12
-parseFloat("not a number 12"); // NaN
-
-Number(""); // 0, coerce
-parseFloat(""); // NaN
-
-Number(true); // 1, coerce
-parseFloat(true); // NaN, true -> "true"
-
-Number(null); // 0
-Number(undefined); // NaN
-parseFloat(null); // NaN, null -> "null"
-parseFloat(undefined); // NaN, undefined -> "undefined"
-```
-- `Number()` and `parseFloat()` differs when value constains other characters.
-  - `Number()` tries to <u>coerce</u> the value into a number
-  - `parseFloat()` treats the value more like <u>string</u>. Parses from the beginning and stops when it hits something that isn't part of a number.
-  
-Ex2.
-
-```javascript
-function toHr(timeStr) {
-  const [hr, min] = timeStr.split(":").map(Number);
-  return Number((hr + min/60).toFixed(2)); // coerce tofixed String to Number
-}
-console.log(toHr("07:50")); // 7.83, number
-```
-- Coerce String to Number: `Number("07")` → 7, `Number("30")` → 30
-- Implicit coercion: `"30"/60; // 0.5`
-- `Number.prototype.toFixed(digits)`
-  - `digit`: default = 0
-  - returns **string**, 所以上面Coerce toFixed的结果回Number
-  
-  ```javascript
-  // JavaScript interprets the . after 12 as part of the number literal, so the parser gets confused.
-  12.toFixed(2) // ❌ SyntaxError
-  (12).toFixed(2) // "12.00", string, 要把number括起来
-
-  (7.236).toFixed(2); // "7.24", string
-  
-  const num = 7.236;
-  num.toFixed(2); // "7.24", var不用括
-  ```
-
-#### <a name="4135-nullish-coalescing-and-optional-chaining-undefined-null" id="4135-nullish-coalescing-and-optional-chaining-undefined-null">4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
-
-##### **<u>`??` nullish-coalescing</u>**
-
-nullish coalescing `??` uses the <u>right side</u> only when the left side is **`null`/`undefined`**.
-
-`??` provide a fallback when the result is **`null`/`undefined`**
-
-```javascript
-const name = null;
-const displayName = name ?? "guest";
-
-console.log(displayName); // "guest"
-
-const count = 0;
-
-console.log(count ?? 10); // 0, 0 won't trigger nullish??
-console.log(count || 10); // 10
-```
-- 区别`??`和`||` 
-  - `??` 只**check `null`和`undefined`**, 不包括0, false, empty string, etc
-  - `||` check所有!!val, 包括**0, false, ""**, undefined, null
-
-##### **<u>`?.` nullish conditional-chaining</u>**
-
-`?.` safely access something that might be **`null`/`undefined`**, same as nullish `??`
-
-```javascript
-const user = {
-  profile: null
-};
-console.log(user?.profile?.name); // undefined
-
-const a = null;
-a?.foo; // undefined
-
-const b = "";
-b?.length; // 0, empty string won't trigger ?.
-```
-
-#### **<u>`null` VS `undefined`</u>**
-
-Ex. param default value
-
-```js
-function greet(msg = "hello") {
-  console.log(msg);
-}
-greet("hey!"); // hey!
-greet(); // hello
-greet(undefined); // hello
-greet(null); // null, 不是default hello
-greet(0); // 0, 不是default hello
-```
-- **Param default value only triggers when arg is `undefined`** - missing OR is exactly `undefined`. 
-  - <u>`null` does not trigger the default</u> — `null` is assigned to the parameter directly.
-
-#### <a name="4136-template-literals" id="4136-template-literals">4.13.6 Template Literals</a>
-
-<u>Newlines in template literals</u> are included literally in the string value.
-
-```javascript
-const str = `
-hello
-world
-!`;
-console.log(str);
-// hello
-// world
-// !
-```
-- newline是看string后, hello前面没有newline
-
-#### <a name="4111-assignment-with-operation" id="4111-assignment-with-operation">4.11.1 Assignment with Operation</a>
-
-注意L1, the expression <span class="red">a is evaluated once</span>. 但是L2, it is <span class="red">evaluated twice</span>.
-
-```javascript
-a op= b
-a = a op b
-```
-
-注意区别下面两个Ex. 虽然assignment operator has right-to-left associativity, 但是Javascript会先evaluate一次, 把i先代入, 然后再从右往左计算. 
-
-所以Ex1中, data[i++] evaluate了两次. 区别于Ex2, data[i++]只evaluate了一次.
-
-```javascript
-// Ex1
-let data1 = [1,2,3,4,5], i1=1;
-data1[i1++] = data1[i1++]*10; // data[1++] = data[2++]*10
-console.log(data1); // [1, 30, 3, 4, 5]
-console.log(i1); // 3
-
-// Ex2
-let data2 = [1,2,3,4,5], i2=1;
-data2[i2++] *= 10; // data[1++] *= 10
-console.log(data2);// [1, 20, 3, 4, 5]
-console.log(i2); // 2
-
-let a=1, b=a++;
-console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1
-```
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 

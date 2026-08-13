@@ -67,7 +67,7 @@
 ### Book 4: Types & Grammar
 - [x] [§4.13.3 `typeof` and `instanceof`](../docs/guide.md#4133-the-typeof-and-instanceof-operator)
   - [x][ch1.md — Primitive Values](types-grammar/ch1.md)
-- [ ] [§4.11.1 Assignment with Operation](../docs/guide.md#4111-assignment-with-operation)
+- [x] [§4.11.1 Assignment with Operation](../docs/guide.md#4111-assignment-with-operation)
   - [ch2.md — Primitive Behaviors](types-grammar/ch2.md)
 - [ ] [ch3.md — Object Values](types-grammar/ch3.md)
 - [ ] [ch4.md — Coercing Values](types-grammar/ch4.md)
