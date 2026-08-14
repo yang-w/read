@@ -8,12 +8,12 @@
 * [3.10.2 `let`/`const` + TDZ](#3102-letconst--tdz)
 * [3.10.3 `catch` Block Scope](#3103-catch-block-scope)
 * [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
-* [4.13.4 Coercion](#4134-coercion)
-* [4.13.4.1 Number](#41341-number)
-* [4.13.4.2 String](#41342-string)
-* [4.13.4.3 String Methods](#41343-string-methods)
-* [4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)](#4135-nullish-coalescing-and-optional-chaining-undefined-null)
-* [4.13.6 Template Literals](#4136-template-literals)
+* [4.13.4 Number](#4134-number)
+* [4.13.5 String](#4135-string)
+* [4.13.5.1 String Methods](#41351-string-methods)
+* [4.13.5.2 Sring Number Operator Coercion](#41352-string-number-operator-coercion)
+* [4.13.6 Nullish coalescing and Optional chaining (`undefined`, `null`)](#4136-nullish-coalescing-and-optional-chaining-undefined-null)
+* [4.13.7 Template Literals](#4137-template-literals)
 * [4.11.1 Assignment with Operation](#4111-assignment-with-operation)
 * [8.1 Defining Functions](#81-defining-functions)
 * [8.2 Invoking Functions](#82-invoking-functions)
@@ -773,9 +773,7 @@ console.log(a instanceof Object) // true
   null
   ```
 
-#### <a name="4134-coercion" id="4134-coercion">4.13.4 Coercion</a>
-
-##### <a name="41341-number" id="41341-number">4.13.4.1 Number</a>
+#### <a name="4134-number" id="4134-number">4.13.4 Number</a>
 
 ```javascript
 42 === 42.000; // true
@@ -787,7 +785,7 @@ console.log(a instanceof Object) // true
 0.25 + 0.5; // 0.75, no error, 1/4+1/2
 0.1 + 2; // 2.1
 ```
-- if numbers involved are exactly representable in binary (integer OR 分母是a power of 2的小数), there is no representation error.
+- if numbers involved are exactly **representable in binary** (integer OR 分母是a power of 2的小数), there is no representation error.
 - for money, a common approach is to work in integer cents
 
 **Generate a random number in a range**
@@ -795,15 +793,27 @@ console.log(a instanceof Object) // true
 ```javascript
 Math.random(); // [0, 1), 不包括1
 ```
-- `Math.random() * (max - min) + min` -> [min, max), 不包括max
-- `Math.floor(Math.random() * (max - min + 1)) + min` -> [min, max], 包括max
+- `Math.random() * (max - min) + min; // [min, max)`
+  - <u>不包括max</u>
+  - 返回的是**floating point number**, could happen to be an **integer** as well
+- `Math.floor(Math.random() * (max - min)) + min`
+  -  **Math.floor**保证了返回的是integer
+- `Math.floor(Math.random() * (max - min + 1)) + min; // [min, max]` 
+  - <u>包括max</u>
+  - 返回的是**integer**
 
 ```javascript
-// [10, 20)
-const random1 = Math.random() * (20 - 10) + 10;
+// [10, 20), 不包括20
+Math.random() * (20 - 10) + 10;
+// 15.41961743911229, 也可能是16
 
-// [10, 20]
-const random2 = Math.floor(Math.random() * (20-10 + 1)) + 10;
+// [10, 20), 不包括20
+Math.floor(Math.random() * (20-10))+10;
+// 13, Math.floor()保证了一定是integer
+
+// [10, 20], 包括20
+Math.floor(Math.random() * (20-10 + 1)) + 10;
+// 17, Math.floor()保证了一定是integer
 ```
 
 **Coerce to Number**
@@ -820,7 +830,7 @@ parseInt(string, radix);
 ```
 - `Number(value)`的value can be any type: string, boolean, etc
   - 区别于parseInt(**string**), parseFloat(**string**), value都是string
-- Use `Number()` if value is expected to be a valid numeric string, returns `NaN` if not.
+- Use `Number()` if value is expected to be a <u>valid numeric string</u>, returns `NaN` if not.
 - Check if a value is data type `Number` (excluding `NaN`)
 
   ```javascript
@@ -837,11 +847,11 @@ Ex1.1
 Number("1.234"); // 1.234
 parseFloat("1.234"); // 1.234
 
-parseInt("1.234", 10); // 1, preferred with radix
+parseInt("1.234", 10); // 1, preferr with radix
 parseInt("1.234"); // 1, default radix to 10
 
 Number("12"); // 12
-parseFloat("12"); // 12
+parseFloat("12"); // 12, 没有12.00
 parseInt("12", 10); // 12
 
 Number("-5"); // -5
@@ -921,13 +931,13 @@ console.log(toHr("07:50")); // 7.83, number
 **Rounding Comparison**
 | Method | Input Type | Return Type | What it does |
 |---|---|---|---|
-| `Math.floor(1.6); // 1` <br>`Math.floor(-1.2); // -2` | number | number (integer) | Rounds **down** to nearest **integer** |
-| `Math.round(1.2); // 1`<br>`Math.round(1.6); // 2`<br>`Math.round(-1.2); // -1`<br>`Math.round(-1.6); // -2` | number | number (integer) | Rounds to **nearest integer** 四舍五入 |
+| `Math.floor(1.6); // 1` <br>`Math.floor(-1.2); // -2, 不是-1!!` | number | number (**integer**) | Rounds **down** to nearest **integer** |
+| `Math.round(1.2); // 1`<br>`Math.round(1.6); // 2`<br>`Math.round(-1.2); // -1`<br>`Math.round(-1.6); // -2` | number | number (**integer**) | Rounds to **nearest integer** 四舍五入 |
 | `(1.236).toFixed(2); // "1.24"`<br>`(-1.236).toFixed(2); // "-1.24"` | number | **string** | Rounds to 2 decimal places<br>类似 `Math.round()`, 四舍五入，但是返回 string，不要求integer |
-| `parseInt("1.236"); // 1` | <u>string</u> | number (integer) | Parses the string and returns an integer |
-| `parseFloat("1.236"); // 1.236` | <u>string</u> | number | Parses the string and returns a decimal number |
+| `parseInt("1.236"); // 1` | <u>string</u> | number (integer) | Parses the string and returns an integer, <u>no round</u> |
+| `parseFloat("1.236"); // 1.236` | <u>string</u> | number | Parses the string and returns a decimal number, <u>no round</u> |
 
-##### <a name="41342-string" id="41342-string">4.13.4.2 String</a>
+##### <a name="4135-string" id="4135-string">4.13.5 String</a>
 
 ```javascript
 String(true);           // "true", 不是"1"
@@ -935,11 +945,88 @@ String(42);             // "42"
 String(undefined);      // "undefined"
 ```
 
-##### <a name="41343-string-methods" id="41343-string-methods">4.13.4.3 String Methods</a>
+##### <a name="41351-string-methods" id="41351-string-methods">4.13.5.1 String Methods</a>
 
+- find in string, same in `arry.indexOf(elem)`, `arry.includes(elem)`
+  
+  ```javascript
+  "abc".indexOf(""); // 0, empty str永远return 0/true
+  "abc".indexOf("a"); // 0, 和empty str返回同一个index
+  "abc".indexOf("bc"); // 1
+  "abc".indexOf("ac"); // -1
 
+  "abc".includes(""); // true, empty str
+  "abc".includes("a"); // true
+  "abc".includes("ac"); // false
 
-#### <a name="4135-nullish-coalescing-and-optional-chaining-undefined-null" id="4135-nullish-coalescing-and-optional-chaining-undefined-null">4.13.5 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
+  "abc".startsWith(""); // true, empty str
+  "abc".startsWith("ab"); // true
+  "abc".startsWith("A"); // false
+  ```
+- slice, same in `arry.slice(start, end)`, 包括start, **不包括end**
+
+  ```javascript
+  "hello world!".slice(2,4); // "ll", 不包括index=4
+  ["a", "b", "c", "d"].slice(1, 3); // ["b", "c"], 不包括index=3
+
+  "abc".slice(); // "abc", returns a copy of string
+  ["a", "b", "c"].slice(); // ["a", "b", "c"], returns a shallow copy of arry
+  ```
+- split
+  
+  ```javascript
+  "abc".split(); // ["abc"], returns the string in arry
+  // 区别于
+  "a bc".split(""); // ['a', ' ', 'b', 'c'], 空格单独一个, 等同于[..."a bc"]
+  "07:50".split(":"); // ['07', '50']
+  ```
+  - 区别于`arry.splice(start, deleteCount, elem1, elem2, ...)`: **in-place**
+    
+    ```javascript
+    const arry = [1,2,3,4,5];
+    arry.splice(1,2, "a"); // returns [2,3], the deleted elems
+    console.log(arry); // [1, "a", 4,5], 原的arry变了
+
+    arry.splice(); // returns []
+    // 区别于arry.slice(), which create a shallow copy of arry. arry.splice does nothing
+    ```
+
+- string to array
+
+  ```javascript
+  [..."abc"]; // ['a', 'b', 'c']
+  ```
+
+- misc
+  ```javascript
+  "   abc   ".trim(); // "abc"
+  "hello world!".toUpperCase(); // "HELLO WORLD!"
+  "aBc".toLowerCase(); // "abc"
+  ```
+
+##### <a name="41352-string-number-operator-coercion" id="41352-string-number-operator-coercion">4.13.5.2 String Number Operator Coercion</a>
+
+Basic arithmetic: `+`, `-`, `*`, `/`, `**` (exponent), `%`.
+
+**Coercion**: Arithmetic operators coerce non-numbers to numbers, except `+`: <u>if either operand is a string, `+` performs string concatenation</u>.
+
+```javscript
+40 + 2;       // 42
+44 - 2;       // 42
+21 * 2;       // 42
+84 / 2;       // 42
+7 ** 2;       // 49
+49 % 2;       // 1
+
+40 + "2";     // "402" ← string concatenation
+44 - "2";     // 42    ← "2" → 2
+21 * "2";     // 42
+84 / "2";     // 42
+"7" ** "2";   // 49    ← both → numbers
+"49" % "2";   // 1
+```
+
+#### <a name="4136-nullish-coalescing-and-optional-chaining-undefined-null" id="4136-nullish-coalescing-and-optional-chaining-undefined-null">4.13.6 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
 
 ##### **<u>`??` nullish-coalescing</u>**
 
@@ -996,7 +1083,7 @@ greet(0); // 0, 不是default hello
 - **Param default value only triggers when arg is `undefined`** - missing OR is exactly `undefined`. 
   - <u>`null` does not trigger the default</u> — `null` is assigned to the parameter directly.
 
-#### <a name="4136-template-literals" id="4136-template-literals">4.13.6 Template Literals</a>
+#### <a name="4137-template-literals" id="4137-template-literals">4.13.7 Template Literals</a>
 
 <u>Newlines in template literals</u> are included literally in the string value.
 
