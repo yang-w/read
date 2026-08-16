@@ -995,6 +995,8 @@ String(undefined);      // "undefined"
 
   ```javascript
   [..."abc"]; // ['a', 'b', 'c']
+
+  "abc".split(""); // ['a', 'b', 'c']
   ```
 
 - misc

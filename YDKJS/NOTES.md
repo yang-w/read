@@ -22,7 +22,6 @@
 - [x] [§8.1 Defining Functions](../docs/guide.md#81-defining-functions)
 - [x] [§8.2 Invoking Functions](../docs/guide.md#82-invoking-functions)
 - [x] [§8.3 Function Arguments and Parameters](../docs/guide.md#83-function-arguments-and-parameters)
-- [x] ~~[§8.4 Functions as Values](../docs/guide.md#func-val)~~
 - [x] [§8.6 Closure](../docs/guide.md#86-closure)
 - [x] [§8.6.1 Closure in Loops](../docs/guide.md#861-closure-in-loops)
   - [x] [loop closure](scope-closures/ch7.md#live-link-not-a-snapshot)
