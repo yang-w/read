@@ -985,7 +985,7 @@ String(undefined);      // "undefined"
     ```javascript
     const arry = [1,2,3,4,5];
     arry.splice(1,2, "a"); // returns [2,3], the deleted elems
-    console.log(arry); // [1, "a", 4,5], 原的arry变了
+    console.log(arry); // [1, "a", 4,5], 原arry变了
 
     arry.splice(); // returns []
     // 区别于arry.slice(), which create a shallow copy of arry. arry.splice does nothing
