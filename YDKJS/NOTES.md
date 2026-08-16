@@ -68,27 +68,24 @@
   - [x][ch1.md — Primitive Values](types-grammar/ch1.md)
 - [x] [§4.11.1 Assignment with Operation](../docs/guide.md#4111-assignment-with-operation)
   - [x][ch2.md — Primitive Behaviors](types-grammar/ch2.md)
-- [ ] [ch3.md — Object Values](types-grammar/ch3.md)
-- [ ] [ch4.md — Coercing Values](types-grammar/ch4.md)
-
-### this & Object Prototypes (1st ed)
-- [ ] [ch1.md — `this` Or That?](this-object-prototypes/ch1.md) — why `this`, what it's NOT
-- [ ] [ch2.md — `this` All Makes Sense Now!](this-object-prototypes/ch2.md) — 4 binding rules: default, implicit, explicit (call/apply/bind), new
-- [ ] [ch4.md — Mixing (Up) "Class" Objects](this-object-prototypes/ch4.md) — classical inheritance vs JS, mixins
-- [ ] [ch5.md — Prototypes](this-object-prototypes/ch5.md) — `[[Prototype]]` chain, `Object.create`, `instanceof`, `Object.getPrototypeOf`
-
-### Async & Performance (1st ed)
-- [ ] [ch1.md — Asynchrony: Now & Later](async-performance/ch1.md) — event loop, task queue, concurrency
-- [ ] [ch2.md — Callbacks](async-performance/ch2.md) — callback hell, inversion of control, why promises
-- [ ] [ch3.md — Promises](async-performance/ch3.md) — Promise API, chaining, error handling, patterns
-- [ ] [ch4.md — Generators](async-performance/ch4.md) — generator syntax, `yield`, async generators, async/await under the hood
-
-### ES6 & Beyond (1st ed)
-- [ ] [ch4.md — Async Flow Control](es6-beyond/ch4.md) — Promises, generators, async/await
+- [x] [ch3.md — Object Values](types-grammar/ch3.md)
+- [x] [ch4.md — Coercing Values](types-grammar/ch4.md)
 
 ### Book 5: Sync & Async
+- [ ] [ch1. The Modern Async Mental Model](modern-async/01-modern-async-mental-model.md)
+- [ ] [ch2. Promises as the Async Primitive](modern-async/02-promises-as-the-async-primitive.md)
+- [ ] [ch3. Async/Await Is Promise Syntax](modern-async/03-async-await-is-promise-syntax.md)
+- [ ] [ch4. Concurrency and Promise Combinators](modern-async/04-concurrency-and-promise-combinators.md)
+- [ ] [ch5. Race Conditions in Frontend Applications](modern-async/05-race-conditions-in-frontends.md)
+- [ ] [ch6. Cancellation and AbortSignal](modern-async/06-cancellation-and-abortsignal.md)
+- [ ] [ch7. Async Collections and Streams](modern-async/07-async-collections-and-streams.md)
+- [ ] [ch8. Error Architecture](modern-async/08-error-architecture.md)
+- [ ] [ch9. Frontend Application Patterns](modern-async/09-frontend-application-patterns.md)
+- [ ] [ch10. Performance and Senior-Level Async Design](modern-async/10-performance-and-async-design.md)
+- [ ] [ch11. Debugging Async JavaScript](modern-async/11-debugging-async-javascript.md)
+- [ ] [ch12. Senior Frontend Async Checklist](modern-async/12-senior-frontend-async-checklist.md)
 - [ ] [async/await](../docs/guide.md#asyncawait)
-- [ ] [ch1.md — (stub, check back later)](sync-async/ch1.md)
+- [ ] [Async/Await & Promises](async-performance/async-await-promises.md)
 
 ### Book 6: ES.Next & Beyond
 - [ ] [ch1.md — (stub, check back later)](es-next-beyond/ch1.md)

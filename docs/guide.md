@@ -734,6 +734,12 @@ typeof class A {}; // function, class是function!!
 Ex4.
 
 ```javascript
+// To Boolean
+!!"hello"; // true
+!!42; // true
+!!""; // false
+!!0; // false
+
 console.log(Boolean(0)); // false
 console.log(new Boolean(0)); // Boolean {false}, 不是boolean是object
 
@@ -1026,6 +1032,11 @@ Basic arithmetic: `+`, `-`, `*`, `/`, `**` (exponent), `%`.
 84 / "2";     // 42
 "7" ** "2";   // 49    ← both → numbers
 "49" % "2";   // 1
+
+true + "";    // "true"
+42 + "";      // "42"
+null + "";    // "null"
+undefined + ""; // "undefined"
 ```
 
 #### <a name="4136-nullish-coalescing-and-optional-chaining-undefined-null" id="4136-nullish-coalescing-and-optional-chaining-undefined-null">4.13.6 Nullish coalescing and Optional chaining (`undefined`, `null`)</a>
@@ -1069,6 +1080,24 @@ b?.length; // 0, empty string won't trigger ?.
 ```
 
 #### **<u>`null` VS `undefined`</u>**
+
+```javascript
+null == undefined; // true, 注意！！
+null == 0; // false
+null == ""; // false
+null == false; // false
+
+if (data == null) {
+  // data === null || data === undefined
+}
+
+if (data != null) {
+  // data !== null && data !== undefined
+}
+```
+- **`null==undefined`**
+  - **`if(data!=null)`** 保证了data既不是null也不是undefined (可以是0, "", false)
+  - Use **`if(data == null)`** as a clean nullish check (both `null` and `undefined`):
 
 Ex. param default value
 
@@ -2156,6 +2185,29 @@ console.log(obj.toString); // undefined, no inherit from Object.prototype
 console.log(obj.hasOwnProperty); // undefined
 ```
 - `Object.create(null)` creates a special kind of object that's useful when you want <u>a clean key-value store without inherited properties</u>.
+
+##### Object key
+
+```javascript
+const myObj = {};
+myObj[3] = "hello";
+myObj["3"] = "world"; // override
+console.log(myObj); // {3: 'world'} - same property override
+
+myObj[true] = 100; // "true"
+myObj[null] = 200; // "null"
+myObj[undefined] = 300; // "undefined"
+myObj[{a:1}] = 400; // String({a: 1}) = "[object object]"
+console.log(myObj);
+// { 3: "world", true: 100, null: 200, undefined: 300, [object Object]: 400 }
+
+const arry = [1,2,3,4];
+arry[2]; // 3
+arry["2"]; // 3, key是string
+```
+- { **true**: 100 }, key是string, 但是key没有双引号
+- Object **keys** are always **strings**. Non-string keys are coerced.
+- Arrays behave as numerically indexed — arry["2"] accesses the same slot as arry[2].
 
 #### <a name="610-extended-object-literal-syntax" id="610-extended-object-literal-syntax">6.10 Extended Object Literal Syntax</a>
 
