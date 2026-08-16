@@ -71,7 +71,7 @@
 - [x] [ch3.md — Object Values](types-grammar/ch3.md)
 - [x] [ch4.md — Coercing Values](types-grammar/ch4.md)
 
-### Book 5: Sync & Async
+### Book 5: Async
 - [ ] [ch1. The Modern Async Mental Model](modern-async/01-modern-async-mental-model.md)
 - [ ] [ch2. Promises as the Async Primitive](modern-async/02-promises-as-the-async-primitive.md)
 - [ ] [ch3. Async/Await Is Promise Syntax](modern-async/03-async-await-is-promise-syntax.md)
