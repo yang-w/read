@@ -50,6 +50,7 @@
 * [9.3 Classes with the class Keyword](#93-classes-with-the-class-keyword)
 * [9.4 Class Lifecycle](#94-class-lifecycle)
 * [9.5 Class Members](#95-class-members) 
+* [10.1 Event Loop](#101-event-loop)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -3235,18 +3236,6 @@ Array -> String
     - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
     - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async, 跳出 -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all resolve
 
-  > **Call Stack** | **Microtask Queue**
-  > - The <span class="orange">call stack</span> is where JavaScript is currently executing **synchronous** code.
-  >   - Call stack is **LIFO**: When a function calls another function, the new function is pushed onto the top of the stack. When it finishes, it's popped off.
-  > - The <span class="orange">microtask queue</span> holds **callbacks** that should run as soon as callstack is empty.
-  >
-  > **Event Loop** Ex3
-  > 1. Execute synchronous code on the <span class="orange">call stack</span>.
-  > 2. When the call stack becomes empty, drain the **entire** <span class="orange">microtask queue</span>.
-  > 3. Then process next microtask (like setTimeout).
-  > 4. Repeat.
-  
-
   Ex2. `await` callback in arry.map VS for...of
 
   ```javascript
@@ -3328,88 +3317,11 @@ Array -> String
   end x的order也不变 - 区别于map!!!
   ```
   - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<span class="orange">skip following lines in current iteration, 直接进入下一个iteration</span>
-  - 区别map和for...of的`await`
-    - <span class="underline-orange">map的callback starts right away, each one waits independently, so completion order depends on which delay resolves first</span>.
-    - <span class="underline-orange">for...of的callback, each iteration waits for the previous await to finish</span>.
+  - 区别map和for...of的`await`: `await` pauses the async function it belongs to.
+    - <span class="underline-orange">map的callback starts right away, each iteration is an async, waits independently, so completion order depends on which delay resolves first</span>.
+    - <span class="underline-orange">for...of is inside one async, each `await` pauses the function and therefore pauses the loop.</span>.
 
-  Ex3. `async`/`await` + `setTimeout`, **microtask queue**
-
-  ```javascript
-  const arry = [1, 2, 3];
-
-  (async () => {
-    for (const elem of arry) {
-      console.log("start", elem);
-      await Promise.resolve();
-      console.log("end", elem);
-    }
-  })();
-
-  setTimeout(() => {
-    console.log("timeout");
-  }, 0);
-
-  console.log("done");
-
-  // start 1
-
-  // done - 注意log顺序
-
-  // end 1
-  // start 2
-
-  // end 2
-  // start 3
-
-  // end 3
-
-  // timeout - 注意timeout是所有for loop结束才print的
-  ```
-  - 注意<span class="underline-orange">timeout是等到所有for loop结束才print</span>. 因为JavaScript's **event loop** always does this:
-    - Run all synchronous code (call stack).
-    - Drain one microtask queue **completely**.
-    - Then run next macrotask (like setTimeout).
-    - Repeat.
-
-  **Visual timeline**
-
-  ```
-  Call Stack
-  ----------
-  start 1
-  await -- pause
-  setTimeout scheduled, 看见setTimeout并不执行,只是schedule
-  done
-  ---
-  call stack now is empty
-
-  Microtask Queue
-  ---------------
-  resume async (1)
-  ↓
-  end 1
-  start 2
-  await
-  ↓
-  resume async (2)
-  ↓
-  end 2
-  start 3
-  await
-  ↓
-  resume async (3)
-  ↓
-  end 3
-
-  Macrotask Queue
-  ---------------
-  timeout
-  ```
-  - `await` continuations are microtasks.
-  - `setTimeout` callback is another microtask.
-  - The <span class="underline-orange">event loop always finishes all pending microtasks before running the next macrotask</span>.
-
-  Ex4. scope
+  Ex3. scope
   ```javascript
   let sum = 0;
   (async () => {
@@ -6351,6 +6263,153 @@ console.log(interview instanceof Meeting); // true
     ```
     - `toISOString()` → machine-readable, standardized, best for storage and communication.
     - `toUTCString()` → human-readable, best for display or debugging.
+
+### <a name="#101-event-loop" id="#101-event-loop">10.1 Event Loop</a>
+
+**Call Stack** | **Microtask Queue**
+- The **call stack** is where JavaScript is currently executing code.
+  - All JavaScript code eventually runs on the call stack, whether it comes from synchronous code, a microtask, or a task.
+  - The call stack is **LIFO**: when a function calls another function, the new function is pushed onto the top of the stack. When it finishes, it is popped off.
+- The **microtask queue** holds callbacks that should run as soon as the current task finishes and the call stack is empty.
+  - Eg: `Promise.then()`, `queueMicrotask()`, and code that resumes after `await`.
+
+**Not** all <u>async scheduling</u> will be pushed into <u>microtask queue</u>. 
+
+| | Microtask Queue | Task |
+|---|---|---|
+| Promise `.then()` | ✅ | |
+| `await` continuation | ✅ | |
+| `queueMicrotask()` | ✅ | |
+| `setTimeout()`, `setInterval()` | | ✅ |
+| Borwser/DOM event callback (click, change, input, etc) | | ✅ |
+
+**Event Loop**
+1. Execute the current task on the <span class="orange">call stack</span>.
+2. When the call stack becomes empty, drain the **entire** <span class="orange">microtask queue</span>.
+3. Process the **next task** (eg, a `setTimeout` callback).
+4. Repeat.
+
+```text
+          JavaScript Event Loop
+
+        ┌──────────────────────────┐
+        │      Current task        │
+        │  synchronous JS runs     │
+        └────────────┬─────────────┘
+                     ↓
+        ┌──────────────────────────┐
+        │     Microtask queue      │
+        │ Promise.then()           │
+        │ queueMicrotask()         │
+        │ await continuation       │
+        └────────────┬─────────────┘
+                     ↓
+              drain ALL microtasks
+                     ↓
+        ┌──────────────────────────────────┐
+        │       Next task                  │
+        │ setTimeout callback              |
+        | setInterval callback             │ 
+        │ browser/DOM event callback       │
+        │ (click, change, input, etc)      │
+        └──────────────────────────────────┘
+                     │
+                     └──────────► Repeat
+```
+
+Ex1.
+
+```javascript
+console.log("A");
+
+setTimeout(() => console.log("B"), 0);
+
+Promise.resolve().then(() => console.log("C"));
+
+console.log("D");
+
+// A, synchronous
+// D, synchronous
+// C, microtask queue
+// B, another task
+```
+
+Ex2. `async`/`await` + `setTimeout`, **microtask queue**
+
+```javascript
+const arry = [1, 2, 3];
+
+(async () => {
+  for (const elem of arry) {
+    console.log("start", elem);
+    await Promise.resolve();
+    console.log("end", elem);
+  }
+})();
+
+setTimeout(() => {
+  console.log("timeout");
+}, 0);
+
+console.log("done");
+
+// start 1
+
+// done - 注意log顺序
+
+// end 1
+// start 2
+
+// end 2
+// start 3
+
+// end 3
+
+// timeout - 注意timeout是所有for loop结束才print的
+```
+- 注意<span class="underline-orange">timeout是等到所有for loop结束才print</span>. 因为JavaScript's **event loop** always does this:
+  - Run all synchronous code (call stack).
+  - Drain one microtask queue **completely**.
+  - Then run next task (like setTimeout).
+  - Repeat.
+
+**Visual timeline**
+
+```
+Call Stack
+----------
+start 1
+await -- pause
+setTimeout scheduled, 看见setTimeout并不执行,只是schedule
+done
+---
+call stack now is empty
+
+Microtask Queue
+---------------
+resume async (1)
+↓
+end 1
+start 2
+await
+↓
+resume async (2)
+↓
+end 2
+start 3
+await
+↓
+resume async (3)
+↓
+end 3
+
+Task Queue
+---------------
+timeout
+```
+- `await` continuations are microtasks.
+- `setTimeout` callback is another task queue.
+- The <span class="underline-orange">event loop always finishes all pending microtasks before running the next task queue</span>.
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 

@@ -72,6 +72,7 @@
 - [x] [ch4.md — Coercing Values](types-grammar/ch4.md)
 
 ### Book 5: Async
+- [ ] [10.1 Event Loop](../docs/guide.md#101-event-loop)
 - [ ] fetch API: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 - [ ] [ch1. The Modern Async Mental Model](modern-async/01-modern-async-mental-model.md)
 - [ ] [ch2. Promises as the Async Primitive](modern-async/02-promises-as-the-async-primitive.md)
