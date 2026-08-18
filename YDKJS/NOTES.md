@@ -72,12 +72,13 @@
 - [x] [ch4.md — Coercing Values](types-grammar/ch4.md)
 
 ### Book 5: Async
+- [ ] fetch API: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 - [ ] [ch1. The Modern Async Mental Model](modern-async/01-modern-async-mental-model.md)
 - [ ] [ch2. Promises as the Async Primitive](modern-async/02-promises-as-the-async-primitive.md)
 - [ ] [ch3. Async/Await Is Promise Syntax](modern-async/03-async-await-is-promise-syntax.md)
 - [ ] [ch4. Concurrency and Promise Combinators](modern-async/04-concurrency-and-promise-combinators.md)
-- [ ] [ch5. Race Conditions in Frontend Applications](modern-async/05-race-conditions-in-frontends.md)
-- [ ] [ch6. Cancellation and AbortSignal](modern-async/06-cancellation-and-abortsignal.md)
+- [ ] [ch5. Race Conditions in Frontend Applications](modern-async/05-original-race-conditions-in-frontends.md)
+- [ ] [ch5. Race Conditions, Cancellation, and Mutation Consistency](modern-async/05-race-conditions-cancellation-and-mutation-consistency.md)
 - [ ] [ch7. Async Collections and Streams](modern-async/07-async-collections-and-streams.md)
 - [ ] [ch8. Error Architecture](modern-async/08-error-architecture.md)
 - [ ] [ch9. Frontend Application Patterns](modern-async/09-frontend-application-patterns.md)

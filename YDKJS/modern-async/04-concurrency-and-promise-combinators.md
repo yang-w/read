@@ -107,25 +107,62 @@ Suppose a page needs:
 
 ```js
 async function loadPage(userId) {
-  const user = await getUser(userId);
+  try {
+    const user = await getUser(userId);
 
-  const [orders, recommendations] = await Promise.all([
+    const [orders, recommendations] = await Promise.all([
+      getOrders(user.id),
+      getRecommendations(user.id),
+    ]);
+
+    const orderDetails = await Promise.all(
+      orders.map(order => getOrderDetails(order.id))
+    );
+
+    return {
+      user,
+      orders: orderDetails,
+      recommendations,
+    };
+  } catch (error) {
+    console.error("Failed to load page:", error);
+
+    // Either handle it here, or rethrow it
+    throw error;
+  }
+}
+```
+Suppose:
+
+```javascript
+async function getRecommendations() {
+  throw new Error("Recommendation API failed");
+}
+```
+Then this:
+
+```javascript
+const [orders, recommendations] = await Promise.all([
+  getOrders(user.id),
+  getRecommendations(user.id),
+]);
+```
+
+causes Promise.all() to reject.
+Because you're awaiting that Promise, the rejection behaves like a thrown error:
+
+```javascript
+try {
+  await Promise.all([
     getOrders(user.id),
     getRecommendations(user.id),
   ]);
-
-  const orderDetails = await Promise.all(
-    orders.map(order => getOrderDetails(order.id))
-  );
-
-  return {
-    user,
-    orders: orderDetails,
-    recommendations,
-  };
+} catch (error) {
+  // lands here
+  console.log(error.message);
+  // "Recommendation API failed"
 }
 ```
-
 The shape is:
 
 ```text

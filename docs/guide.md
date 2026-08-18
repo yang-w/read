@@ -3243,7 +3243,7 @@ Array -> String
   > **Event Loop** Ex3
   > 1. Execute synchronous code on the <span class="orange">call stack</span>.
   > 2. When the call stack becomes empty, drain the **entire** <span class="orange">microtask queue</span>.
-  > 3. Then process next macrotask (like setTimeout).
+  > 3. Then process next microtask (like setTimeout).
   > 4. Repeat.
   
 
