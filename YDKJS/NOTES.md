@@ -72,7 +72,8 @@
 - [x] [ch4.md — Coercing Values](types-grammar/ch4.md)
 
 ### Book 5: Async
-- [ ] [10.1 Event Loop](../docs/guide.md#101-event-loop)
+- [x] [10.1 Event Loop](../docs/guide.md#101-event-loop)
+- [ ] [Async/Await & Promises](async-performance/async-await-promises.md)
 - [ ] fetch API: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 - [ ] [ch1. The Modern Async Mental Model](modern-async/01-modern-async-mental-model.md)
 - [ ] [ch2. Promises as the Async Primitive](modern-async/02-promises-as-the-async-primitive.md)
@@ -87,7 +88,6 @@
 - [ ] [ch11. Debugging Async JavaScript](modern-async/11-debugging-async-javascript.md)
 - [ ] [ch12. Senior Frontend Async Checklist](modern-async/12-senior-frontend-async-checklist.md)
 - [ ] [async/await](../docs/guide.md#asyncawait)
-- [ ] [Async/Await & Promises](async-performance/async-await-promises.md)
 
 ### Book 6: ES.Next & Beyond
 - [ ] [ch1.md — (stub, check back later)](es-next-beyond/ch1.md)
