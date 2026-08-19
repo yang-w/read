@@ -6281,7 +6281,7 @@ console.log(interview instanceof Meeting); // true
 | `await` continuation | ✅ | |
 | `queueMicrotask()` | ✅ | |
 | `setTimeout()`, `setInterval()` | | ✅ |
-| Borwser/DOM event callback (click, change, input, etc) | | ✅ |
+| Browser/DOM event callback (click, change, input, etc) | | ✅ |
 
 **Event Loop**
 1. Execute the current task on the <span class="orange">call stack</span>.
@@ -6410,6 +6410,89 @@ timeout
 - `await` continuations are microtasks.
 - `setTimeout` callback is another task queue.
 - The <span class="underline-orange">event loop always finishes all pending microtasks before running the next task queue</span>.
+
+### <a name="#102-promise" id="#102-promise">10.2 Promise</a>
+
+```javascript
+function getUser() {
+  return fetch("/api/user");
+}
+console.log("A");
+console.log(getUser());
+console.log("B");
+
+// A
+// Promise { <pending> } 
+// or 
+// if resolved: Promise { <fulfilled>: Response }
+// B
+```
+- `fetch()` <u>doesnt' block anything. it immediately starts the request and returns a Promise</u>. JavaScript continues executing other code.
+- `fetch()` always return a **Promise**, either pending / fullfilled / rejected. it will NEVER be `A Response B`
+
+A Promise has three states: **pending** / **fullfilled** / **rejected**. Once a Promise becomes fulfilled or rejected, it is **settled**.
+
+A Promise settles only once.
+
+### <a name="#1021-creating-a-promise" id="#1021-creating-a-promise">10.2.1 Creating a Promise</a>
+
+- `new Promise((resolve, reject) => { ... })`
+
+  ```
+  resolve  // function: "mark this Promise successful", no return
+  reject   // function: "mark this Promise failed", no return
+  ```
+
+  ```javascript
+  const promise = new Promise((resolve, reject) => {
+    // Promise is currently pending
+    // perform some operation
+
+    if (success) {
+      resolve("success"); // tell the Promise: it succeeded
+    } else {
+      reject(new Error("failed")); // tell the Promise: it failed
+    }
+  });
+  ```
+- `Promise.resolve()` / `Promise.reject()`
+
+  ```javascript
+  const p1 = Promise.resolve("hello");
+  console.log(p1); // Promise {<fulfilled>: 'hello'}
+
+  const p2 = Promise.reject("oops");
+  console.log(p2); // Promise {<rejected>: 'hello'}
+  ```
+
+  These are roughly equivalent:
+  
+  ```javascript
+  const p1 = new Promise((resolve) => {
+    resolve("hello");
+  });
+  console.log(p1); // Promise {<fulfilled>: 'hello'}
+
+  const p2 = new Promise((_, reject) => { // 注意"_"代替resolve, 因为没有用
+    reject("oops");
+  });
+  console.log(p2); // Promise {<rejected>: 'oops'}
+  ```
+
+  - new Promise(**(resolve, reject)** => {...}): order matters, needs to be <u>resolve first, then reject</u>
+    
+    ```javascript
+    // technically this works as well, apple=resolve, banana=reject 
+    new Promise((apple, banana) => {
+      banana("oops");
+    });
+    ```
+  - `resolve(val)` / `reject(val)` - it doesn't return anything. 区别于`Promise.resolve(val)` / `Promise.reject(val)` - returns a settled promise.
+
+The key difference btw these two
+- `new Promise((resolve, reject) => ...)`: You control WHEN it resolves/rejects
+- `Promise.resolve(value)` / `Promise.reject(error)`: It's already resolved/rejected
+
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
