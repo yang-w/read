@@ -6286,8 +6286,20 @@ console.log(interview instanceof Meeting); // true
 **Event Loop**
 1. Execute the current task on the <span class="orange">call stack</span>.
 2. When the call stack becomes empty, drain the **entire** <span class="orange">microtask queue</span>.
-3. Process the **next task** (eg, a `setTimeout` callback).
-4. Repeat.
+3. Process the **next task** (eg, a `setTimeout` callback), and that task becomes the "current task"
+4. Repeat from begining.
+
+Every task/callback contains synchronous JavaScript when it runs:
+
+```javascript
+// when setTimeout callback becomes current task
+setTimeout(() => {
+  console.log("A"); // sync
+  console.log("B"); // sync
+}, 0);
+```
+
+
 
 ```text
           JavaScript Event Loop
@@ -6307,13 +6319,22 @@ console.log(interview instanceof Meeting); // true
               drain ALL microtasks
                      ↓
         ┌──────────────────────────────────┐
-        │       Next task                  │
+        │       Pick NEXT task             │
         │ setTimeout callback              |
         | setInterval callback             │ 
-        │ browser/DOM event callback       │
-        │ (click, change, input, etc)      │
+        │                                  |
+        | Browser env:                     |
+        | browser/DOM event callback       │
+        │ (click, change, input, etc)      |
+        │                                  |
+        | NodeJS env:                      |
+        | network/I/O callback (https.get) |
+        | file I/O callback                |
         └──────────────────────────────────┘
                      │
+                     | that task becomes
+                     | the "Current task"
+                     |
                      └──────────► Repeat
 ```
 
@@ -6331,7 +6352,7 @@ console.log("D");
 // A, synchronous
 // D, synchronous
 // C, microtask queue
-// B, another task
+// B, next task
 ```
 
 Ex2. `async`/`await` + `setTimeout`, **microtask queue**
@@ -6437,21 +6458,30 @@ A Promise settles only once.
 ### <a name="#1021-creating-a-promise" id="#1021-creating-a-promise">10.2.1 Creating a Promise</a>
 
 - `new Promise((resolve, reject) => { ... })`
+  - `resolve` and `reject` are functions provided by <u>Promise constructor</u> that let you <u>control the Promise's state</u>
 
+  ```javascript
+  resolve(value) // mark this Promise successful with value, no return
+  reject(error) // mark this Promise failed with error, no return
   ```
-  resolve  // function: "mark this Promise successful", no return
-  reject   // function: "mark this Promise failed", no return
+  - Order matters, naming doesn't: 前面的是`resolve`, 后面的是`reject`
+
+  ```javascript
+  // technically this works too, apple=resolve, banana=reject 
+  new Promise((apple, banana) => {
+    banana("oops"); // reject with oops
+  });
   ```
 
   ```javascript
-  const promise = new Promise((resolve, reject) => {
+  const p = new Promise((resolve, reject) => {
     // Promise is currently pending
     // perform some operation
 
-    if (success) {
-      resolve("success"); // tell the Promise: it succeeded
+    if (success) { // if operation succeeded, mark promise success with "success"
+      resolve("success");
     } else {
-      reject(new Error("failed")); // tell the Promise: it failed
+      reject(new Error("failed")); // mark the promise rejected with Error
     }
   });
   ```
@@ -6478,21 +6508,82 @@ A Promise settles only once.
   });
   console.log(p2); // Promise {<rejected>: 'oops'}
   ```
+The key difference btw above two
+- `new Promise((resolve, reject) => ...)`: 
+  - You control WHEN it resolves/rejects. 
+  - `resolve(val)` / `reject(val)` - it doesn't return anything
+- `Promise.resolve(value)` / `Promise.reject(error)`: 
+  - Returns a Promise already fullfilled/rejected
 
-  - new Promise(**(resolve, reject)** => {...}): order matters, needs to be <u>resolve first, then reject</u>
-    
-    ```javascript
-    // technically this works as well, apple=resolve, banana=reject 
-    new Promise((apple, banana) => {
-      banana("oops");
-    });
-    ```
-  - `resolve(val)` / `reject(val)` - it doesn't return anything. 区别于`Promise.resolve(val)` / `Promise.reject(val)` - returns a settled promise.
+Ex1.
 
-The key difference btw these two
-- `new Promise((resolve, reject) => ...)`: You control WHEN it resolves/rejects
-- `Promise.resolve(value)` / `Promise.reject(error)`: It's already resolved/rejected
+```javascript
+function delay(ms) {
+  return new Promise((resolve, reject) => {
+    console.log("deley start");
+    setTimeout(() => {
+      resolve("1000");
+    }, ms);
+    console.log("delay end");
+  });
+}
 
+console.log("main start");
+
+(async () => {
+  console.log("async start")
+  const result = await delay(1000);
+  console.log(result);
+})();
+
+console.log("main end");
+```
+- `await` doesn't pause the work that creates/starts the Promise. `delay()` runs IMMEDIATELY all the way until promise returns a pending state - `setTimout` async scheduled. then the rest of the async function pauses until the Promise settles.
+
+```
+The flow
+
+"main start"
+↓
+async IIFE starts
+↓
+"async start"
+↓
+delay(1000) is called
+↓
+new Promise(...) starts IMMEDIATELY
+↓
+"deley start"
+↓
+setTimeout(...) schedules the timer IMMEDIATELY
+↓
+"delay end"
+↓
+new Promise(...) returns a PENDING Promise
+↓
+await receives that pending Promise
+↓
+async function pauses HERE
+↓
+JavaScript can do other work
+"main end"
+↓
+~1000 ms later
+↓
+setTimeout callback runs
+↓
+resolve("100")
+↓
+Promise becomes FULFILLED with "100"
+↓
+await continuation is scheduled as a microtask
+↓
+async function resumes
+↓
+result = "1000"
+↓
+console.log(result)
+```
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
