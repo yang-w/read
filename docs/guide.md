@@ -51,6 +51,8 @@
 * [9.4 Class Lifecycle](#94-class-lifecycle)
 * [9.5 Class Members](#95-class-members) 
 * [10.1 Event Loop](#101-event-loop)
+* [10.2.1 Creating a Promise](#1021-creating-a-promise)
+* [10.2.2 Promise Chaining](#1022-promise-chaining)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -105,7 +107,7 @@ The same static/dynamic split shows up across JS — one side is a **language-le
 | `var` — name registered (value is `undefined` until line runs) | `let` / `const` — not available at all until line executes (TDZ) |
 
 **Function declaration vs expression:**
-```javascript
+```js
 function awesomeFunction(coolThings) { return amazingStuff; }
 // identifier awesomeFunction resolved/linked with function at compile phase, before execution
 
@@ -134,7 +136,7 @@ Webpack parses code into ASTs, walks `import`/`require` to build a dependency gr
 See [§8.6.3 Module Systems](#module-systems)
 
 CJS
-```javascript
+```js
 // transform.js
 function getViewport() {
   return window.innerWidth;
@@ -164,7 +166,7 @@ transform.getViewport();
 ```
 
 ESM
-```javascript
+```js
 // transform.js
 export const COUNT = 0; // 注意也可以export variable
 export function getViewport() {
@@ -210,7 +212,7 @@ Browser (V8):
 
 Ex1.
 
-```javascript
+```js
 var globalvar = 1; // Global Scope
  
 function outer() {
@@ -246,7 +248,7 @@ console.log(innervar); // => Uncaught ReferenceError: outervar is not defined
 
 Ex1. (compile-time evidence)
 
-```javascript
+```js
 var greeting = "Hello";
 console.log(greeting);
 greeting = ."Hi"; // SyntaxError: unexpected token .
@@ -255,7 +257,7 @@ greeting = ."Hi"; // SyntaxError: unexpected token .
 
 Ex2. (runtime ReferenceError — earlier lines still run)
 
-```javascript
+```js
 var studentName = "Kyle";
 {
   console.log("-- hello --");  // ✅ prints — runtime hasn't hit TDZ yet
@@ -276,7 +278,7 @@ Ex1. Browser global with `id`
    ..
 </ul>
 ```
-```javascript
+```js
 window.first // <li id="first">Write a book</li>
 window["my-todo-list"] // <ul id="my-todo-list">..</ul>
 ```
@@ -284,7 +286,7 @@ window["my-todo-list"] // <ul id="my-todo-list">..</ul>
 
 Ex2. Browser global `window.name`
 
-```javascript
+```js
 var name = 42;
 console.log(typeof name); // string "42"
 
@@ -295,7 +297,7 @@ console.log(typeof num); // number 42
 
 Ex3. `window.x` — only `var`/`function` create global properties
 
-```javascript
+```js
 var one = 1;
 let notOne = 2;
 const notTwo = 3;
@@ -323,7 +325,7 @@ console.log(window.notThree);  // undefined
 
 Ex1.
 
-```javascript
+```js
 var foo = "outside"; 
 function logIt(){
 	console.log(foo); 
@@ -335,7 +337,7 @@ logIt(); // undefined
 
 <span class="orange">Ex2.</span>
 
-```javascript
+```js
 var a = 1; 
 function b() { 
     a = 10; 
@@ -350,7 +352,7 @@ console.log(a);  // 1
 
 <span class="orange">Ex3. `var` + IIFE</span> <span class="orange">注意区别下面三个例子</span>
 
-```javascript
+```js
 x=1;
 (function() {
 	x=10;
@@ -360,7 +362,7 @@ console.log(x); // 10
 console.log(b); // Uncaught ReferenceError: b is not defined
 ```
 
-```javascript
+```js
 x=1;
 (function() {
 	var x=10; // function里的x是local,function执行完了就out of scope了.和外面的x是两个variable
@@ -368,7 +370,7 @@ x=1;
 console.log(x); // 1, 不是10
 ```
 
-```javascript
+```js
 x=1;
 (function() {
 	x=10;
@@ -379,7 +381,7 @@ console.log(x); // 1, 和上面一样, 不是10
 
 <span class="orange">Ex4. Shadowing</span>
 
-```javascript
+```js
 // 1. primitve pass in as copy
 var studentName = "Suzy";
 function printStudent(studentName) {
@@ -403,7 +405,7 @@ console.log(student.name); // "SUZY"变了
 
 <span class="orange">Ex5.</span>
 
-```javascript
+```js
 function setName(obj) {
     obj.name = "Nicholas"; 
     obj = {}; // when obj is overwritten inside func, it becomes a pointer to a local obj, will be destroyed once func finishes
@@ -420,7 +422,7 @@ console.log(person.name);    // "Nicholas", 不是Greg!!
 - 对于`let`, 可以不付初始值, the value will be undefined
 - 但是`const`必须付初始值
 
-```javascript
+```js
 let a; // a is undefined
 const b = 0;
 ```
@@ -429,7 +431,7 @@ const b = 0;
 
 - 对于<span class="orange">primitive types</span> (undefined, null, number, string, boolean, symbol), value change is <u>NOT</u> possible.
 
-	```javascript
+	```js
 	const x = 9;
 	x++; // TypeError, cannot change value
 	x = 9; // TypeError, 即使付同样的值也不行
@@ -438,14 +440,14 @@ const b = 0;
 - 对于<span class="orange">reference types</span> (object, array is object), as long as it’s still pointing to the <u>same address</u>, it’s possible to edit the value.
 	- Object: 注意下面可以改变x.foo的值, since x is still pointing the same address.
 	
-		```javascript
+		```js
 		const x = {};
 		x.foo = "bar";
 		console.log(x); // {foo : "bar"}
 		```
 	- Array: 与object一样, y始终指向同一个address, 只是address里存的值变了.
 
-		```javascript
+		```js
 		const y = [];
 		y.push("foo");
 		console.log(y); // ["foo"]
@@ -462,7 +464,7 @@ const b = 0;
 | Access before declaration | `undefined` | `ReferenceError` |
 
 Ex1.
-```javascript
+```js
 function saySomething() {
   var greeting = "Hello";
   {
@@ -480,7 +482,7 @@ saySomething(); // ReferenceError: Cannot access ‘greeting’ before init
 - `let greeting` is hoisted to the top of `{}`, so `greeting` resolves to the inner `let` for the entire block — NOT the outer `var`. But it’s uninitialized (TDZ) until execution reaches the `let` line.
 
 Ex2.
-```javascript
+```js
 askQuestion(); // ReferenceError
 
 let studentName = "Suzy";
@@ -494,7 +496,7 @@ function askQuestion() {
 
 - 注意`let/const`只会被hoist到{}top VS `var`会被hoist到function top
 
-```javascript
+```js
 // Ex1: var -> {let} — fine
 function something() {
   var special = "JavaScript";
@@ -528,7 +530,7 @@ function another() {
 **`let`/`const` vs `var` comparison**
 
 Ex.
-```javascript
+```js
 console.log("globalVar: " + globalVar); // undefined, but visible
 console.log("globalLet: " + globalLet); // ReferenceError: a is not defined, *not* visible
 
@@ -613,7 +615,7 @@ catch {   // catch-declaration omitted
 
 Ex. <span class="orange">注意下面try/catch, throw对结果的影响</span>. 
 	
-```javascript
+```js
 const sum = (arry) => {
     let total = 0; // technically不能用let sum=0, 否则就shadow outter sum
       
@@ -650,7 +652,7 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
 - sum(1, 2, 3) throw在了arry.forEach, 直接进入catch, 先log(err),然后再return total=0
 - sum([1,"2", 3]) throw在"2"不是num, 直接进入catch, 先log throw的error, 然后再return total, 此时total是1
 - 如果let sum = 0 inside sum function, it shadows the outer sum function. 在function里, any attempt to call sum(...) recursively inside would throw:
-  ```javascript   
+  ```js   
   const sum = (arry) => {
     let sum = 0;       // shadows outer sum
     sum([1, 2, 3]);    // TypeError: sum is not a function
@@ -670,7 +672,7 @@ All primitive values are **immutable**: can NOT modify, can NOT add props - `Typ
 
 Ex1.1
 
-```javascript
+```js
 const text = "abc";
 
 console.log(text[0]); // a
@@ -685,7 +687,7 @@ text.length = 2; // Uncaught TypeError: Cannot assign to read only property 'len
 
 Ex1.2
 
-```javascript
+```js
 let index1 = 1, index2 = index1; 
 index1++;
 console.log(index1); // 2
@@ -696,7 +698,7 @@ console.log(index2); // 1, independent
 
 Ex2. typeof和primitive
 
-```javascript
+```js
 function isPrimitive(value) {
   return value === null || 
     (typeof value !== "object" && typeof value !== "function");
@@ -705,7 +707,7 @@ function isPrimitive(value) {
 
 Ex3.
 
-```javascript
+```js
 typeof 1; // number
 
 const foo = 1;
@@ -734,7 +736,7 @@ typeof class A {}; // function, class是function!!
 
 Ex4.
 
-```javascript
+```js
 // To Boolean
 !!"hello"; // true
 !!42; // true
@@ -756,7 +758,7 @@ The `instanceof` operator tests whether the prototype property of a constructor 
 
 Ex1.
 
-```javascript
+```js
 class A {}
 const a = new A();
 
@@ -782,7 +784,7 @@ console.log(a instanceof Object) // true
 
 #### <a name="4134-number" id="4134-number">4.13.4 Number</a>
 
-```javascript
+```js
 42 === 42.000; // true
 
 0.1 + 0.2; // 0.30000000000000004, 不是0.3
@@ -797,7 +799,7 @@ console.log(a instanceof Object) // true
 
 **Generate a random number in a range**
 
-```javascript
+```js
 Math.random(); // [0, 1), 不包括1
 ```
 - `Math.random() * (max - min) + min; // [min, max)`
@@ -809,7 +811,7 @@ Math.random(); // [0, 1), 不包括1
   - <u>包括max</u>
   - 返回的是**integer**
 
-```javascript
+```js
 // [10, 20), 不包括20
 Math.random() * (20 - 10) + 10;
 // 15.41961743911229, 也可能是16
@@ -825,7 +827,7 @@ Math.floor(Math.random() * (20-10 + 1)) + 10;
 
 **Coerce to Number**
 
-```javascript
+```js
 // returns a number OR NaN
 Number(value); // tries to coerce value to a number if it's a valid numeric string, NaN if not
 
@@ -840,7 +842,7 @@ parseInt(string, radix);
 - Use `Number()` if value is expected to be a <u>valid numeric string</u>, returns `NaN` if not.
 - Check if a value is data type `Number` (excluding `NaN`)
 
-  ```javascript
+  ```js
   typeof value === 'number' && !Number.isNaN(value);
 
   // NaN never equals
@@ -850,7 +852,7 @@ parseInt(string, radix);
 
 Ex1.1
 
-```javascript
+```js
 Number("1.234"); // 1.234
 parseFloat("1.234"); // 1.234
 
@@ -870,7 +872,7 @@ parsreInt("-5", 10); // -5
 
 Ex1.2
 
-```javascript
+```js
 parseInt("1.6", 10); // 1, 不是2! 区别于Math.round(1.6) = 2
 
 Math.round(1.6); // 2
@@ -886,7 +888,7 @@ Math.round(-32.6);   // -33, nearest
 
 Ex1.3
 
-```javascript
+```js
 Number("12px"); // NaN
 parseFloat("12px"); // 12
 
@@ -911,7 +913,7 @@ parseFloat(undefined); // NaN, undefined -> "undefined"
   
 Ex2.
 
-```javascript
+```js
 function toHr(timeStr) {
   const [hr, min] = timeStr.split(":").map(Number);
   return Number((hr + min/60).toFixed(2)); // coerce tofixed String to Number
@@ -924,7 +926,7 @@ console.log(toHr("07:50")); // 7.83, number
   - `digit`: default = 0
   - returns **string**, **四舍五入**, 所以上面Coerce toFixed的结果回Number
   
-  ```javascript
+  ```js
   // JavaScript interprets the . after 12 as part of the number literal, so the parser gets confused.
   12.toFixed(2) // ❌ SyntaxError
   (12).toFixed(2) // "12.00", string, 要把number括起来
@@ -946,7 +948,7 @@ console.log(toHr("07:50")); // 7.83, number
 
 ##### <a name="4135-string" id="4135-string">4.13.5 String</a>
 
-```javascript
+```js
 String(true);           // "true", 不是"1"
 String(42);             // "42"
 String(undefined);      // "undefined"
@@ -956,7 +958,7 @@ String(undefined);      // "undefined"
 
 - find in string, same in `arry.indexOf(elem)`, `arry.includes(elem)`
   
-  ```javascript
+  ```js
   "abc".indexOf(""); // 0, empty str永远return 0/true
   "abc".indexOf("a"); // 0, 和empty str返回同一个index
   "abc".indexOf("bc"); // 1
@@ -972,7 +974,7 @@ String(undefined);      // "undefined"
   ```
 - slice, same in `arry.slice(start, end)`, 包括start, **不包括end**
 
-  ```javascript
+  ```js
   "hello world!".slice(2,4); // "ll", 不包括index=4
   ["a", "b", "c", "d"].slice(1, 3); // ["b", "c"], 不包括index=3
 
@@ -981,7 +983,7 @@ String(undefined);      // "undefined"
   ```
 - split
   
-  ```javascript
+  ```js
   "abc".split(); // ["abc"], returns the string in arry
   // 区别于
   "a bc".split(""); // ['a', ' ', 'b', 'c'], 空格单独一个, 等同于[..."a bc"]
@@ -989,7 +991,7 @@ String(undefined);      // "undefined"
   ```
   - 区别于`arry.splice(start, deleteCount, elem1, elem2, ...)`: **in-place**
     
-    ```javascript
+    ```js
     const arry = [1,2,3,4,5];
     arry.splice(1,2, "a"); // returns [2,3], the deleted elems
     console.log(arry); // [1, "a", 4,5], 原arry变了
@@ -1000,14 +1002,14 @@ String(undefined);      // "undefined"
 
 - string to array
 
-  ```javascript
+  ```js
   [..."abc"]; // ['a', 'b', 'c']
 
   "abc".split(""); // ['a', 'b', 'c']
   ```
 
 - misc
-  ```javascript
+  ```js
   "   abc   ".trim(); // "abc"
   "hello world!".toUpperCase(); // "HELLO WORLD!"
   "aBc".toLowerCase(); // "abc"
@@ -1048,7 +1050,7 @@ nullish coalescing `??` uses the <u>right side</u> only when the left side is **
 
 `??` provide a fallback when the result is **`null`/`undefined`**
 
-```javascript
+```js
 const name = null;
 const displayName = name ?? "guest";
 
@@ -1067,7 +1069,7 @@ console.log(count || 10); // 10
 
 `?.` safely access something that might be **`null`/`undefined`**, same as nullish `??`
 
-```javascript
+```js
 const user = {
   profile: null
 };
@@ -1082,7 +1084,7 @@ b?.length; // 0, empty string won't trigger ?.
 
 #### **<u>`null` VS `undefined`</u>**
 
-```javascript
+```js
 null == undefined; // true, 注意！！
 null == 0; // false
 null == ""; // false
@@ -1119,7 +1121,7 @@ greet(0); // 0, 不是default hello
 
 <u>Newlines in template literals</u> are included literally in the string value.
 
-```javascript
+```js
 const str = `
 hello
 world
@@ -1133,14 +1135,14 @@ console.log(str);
 
 #### <a name="4111-assignment-with-operation" id="4111-assignment-with-operation">4.11.1 Assignment with Operation</a>
 
-```javascript
+```js
 a op= b; // a is evaluated once
 a = a op b // a is evaluated twice
 ```
 
 Ex1.
 
-```javascript
+```js
 let a = 1; // 必须用let, 否则不能a++ 
 console.log(a++); // 1, a++此时还是1
 console.log(a); // 2
@@ -1153,7 +1155,7 @@ console.log(a); // 2
 
 Ex2.
 
-```javascript
+```js
 // Ex2.1
 const arry = [1,2,3,4]; // arry是ref, 虽然里面变了, 但是ref没变, 可以用const
 let index=1; // 必须用let, 因为index++ 
@@ -1192,7 +1194,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 	-  will be hoisted to the top of block, before var hoisting. <b>Functions are first-class citizens</b>.
 	-  <span class="yellowBG">function declaration里的`this`是global window</span>
 
-  ```javascript
+  ```js
   function sortNameByLength(arry) {
     if(arry?.length) {
       const map = {}; // const works, as long as map is not reassigned
@@ -1226,7 +1228,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 	- `const sum = function(...args) {}`
 	- function expression can <span class="orange">include names, which can be used in recursive</span>. 注意下例中<span class="orange">factorial is only available within function f</span>.
 
-  ```javascript
+  ```js
   const f = function factorial(x) {
     if (x <= 1) return 1;
     return x * factorial(x-1);
@@ -1236,7 +1238,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 	- Immediatly Invoking Function Expression (IIFE)
 
     Ex1.
-    ```javascript
+    ```js
     const addCount = (function() {
       let count = 1; // count是private, 只有通过addCount()才能access
       return function() {
@@ -1250,7 +1252,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
     - 注意IIFE里必须改变count, 而不是只return count+1;
 
     Ex2.
-    ```javascript
+    ```js
     // Ex2.1 cache is exposed
     var cache = {}; 
     function factorial(x) {
@@ -1288,7 +1290,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 
     Ex1.
 
-    ```javascript
+    ```js
     const f1 = () => {
       console.log(arguments); // Uncaught ReferenceError: arguments is not defined
       console.log([...arguments]); // Uncaught ReferenceError: arguments is not defined
@@ -1306,7 +1308,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 			
     Ex2.
 
-    ```javascript
+    ```js
     let calculator = {
       operand1: 1,
       operand2: 2,
@@ -1353,7 +1355,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 			
     Ex3. 
 
-    ```javascript
+    ```js
     let obj = { num: 10 };
     window.num = 100;
 
@@ -1376,7 +1378,7 @@ console.log(`a = ${a}, b = ${b}`); // a = 2, b = 1, b还是1, a+1
 			
     Ex4. 
     
-    ```javascript
+    ```js
     let obj = {
       count: 10,
       doSomethingLater() {
@@ -1407,7 +1409,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 	- `func(...args)`
 	- inside func(){...this...}, `this` is window obj (non-strict) or `undefined` (strict). <span class="orange">注意下面把this放到function里</span>
 	
-		```javascript
+		```js
 		"use strict"; // 勿忘双引号
 
 		// return !this 或者 return this !== window
@@ -1421,7 +1423,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 - Indireclty thru `call`/`apply`
 - Implicit function invocation: <span class="orange">`getter`/`setter` (accessor properties)</span>, `toString()`, `valueOf()`, etc
 	
-	```javascript
+	```js
 	let p = {
         x: 2,
         y: 4,
@@ -1447,7 +1449,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 
 	Ex1. 注意下面两种default的写法
 	
-	```javascript
+	```js
 	const pushToArray1 = function(num, arry) {
 		arry = arry || []; // default to []
 		arry.push(num);
@@ -1461,7 +1463,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 		
 	Ex2. 注意下面height的default val用的是前一个param的val
 		
-	```javascript
+	```js
 	const rect = (width, height=width*2) => ({ width, height });
 	rect(1); // { width: 1, height: 2 } 
 	rect(1, 3); // { width: 1, height: 3 }. 注意这里pass进height了,  height就不取width*2了
@@ -1470,7 +1472,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 
 	Ex1. Rest parameter in function defintion
 	
-	```javascript
+	```js
 	function max(...args) {
       return Math.max(...args);
   }
@@ -1497,7 +1499,7 @@ Functions can be invoked in 5 ways: as function, as obj.method, as constructor, 
 - Take functions as args: `arry.map`, `arry.filter`, `arry.reducue`
 - Return a function
 
-  ```javascript
+  ```js
   function foo() {
     return function() {
         console.log("hello");
@@ -1513,7 +1515,7 @@ A **closure** is <u>a function</u> that can access variables from its outer scop
 
 Ex1.1
 
-```javascript
+```js
 let scope = "global";
 function checkScope() {
   let scope = "local";
@@ -1528,7 +1530,7 @@ console.log(checkScope()); // local
 
 Ex1.2
 
-```javascript
+```js
 let scope = "global";
 function checkScope() {
   let scope = "local";
@@ -1544,7 +1546,7 @@ console.log(checkScope()()); // local, 勿忘第二个()才是执行的()
 
 Ex2.1.1 keep count private: IIFE + closure (return function)
 
-```javascript
+```js
 const addOne = (function() {
   let count = 0; // 必须是let 不是const!!
   return function plusOne() {
@@ -1558,7 +1560,7 @@ console.log(addOne()); // 2
 
 Ex2.1.2 <span class="orange">区别上面的addOne</span>
 	
-```javascript
+```js
 const addNo = function() { // 不是IIFE
   let count = 0;
   return function() { // closure
@@ -1573,7 +1575,7 @@ console.log(addNo()()); // 1, 还是1!!
 
 Ex2.1.3
 
-```javascript
+```js
 function counter() { // 不是IIFE
   let count = 0;
   return {
@@ -1593,7 +1595,7 @@ console.log(c2.add()); // 1, c1和c2互不干扰, has its own count
 
 Ex2.1.4 access count
 
-```javascript
+```js
 function counter2(n = 0) {
   return {
     get count() {
@@ -1622,7 +1624,7 @@ d1.count = 2; // Error: 2 should be larger than n
 - accessor properties: <span class="orange">getter/setter can only be added to object</span>, not function. 所以下面是return { get, set } 
 - 上面的get count和set count是<u>two closures defined in the same scope</u> and share access tot he same private variable.
 
-```javascript
+```js
 console.log(d1 instanceof  counter2); // false
 console.log(d1 instanceof Object); // true
 ```
@@ -1630,7 +1632,7 @@ console.log(d1 instanceof Object); // true
 - 注意`d1 instanceof counter2; // false`. 因为counter2 return的是一个plain object
 - 区别于下面的class
 
-```javascript
+```js
 class Counter {
   constructor(n) {
     this.n = n;
@@ -1652,7 +1654,7 @@ console.log(d2 instanceof Counter); // true
 
 Ex2.1.5 Singleton, instance只init了一次, return object { function }
 
-```javascript
+```js
 const Singleton = (function() {
 	let instance; // 要用let 不是const
 	function createInstance() {
@@ -1685,7 +1687,7 @@ console.log(Singleton.getInstance()); // 不再trigger createInstance了
 
 Ex1.1 common mistake of closure in loops
 
-```javascript
+```js
 const funcs = [];
 for(var i=0; i<10; ++i) {
     funcs[i] = () => i; // 所有loop share的同一个i
@@ -1701,7 +1703,7 @@ console.log(funcs[5]()); // 10. 因为funcs的10个functions都是share的同一
 <span class="orange">How to fix</span>
 - 用`let` / `const` 做for loop, since `let` and `const` are block scoped, each iteration has its own independent binding of i.
 
-```javascript
+```js
 const funcs = [];
 for(let i = 0; i<10; ++i) {
   funcs[i] = () => i;
@@ -1710,7 +1712,7 @@ console.log(funcs[5]()); // 5
 ```
 - new var per iteration: 注意<span class="orange">必须let j=i, 如果用var还是一样</span>
 
-```javascript
+```js
 const funcs = [];
 for(let i = 0; i<10; ++i) {
   let j = i; // 不能用var 否则还是10
@@ -1720,7 +1722,7 @@ console.log(funcs[5]()); // 5
 ```
 - Use more closures:  <u>Creates a new lexical environment</u>, in which v refers to the corresponding i when constFunc(i) triggered.
 
-```javascript
+```js
 function constFunc(v) { // constFunc是一个closure, return的是一个function! 不是return v
   return () => v;
 }
@@ -1755,7 +1757,7 @@ Error: No matter what field you focus on, the message "your name" will always be
 ```
 - 注意lable for的用法
 
-```javascript
+```js
 // 这么写不好, 只需看懂为什么不对. 而且一般用addEventListener("focus", ...)
 const json = [{
 	id: "email",
@@ -1780,7 +1782,7 @@ How to fix
 - 用`let` / `const` 做for loop
 - 用forEach
 
-```javascript
+```js
 const json = {
   email: "your email",
   name: "your name",
@@ -1825,7 +1827,7 @@ function handleFocusEvt(evt) {
 
 Ex1.3 `range(start, end)` — closure to curry a function ([YDKJS apB](../ydkjs/get-started/apB.md))
 
-```javascript
+```js
 function range(start,end) {
     // ..TODO..
 }
@@ -1842,7 +1844,7 @@ start3(0);     // []
 
 Solution:
 
-```javascript
+```js
 function range(start, end) {
     start = Number(start) || 0;
 
@@ -1867,7 +1869,7 @@ function range(start, end) {
 
 Ex1.4 Define a toggle(..)
 
-```javascript
+```js
 function toggle(/* .. */) {
     // ..
 }
@@ -1886,7 +1888,7 @@ onOff();      // "on"
 
 Solution:
 
-```javascript
+```js
 function toggle(...args) { // 注意这里需要args, 不是下面return function
   let count = 0;
 
@@ -1910,7 +1912,7 @@ Closure can unexpectedly prevent GC of variables, leading to memory leaks. Disca
 
 Ex. 体会下面的写法有问题
 
-```javascript
+```js
 const btnHandlers = [];
 btn.addEventListener("click", handleCheckout);
 btn.addEventListener("focus", handleFocus);
@@ -1936,7 +1938,7 @@ function unsubscribeAll() {
   - <span class="orange">handleCheckout.name</span>是function的name string, not the function itself.
 
 How to fix
-```javascript
+```js
 const eventHandlers = [];
 
 function subscribe(elem, action, handler) {
@@ -1961,7 +1963,7 @@ unsubscribeAll()；
 - 在register的时候就push进eventHandlers, 而不是等到callback
 - 注意eventHandlers.length=0, 这样array会被gc走
 - 如果想写btn.subscribe(...)会比较复杂, 得写
-```javascript
+```js
 HTMLElement.prototype.subscribe = function(action, handler) {
   eventHandlers.push({ elem: this, action, handler });
   this.addEventListener(action, handler);
@@ -1991,7 +1993,7 @@ ESM singleton — file scope replaces IIFE, `count` is private to the module. ES
 
 Ex1.
 
-```javascript
+```js
 // count.js
 let count = 0;
 
@@ -2024,7 +2026,7 @@ A **module** = private state + public API. Three things distinguish it from plai
 
 Ex2.1.1 IIFE - legacy, Single instance
 
-```javascript
+```js
 // Single instance, share同一组records
 const Student = (function() {
   const records = [
@@ -2050,7 +2052,7 @@ console.log(Student.getName(73));
 
 Ex2.1.2 Factory function - legacy, Multiple instance
 
-```javascript
+```js
 // Multiple instance, records各不相关
 const StudentMulti = function() {
   const records = [
@@ -2076,7 +2078,7 @@ console.log(s2.getName(73));
 
 Ex2.2 CJS - legacy
 
-```javascript
+```js
 // student.js
 const records = [
   { id: 14, name: "Kyle", grade: 86 },
@@ -2103,7 +2105,7 @@ console.log(getName(73));
 
 Ex2.3 ESM - 用这个
 
-```javascript
+```js
 const records = [
   { id: 14, name: "Kyle", grade: 86 },
   { id: 73, name: "Suzy", grade: 87 },
@@ -2135,7 +2137,7 @@ console.log(Student.getName(73));
 
 There are three ways to create object. o1, o2, o3 created方式生成的obj是等效的
 
-```javascript
+```js
 const o = new Object();
 
 const o1 = { x: 1, y: 2, z: [1,2] }; // object literals
@@ -2173,7 +2175,7 @@ console.log(o1.z); // [1,2,3] — o2 doesn't have its own z
 | Has a prototype? | N/A | ❌ No (`[[Prototype]]` is `null`) |
 | Inherits `Object.prototype`? <br> eg: `toString()`, `hasOwnProperty`| ❌ No | ❌ No |
 
-```javascript
+```js
 null.name = "Alice"; // Uncaught TypeError: Cannot set properties of null (setting 'name')
 
 const obj = Object.create(null);
@@ -2189,7 +2191,7 @@ console.log(obj.hasOwnProperty); // undefined
 
 ##### Object key
 
-```javascript
+```js
 const myObj = {};
 myObj[3] = "hello";
 myObj["3"] = "world"; // override
@@ -2216,7 +2218,7 @@ arry["2"]; // 3, key是string
 
 ##### Shorthand Properties
 
-```javascript
+```js
 let x=1, y=2;
 let o = { // shorthand
   x, 
@@ -2233,7 +2235,7 @@ console.log(obj["prop with space"]);
 
 ##### Shorthand Methods
 
-```javascript
+```js
 let square = {
     side: 10,
     area() {
@@ -2258,7 +2260,7 @@ Spread syntax can be used when all elements from an object or array need to be i
 > - <span class="orange">Set/Map to array</span> `[...set]`
 
 Ex1.
-```javascript
+```js
 arry1.unshift(4, 5); // [4,5, ..arry1]
 arry1.unshift(...arry2);  // [...arry2, ...arry1];
 
@@ -2267,7 +2269,7 @@ Math.max(...nums); // Math.max.apply(null, nums)
 
 Ex2. `[...arry]` - Array Shallow Copy
 
-```javascript
+```js
 let arry1 = [1,2,3];
 let arry2 = [...arry1]; // like arry1.slice()
 arry1.push(4);
@@ -2288,7 +2290,7 @@ console.log(a); //[[], [2], [3]], 注意a的第一个的1没了
 
 Ex3.1 `{ ...obj, prop1: "a" }` - Object Shallow Copy
 
-```javascript
+```js
 const circle = {
   radius: 10,
   style: {
@@ -2309,7 +2311,7 @@ console.log(JSON.stringify(circle)); // {"radius":10,"style":{"background":"yell
 
 Ex3.2 Recursive merge (merge source into target) - assume type mismatches fall through to source-wins overwrite (as ref), assume target and source are plain object (not null)
 
-```javascript
+```js
 const target = { 
   "name": "a", 
   "about": { 
@@ -2376,7 +2378,7 @@ console.log(JSON.stringify(recursiveMerge(target, source)));
 
 Ex3.3.1 spread没有inherited props
 
-```javascript
+```js
 const o1 = { x: 1 };
 const o2 = Object.create(o1); // o2是一个empty object
 const o3 = { ...o2 };
@@ -2386,7 +2388,7 @@ console.log(o3.x); // undefined
 
 Ex3.3.2 spread没有inherited functions
 
-```javascript
+```js
 class BaseClass {
   prop = "a"; // 不是prop: "a", 是=不是:, 是;不是,
   foo() {
@@ -2425,7 +2427,7 @@ console.log(clone2); // {prop: 'a', baz: ƒ}, 和spread一样
 
 Ex3.3.3 class里的function VS arrow function
 
-```javascript
+```js
 class Button {
   handleClick() {
     console.log(this); // this = btn (loses Button instance context)
@@ -2451,7 +2453,7 @@ console.log(cloneBtn); // { handleClickArrow: ƒ } — arrow field is own prop, 
 
 Ex1. 
 
-```javascript
+```js
 // Ex1.
 function f1(a, b, ...rest) {
 	// 这是rest, rest是一个array
@@ -2475,7 +2477,7 @@ console.log(multiply(10, 1, 2, 3)); // [10, 20, 30]
 
 Ex2. 注意`arguments` to array的方法
 
-```javascript
+```js
 function sortArguments() { // 这里不用写params
   try {
     return arguments.sort();
@@ -2509,7 +2511,7 @@ The **destructuring assignment** syntax is a JavaScript expression that makes it
 
 ##### Array Destructuring
 
-```javascript
+```js
 // Default values
 let [c=2, d=5] = [1]; // 不能用const!!
 console.log(`c = ${c}, d = ${d}`); // c = 1, d = 5
@@ -2531,7 +2533,7 @@ console.log(rest); // ['e', 'l', 'l', 'o'], 注意rest是arry of char, 不是剩
 
 Ex1.
 
-```javascript
+```js
 const user = {
     id: 42,
     name: "jdoe",
@@ -2565,7 +2567,7 @@ return `${fName} a ${lName}`; // ``是整个string, 返回john a doe
 
 Ex2.1 fallback default in case obj.key不存在
 
-```javascript
+```js
 let object;
 const {
   main: {
@@ -2580,7 +2582,7 @@ console.log(title); // defaultTitle
 
 Ex2.1 Ex1中getFullName param的fallback
 
-```javascript
+```js
 function getFullName({fullName: { fName, lName }} = {}) {
   return `${fName} ${lName}`;
 } 
@@ -2596,7 +2598,7 @@ console.log(getFullName()); // undefined undefined
 
 Ex3.
 
-```javascript
+```js
 const metadata = {
     title: "metadata",
     translations: [
@@ -2635,7 +2637,7 @@ console.log(`title = ${title}, ${JSON.stringify(rel)}`)
 
 Ex4.1 把from copy进to, 在to的insertAt插入, 插入的是from从fromIndex开始向后数numToCopy个
 
-```javascript
+```js
 function arryCopy({ from=[], to=[], fromIndex=0, numToCopy=0, insertAt=0 } = {}) {
   // end是fromIndex + numToCopy
   const copy = from.slice(fromIndex, fromIndex + numToCopy);
@@ -2655,7 +2657,7 @@ console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5,6,(1
 
 Ex4.2 `arry.splice(start, deleteCount, ...items)`的deleteCount
 
-```javascript
+```js
 function arryCopy({ from=[], to=[], fromIndex=0, numToCopy=0, insertAt=0 } = {}) {
   const copy = from.slice(fromIndex, fromIndex+numToCopy); 
   console.log(copy);
@@ -2684,7 +2686,7 @@ console.log(arryCopy({ from: a, to: b, numToCopy: 3, insertAt: 2 })); // [5, 6, 
 
 The **optional chaining** operator `?.` accesses a property or calls a method on a value that might be `null` or `undefined`, returning `undefined` instead of throwing.
 
-```javascript
+```js
 obj?.prop       // undefined if obj is null/undefined
 obj?.method()   // undefined if obj is null/undefined
 arr?.[i]        // undefined if arr is null/undefined
@@ -2692,7 +2694,7 @@ arr?.[i]        // undefined if arr is null/undefined
 
 Short-circuits: if the left side is `null`/`undefined`, the right side is **not evaluated**.
 
-```javascript
+```js
 let user = null;
 let name = user?.profile.name;  // undefined
 ```
@@ -2709,7 +2711,7 @@ let name = user?.profile.name;  // undefined
 
 Ex1. 
 
-```javascript
+```js
 // key没有双引号, value才有
 const obj1 = { a: "aaa", b: 42 };
 Object.entries(obj1); // [["a", "aaa"], ["b", 42]], string都是双引号
@@ -2727,7 +2729,7 @@ Object.entries(obj1).forEach(([key, val]) => {
 
 Ex2. Object.entries(arry)
 
-```javascript
+```js
 const arry = [..."ab"];
 // 勿忘destructuring的括号
 Object.entries(arry).forEach(([index, val]) => {
@@ -2747,7 +2749,7 @@ Object.entries(arry).forEach(([index, val]) => {
 
 Ex1. `for...of` + array
 
-```javascript
+```js
 const arry = [1, 2, 3];
 let sum = 0; // 要和const分行写
 for (const val of arry) {
@@ -2757,7 +2759,7 @@ for (const val of arry) {
 
 Ex2. `for...of` + string
 
-```javascript
+```js
 function getFreq(str) {
   const map = {};
   for(const char of str) {
@@ -2781,7 +2783,7 @@ getFreq("mississippi");
   - Prefer `Object.keys()` + `for...of` to stay on own properties only.
   - <span class="orange">或者`for...in` + `Object.hasOwn(obj, "someKey")`</span>, 只loop thru non-inherited
 
-  ```javascript
+  ```js
   const obj = { x: 1 };
   "x" in obj         // true, 勿忘双引号!!
   "y" in obj        // false
@@ -2797,7 +2799,7 @@ getFreq("mississippi");
 
 Ex1.
 
-```javascript
+```js
 const obj = { x: 1 };
 
 console.log(Object.hasOwn(obj, "x")); // true, key勿忘双引号!!
@@ -2808,7 +2810,7 @@ console.log(Object.hasOwn(obj, "toString")); // false, key勿忘双引号!!
 
 Ex2. `for...in` + `Obejct.hasOwn` to guard against inherited props:
 
-```javascript
+```js
 const proto = { x: 1 };
 const obj1 = Object.create(proto); // Object.create create的是一个empty object
 obj1.b = 2; // 先b后a
@@ -2831,7 +2833,7 @@ console.log(Object.hasOwn(obj3, "x")); // true
 - `for...of`和`for...in` <span class="orange">loop的order都是insert的order, 先b后a</span>
   - `for...in`先loop its own keys, then loop inherited
 
-  ```javascript
+  ```js
   for(const val of Object.values(obj1)) { // x skip了, 只loop its own
     console.log(val); // 2 1 ← insert order
   }
@@ -2843,7 +2845,7 @@ console.log(Object.hasOwn(obj3, "x")); // true
 
 Ex3. <span class="orange">Polyfill for `Object.hasOwn`</span>:
 
-```javascript
+```js
 if (!Object.hasOwn) {
   Object.hasOwn = function(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
@@ -2895,7 +2897,7 @@ console.log(Object.prototype.hasOwnProperty.call(obj2, "x")); // Uncaught TypeEr
 
 Ex1. **Array**:
 
-```javascript
+```js
 const arry = [1, 2, 3];
 for (const val of arry) {
     console.log(val); // 1  2  3  (values)
@@ -2907,7 +2909,7 @@ for (const index in arry) {
 
 Ex2. **String**:
 
-```javascript
+```js
 for (const char of "cat") {
     console.log(char); // "c"  "a"  "t"
 }
@@ -2919,7 +2921,7 @@ for (const index in "cat") {
 
 Ex3. **Object**:
 
-```javascript
+```js
 const obj = { x: 1, y: 2 };
 
 for (const key in obj) {
@@ -2946,13 +2948,13 @@ for(const key of Object.keys(obj)) {
   - `Object.prototype.toString()`: will be invoked when `String(obj)`, 并且如果不override, output永远是"[object Object]"
   - `Object.prototype.toJSON()`: will be invoked when `JSON.stringify()` is called
     - `JSON.stringify(arry)`, works for array
-    ```javascript
+    ```js
     const arry = [1,2,3];
     console.log(JSON.stringify(arry)); // '[1,2,3]'
     ```
 
 
-```javascript
+```js
 const point1 = { x: 3, y: 4 };
 console.log(String(point1)); // [object Object]
 console.log(JSON.stringify(point1)) // {"x":3,"y":4}
@@ -2976,7 +2978,7 @@ console.log(JSON.stringify(point2)); // "(3, 4)", toJSON is called
 
 Ex1. `arry.length` 
 
-```javascript
+```js
 let arry = [];
 arry[0] = "a";
 arry[1] = "b";
@@ -3015,7 +3017,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   Ex1.1 Array-like: arguments
 
-  ```javascript
+  ```js
   function double() {
     return [...arguments].map(num => num*2);
   }
@@ -3025,7 +3027,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
   
   Ex1.2 Array-like: NodeList
 
-  ```javascript
+  ```js
   const imgs = document.querySelectorAll("img"); // non-live NodeList
   // array才能用filter, 必须[...nodeList]
   const imgsWithUnsecuredUrs = [...imgs].filter(img => img.src.startsWith("http://"));
@@ -3038,7 +3040,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   Ex1.3 Array-like: { length: 5 }
 
-  ```javascript
+  ```js
   // Ex2
   const arry1 = Array.from({length: 5}, (elem, index) => elem = index);
   console.log(arry1); // [0, 1, 2, 3, 4]
@@ -3055,7 +3057,7 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 
   Ex2. Set
 
-  ```javascript
+  ```js
   function removeDup(str) {
     if (!str) return "";
     const set = new Set([...str]); // 用array init set
@@ -3067,14 +3069,14 @@ console.log(arry); // ["a", "b", favoriteFood: "pizza", -1: -1], 注意添加的
 - Use Array constructor
   - `new Array(arrayLength)`
 
-    ```javascript
+    ```js
     const arry = new Array(2);
     console.log(arry.length); // 2
     console.log(arry[0]); // undefined
     ```
   - `new Array(element0, element1, ..., elementN)` - (not common, error prone)
 
-    ```javascript
+    ```js
     const arry1 = new Array("a", "b");
 
     const arry2 = new Array(2); // 按length处理
@@ -3125,7 +3127,7 @@ Array -> String
   - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), then it generally **visit holes** and treat them as undefined
   - Search methods <b>`find*` visit hole</b> as well
 
-  ```javascript
+  ```js
   // when hole matters: looking for the first undefined
   const arry1 = [1,,3];
   arry1.forEach((num, index) => { // hole不会visit
@@ -3157,7 +3159,7 @@ Array -> String
   - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop UNTIL the promise resolves, then continue the rest of lines in current iteration, then move to the next loop**.
 
   Ex1. 
-  ```javascript
+  ```js
   const arry = [1,2,3];
   // async写在function expression/declaration前
   const asyncSum = async (a , b) => a + b; // async的位置
@@ -3238,7 +3240,7 @@ Array -> String
 
   Ex2. `await` callback in arry.map VS for...of
 
-  ```javascript
+  ```js
   const arry = [1,2,3];
   arry.map(async (elem) => {
     console.log("start", elem);
@@ -3279,7 +3281,7 @@ Array -> String
   end 1
   ```
 
-  ```javascript
+  ```js
   (async () => {
     let sum = 0;
     for (const elem of arry) {
@@ -3322,7 +3324,7 @@ Array -> String
     - <span class="underline-orange">for...of is inside one async, each `await` pauses the function and therefore pauses the loop.</span>.
 
   Ex3. scope
-  ```javascript
+  ```js
   let sum = 0;
   (async () => {
     for(const elem of arry) {
@@ -3352,7 +3354,7 @@ Array -> String
 
 ##### <span class="white-on-black">forEach(for...of)</span>
 
-```javascript
+```js
 // Arrow function
 arry.forEach((element) => { ... } )
 arry.forEach((element, index) => { ... } )
@@ -3369,7 +3371,7 @@ arry.forEach((element, index, array) => { ... } )
 
 Ex1. 区别Ex1.1和Ex1.2
 
-```javascript
+```js
 // Ex1.1
 const arry = [1,2,3];
 arry.forEach(num => {
@@ -3402,7 +3404,7 @@ console.log(arry); // [{ a: 1, c: 3 }, { b: 2, c: 3 }], 这里本身arry变了, 
 
 Ex2. add/remove elems from array when arry.forEach
 
-```javascript
+```js
 // Ex2.1
 const arry = [1, 2, 3];
 arry.forEach(num => {
@@ -3428,7 +3430,7 @@ console.log(arry); // [0, 0, 0, 1, 2, 3]
 
 Ex3. flatten arry (`arry.flat(depth)`)
 
-```javascript
+```js
 function flatten(arry) {
   const flattened = [];
   arry.forEach(elem => {
@@ -3451,7 +3453,7 @@ nested.flat(Infinity); // [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 `for...of`支持break
 
-```javascript
+```js
 const arry = [1,,3];
 for(const num of arry) {
   if (num === undefined) {
@@ -3464,7 +3466,7 @@ for(const num of arry) {
 
 ##### <span class="white-on-black">map</span>
 
-```javascript
+```js
 // Arrow function
 const newArry = arry.map((element) => { ... } )
 newArry = arry.map((element, index) => { ... } )
@@ -3480,7 +3482,7 @@ newArry = arry.map((element, index, array) => { ... } )
 
 ##### <span class="white-on-black">filter</span>
 
-```javascript
+```js
 let filtered = arry.filter((element) => { ...return true/false... } )
 filtered = arry.filter((element, index) => { ... } )
 filtered = arry.filter((element, index, array) => { ... } )
@@ -3500,7 +3502,7 @@ callbackFn(elem, index, arry)
 
 Ex1. Sparse array
 
-```javascript
+```js
 // To close the gaps in a sparse array
 let sparse = [1,,3,,5, undefined];
 let dense = sparse.filter(() => true); // 注意callback直接返回true就行
@@ -3514,7 +3516,7 @@ console.log(sparse); //  [1, 3, 5]
 
 Ex2. callbackFn(elem, index, arry)
 
-```javascript
+```js
 // Ex2.1
 function isBigEnuf(elem) { // callback自动得到elem, index, arry
   return elem > 4;
@@ -3536,7 +3538,7 @@ console.log([1,8,4,3].filter(isBigEnuf2(4))); // [8, 4]
 
 Ex3.1 Modify array while `filter`.
 
-```javascript
+```js
 // 本身length<6的是["spray", "limit", "elite"]
 const words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
 
@@ -3552,7 +3554,7 @@ console.log(modified); // ['spray']
 
 Ex3.2 Appending new words while `arry.filter`.
 
-```javascript
+```js
 // Ex 3.2.1
 let words = ["spray", "limit", "elite", "exuberant", "destruction", "present"];
 
@@ -3579,7 +3581,7 @@ console.log(filtered); // ['spray', 'spray', 'spray', 'spray', 'spray', 'spray']
   - unshift("new")并不影响callback的word: arry.filter(word)的word是进入callback之前决定的
 
 Ex3.3 Deleting words while `filter`.	
-```javascript
+```js
 const words = ["spray", "limit", "exuberant", "destruction", "elite", "present"];
 
 const deleted = words.filter((word) => {
@@ -3595,7 +3597,7 @@ console.log(deleted); // ['spray', 'limit']
     
 ##### <span class="white-on-black">find and findIndex</span>
 
-```javascript
+```js
 let foundElem = arry.find((element) => { ...return true/false... } )
 foundElem = arry.find((element, index) => { ... } )
 foundElem = arry.find((element, index, array) => { ... } )
@@ -3607,7 +3609,7 @@ foundElem = arry.find((element, index, array) => { ... } )
 
 `find`和`findIndex`的callbackFn<span class="underline-orange">返回的是true/false</span>, 不是found elem!!!
 
-```javascript
+```js
 let arry = [1,2,3,4];
 let found = arry.find(elem => elem%2 === 0);
 console.log(found); // 2. 第一个满足条件的是2, iterate就结束了
@@ -3625,7 +3627,7 @@ console.log(foundIndex); // 1. 第一次找到2是index=1的时候
 
 ##### <span class="white-on-black">indexOf, lastIndexOf</span>
 
-```javascript
+```js
 const foundIndex = arry.indexOf(searchElement);
 indexOf(searchElement, fromIndex);
 
@@ -3639,7 +3641,7 @@ arry.lastIndexOf(searchElement, fromIndex)
 - <u>indexOf cannot find object</u>: ({ a: 1} !== { a: 1}, unless ref same)
 - <u>indexOf cannot find NaN</u>: NaN !== NaN.
 
-```javascript
+```js
 let arry = [2, 9, 9];
 arry.indexOf(9);     // 1
 arry.indexOf(7);     // -1
@@ -3648,7 +3650,7 @@ arry.lastIndexOf(9); // 2, 从后面开始找
 arry.indexOf(9, 2);  // 2, 从index=2开始找9
 ```
 
-```javascript
+```js
 String.prototype.startsWith = String.prototype.startsWith || function(str) {
     return this.indexOf(str) === 0; // this是下面的abc
 };
@@ -3657,7 +3659,7 @@ console.log("abc".startsWith("ab")); // true
 
 ##### <span class="white-on-black">includes</span>
 
-```javascript
+```js
 arry.includes(searchElement)
 arry.includes(searchElement, fromIndex)
 ```
@@ -3668,7 +3670,7 @@ arry.includes(searchElement, fromIndex)
 
 Ex1.
 
-```javascript
+```js
 const arry = [1, true, 3, NaN];
 console.log(arry.includes(true));
 console.log(arry.includes(NaN)); // true
@@ -3677,7 +3679,7 @@ console.log(arry.indexOf(NaN)); // -1, 注意和includes的区别
 
 Ex2.
 
-```javascript
+```js
 const obj1 = { a: 1 }, obj2 = { a: 2 };
 const arry = [obj1, obj2];
 
@@ -3687,7 +3689,7 @@ console.log(arry.includes({ a: 1 })); // false, obj不存在===, 除非是同一
 
 ##### <span class="white-on-black">every and some</span>
 
-```javascript
+```js
 // Arrow function
 let testResult = arry.every((element) => { ...return true/false... } )
 testResult = arry.every((element, index) => { ... } )
@@ -3706,7 +3708,7 @@ Note that both `every()` and `some()` stop iterating array elements as soon as t
 
 Ex1.
 
-```javascript
+```js
 const arry = [1, 30, 39, 29, 10, 13];
 function isBigEnuf(elem) { return elem > 10; }
 console.log(arry.some(isBigEnuf)); // true
@@ -3715,7 +3717,7 @@ console.log(arry.every(isBigEnuf)); // false
 
 Ex2. Check if arry2 is a subset of arry1
 
-```javascript
+```js
 // Ex2.1 ERROR
 const isSubset = (arry1, arry2) => {
 	return arry2.every(elem => arry1.includes(elem)); // 勿忘return every的结果
@@ -3748,7 +3750,7 @@ console.log(isSubset([1,2,3], [1,1])); // false
 
 ##### <span class="white-on-black">reduce and reduceRight</span>
 
-```javascript
+```js
 // Arrow function
 const sum = arry.reduce((acc, cur) => { ...must return some value... }, initialVal )
 arry.reduce((acc, cur, index) => { ... }, initialValue)
@@ -3773,7 +3775,7 @@ arry.reduce(callbackFn, initialValue)
   - Either arry has only one element (regardless of position) but no `initialValue` is provided, 
   - Or if `initialValue` is provided but arry is empty.
 	
-```javascript
+```js
 const getMax = (a, b) => Math.max(a, b);
 
 // callbackFn is not invoked
@@ -3788,7 +3790,7 @@ try {
 
 Ex1. Sum / Multiply
 
-```javascript
+```js
 const arry = [1,2,3,4];
 const sum = arry.reduce((acc, cur) => acc+cur);
 console.log(sum); // 10
@@ -3801,7 +3803,7 @@ console.log(arry.reduce(product)); // 24
 	
 Ex2. Sum of values in an object array. 
 
-```javascript
+```js
 const arry = [{x: 1}, {x: 2}, {x: 3}]
 const sum = arry.reduce((acc, cur) => {
   return acc + cur.x; // acc是integer, cur是object
@@ -3812,7 +3814,7 @@ console.log(sum); // 6
 
 Ex3. Counting number of times a string appears in an array 
 
-```javascript
+```js
 const names = ["Alice", "Bob", "Tiff", "Bruce", "Alice"];
 const map = names.reduce((acc, cur) => {
   if (acc[cur] === undefined) acc[cur] = 0;
@@ -3827,7 +3829,7 @@ console.log(map); // {Alice: 2, Bob: 1, Tiff: 1, Bruce: 1}
 
 Ex4. fitler out positive nums and multiply them by 2 Replace 
 
-```javascript
+```js
 const nums = [-5, 6, 2, 0,];
 
 // Ex4.1
@@ -3848,7 +3850,7 @@ console.log(result2); // [12, 4]
 
 ##### <a name="782-flattening-arrays-with-flat" id="782-flattening-arrays-with-flat">7.8.2 Flattening arrays with `flat()`</a>
 
-```javascript
+```js
 const flattenedArry = arry.flat(); // default depth = 1;
 flattened = arry.flat(depth);
 flattend = arry.flat(Infinity); // flat所有内部arry
@@ -3865,7 +3867,7 @@ flattend = arry.flat(Infinity); // flat所有内部arry
 
 Ex1.
 
-```javascript
+```js
 const arry = [1, [2, [3, [4]]]];
 console.log(arry.flat()); // [1,2,[3,[4]]]
 console.log(arry.flat(1)); // [1,2,[3,[4]]], default就是1
@@ -3879,7 +3881,7 @@ console.log(arry.flat(Infinity)); // [1,2,3,4]
 
 Ex2.
 
-```javascript
+```js
 // remove hole
 console.log([1, 2, , 4, 5].flat()); // [1, 2, 4, 5]
 // 等同于
@@ -3896,7 +3898,7 @@ console.log([1, 2, , 4, [[]], 6].flat()); // [1, 2, 4, [], 6]
 
 Ex3.1 用`reduce` / `concat`做flat(1)
 
-```javascript
+```js
 const arry = [1, [2, [3, [4]]]];
 
 const flat = arry.reduce((acc, cur) => {
@@ -3921,7 +3923,7 @@ console.log([].concat(...arry)); // // [1,2,[3,[4]]], 和flat一样
 
 Ex3.2 用`reduce`做`flat(depth)`
 
-```javascript
+```js
 const arry = [1, [2, [3, [4]]]];
 
 function flat(arry, depth = 1) { // 注意default val的写法
@@ -3944,7 +3946,7 @@ console.log(flat(arry, 2)); // [1,2,3,[4]]
 		
 ##### <a name="783-adding-arrays-with-concat" id="783-adding-arrays-with-concat">7.8.3 Adding arrays with `concat()`</a>
 
-```javascript
+```js
 const newArry = arry.concat(value0, value1, ... , valueN);
 ```
 
@@ -3958,7 +3960,7 @@ const newArry = arry.concat(value0, value1, ... , valueN);
 
 Ex1.
 
-```javascript
+```js
 console.log([1, 2].concat({ a: 1 }, "hello", [3,4])); // [1,2,{a:1}, "hello", 3, 4], [3,4]先unpack再push
 
 console.log([1].concat([2, 3])); // [1, 2, 3], [2,3]先unpack再push in
@@ -3967,7 +3969,7 @@ console.log([1].concat([[2, 3]])); // [1, [2, 3]] - [[2, 3]] is flattened only o
 
 Ex2.
 
-```javascript
+```js
 const arry1 = [[1]], arry2 = [2, [3]];
 const newArry = arry1.concat(arry2);
 console.log(newArry); // [[1], 2, [3]]
@@ -3986,14 +3988,14 @@ console.log(newArry); // [[1, 5], 2, [3]], 注意concat变了 [1,5]
 
 - `push()`
 
-	```javascript
+	```js
 	const newLength = arry.push(element0, element1, ... , elementN)
 
   arry.push(...anotherArry)
 	```
 	**Return value**: the new length of arry.
 	
-	```javascript
+	```js
 	const stack = [];
   console.log(stack.push(1,2)); // 2, 返回的是new length
   console.log(stack); // [1,2]
@@ -4001,28 +4003,28 @@ console.log(newArry); // [[1, 5], 2, [3]], 注意concat变了 [1,5]
 
 - `pop()`
 	
-	```javascript
+	```js
 	const popedElem = arry.pop(); 
 	```
 	**Return value**: The removed element from end of array; `undefined` if arry is empty.
 	
 - `shift()`
 	
-	```javascript
+	```js
 	const firstElem = arry.shift();
 	```
 	**Return value**: The removed element from arry (first element); `undefined` if arry is empty.
 
 - `unshift()`
 	
-	```javascript	
+	```js	
 	const newLength = arry.unshift(element0, element1, ... , elementN);
 	```
 	**Return value**: The new length of the arry.
 	
 	Ex.
 
-	```javascript
+	```js
   let arry = [1, 2, 3];
   arry.unshift(4,5);
   console.log(arry); // [4,5, 1,2,3], (4,5)是被一起加入
@@ -4039,7 +4041,7 @@ console.log(newArry); // [[1, 5], 2, [3]], 注意concat变了 [1,5]
 
 ##### <span class="white-on-black">slice</span>
 
-```javascript
+```js
 const sliced = arry.slice(start);
 arry.slice(start, end); // slice [start, end), end is not included
 ```
@@ -4050,7 +4052,7 @@ arry.slice(start, end); // slice [start, end), end is not included
 
 Ex1.
 
-```javascript
+```js
 const arry = ["a", { b: 1 }, "c", "d", "e"];
 console.log(arry.slice()); // shallow copy of arry: ["a", { b: 1 }, "c", "d", "e"]
 
@@ -4064,7 +4066,7 @@ console.log(sliced); // [{b:2}, "c"], 注意slice变了, shallow copy
 	
 ##### <span class="white-on-black">splice</span>
 
-```javascript
+```js
 arry.splice(); // no-op, delete 0 item, arry不变
 
 /**
@@ -4083,7 +4085,7 @@ arry.splice(start, deleteCount, item1, item2, itemN);
 
 Ex1.
 
-```javascript
+```js
 // Ex1.1
 const arry = [1,2,3];
 console.log(arry.splice()); // []
@@ -4106,7 +4108,7 @@ console.log(arry); // [1,2,3]
 
 Ex2.
 
-```javascript
+```js
 let arry = [1,2,3,4,5];
 const deleted = arry.splice(2);
 console.log(deleted); // [3,4,5], 从index2到end都被delete了
@@ -4125,7 +4127,7 @@ console.log(arry); // [1,2, ["a","b"],"c", 5]
 
 ##### <span class="white-on-black">sort</span>
 
-```javascript
+```js
 arry.sort(); // returns sorted arry, in-place
 arry.sort((firstEl, secondEl) => { ... compareFn... } )
 arry.sort(compareFn)
@@ -4143,7 +4145,7 @@ If `compareFn` is not supplied, all `non-undefined` array elements are sorted in
 
 Ex1.
 
-```javascript
+```js
 let arry = [1, 30, 4, 21, 100];
 console.log(arry.sort()); // [1,100,21,30,4], string compare
 console.log(arry); // [1,100,21,30,4], arry.sort返回的就是本身的arry
@@ -4154,7 +4156,7 @@ console.log(arry.sort((a, b) => a - b)); // [1, 4, 21, 30, 100]
 
 Ex2. 
 
-```javascript
+```js
 let arry = ["ant", "Bug", "cat", "Dog", "Cat"];
 console.log(arry.sort()); // ['Bug', 'Cat', 'Dog', 'ant', 'cat']
 
@@ -4184,7 +4186,7 @@ console.log(arry.sort((a, b) => {
 
 ##### <span class="white-on-black">reverse</span>
 
-```javascript
+```js
 arry.reverse(); // returns reversed arry, in-place
 ```
 
@@ -4197,7 +4199,7 @@ arry.reverse(); // returns reversed arry, in-place
 
 Object(Array) 都可以用`JSON.stringify(obj/arry)`
 
-```javascript
+```js
 const arry = ["a", "b", "c"];
 console.log(JSON.stringify(arry)); // string ["a","b","c"]
 console.log(JSON.parse(JSON.stringify(arry))); // array ['a', 'b', 'c']
@@ -4205,7 +4207,7 @@ console.log(JSON.parse(JSON.stringify(arry))); // array ['a', 'b', 'c']
 
 ##### <span class="white-on-black">join</span>
 
-```javascript
+```js
 const str = arry.join(separator); // default is comma
 ```
 
@@ -4218,7 +4220,7 @@ const str = arry.join(separator); // default is comma
 
 Ex1. 
 
-```javascript
+```js
 console.log([].join()); // "", empty string
 console.log([null].join()); // "", empty string
 console.log(["a",undefined,"c"].join()); // a,,c - undefined is an empty string
@@ -4227,7 +4229,7 @@ console.log(["a",undefined,"c"].join("")); // ac
 
 Ex2.
 
-```javascript
+```js
 const arry = ["a", "b", "c"];
 console.log(arry.join()); // a,b,c default是comma
 console.log(arry.join("")); // abc
@@ -4235,7 +4237,7 @@ console.log(arry.join("")); // abc
 
 Ex3.
 
-```javascript
+```js
 const arry = new Array(5);
 console.log(arry.join("-")); // ----, 4个hyphen
 // 5个undefined -> 5个empty string用-连接: 4个hyphen
@@ -4246,7 +4248,7 @@ console.log(arry.join("-")); // ----, 4个hyphen
 
 Ex1.
 
-```javascript
+```js
 const arry = [1,2,3];
 console.log(JSON.stringify(arry)); // string [1,2,3]
 console.log(arry.toString()); // 1,2,3, 有comma没有bracket!!
@@ -4257,7 +4259,7 @@ console.log(arry.join()); // 1,2,3 有comma
 
 Ex2.
 
-```javascript
+```js
 console.log(["a", "b", "c"].toString()); // "a,b,c"
 console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 ```
@@ -4295,7 +4297,7 @@ console.log([1, [2,"c"]].toString()); // 1,2,c, 全部unpack了
 
 ##### <u>Constructor</u>
 
-```javascript
+```js
 new Set(); // empty set
 new Set(iterable);
 ```
@@ -4303,7 +4305,7 @@ new Set(iterable);
 
 Ex1. Constructor
 
-```javascript
+```js
 const set1 = new Set([..."aba"]); // 用arry new
 console.log(set1); // Set(2) {'a', 'b'}
 
@@ -4341,7 +4343,7 @@ console.log(set6); // Set(3) {1,2, [1,2]}
 
 Ex2. Remove dup using `set`
 
-```javascript
+```js
 /// remove dup from arry
 const arry = ["a", "b", "a"];
 const unique = [...new Set(arry)];
@@ -4373,7 +4375,7 @@ Set用类似于<b>`===`</b>判断是否unique
 
 Ex1.
 
-```javascript
+```js
 const set = new Set();
 set.add([1]).add([1]); // chain add
 console.log(set); // Set(2) {[1], [1]}, 两个[1]都加进去了
@@ -4392,7 +4394,7 @@ console.log(set); // Set(2) {[1], [1]}
 
 Ex2.
 
-```javascript
+```js
 const set = new Set();
 set.add(document.body);
 console.log(set.has(document.querySelector("body"))); // true
@@ -4401,7 +4403,7 @@ console.log(set.has(document.querySelector("body"))); // true
 
 Ex3.
 
-```javascript
+```js
 3 === 3.0; // true!!
 
 undefined === undefined; // true
@@ -4427,7 +4429,7 @@ a < b; // true!! string compare, no number coerce
 
 Ex4. 
 
-```javascript
+```js
 const set = new Set();
 console.log(set.size); // 0
 
@@ -4452,7 +4454,7 @@ console.log(set.size); // 0
 - `for(const val of set)`
 - `Set.prototype.forEach()`
 	
-	```javascript
+	```js
 	set.forEach((elem) => { ... });
 	set.forEach(callbackFn)
 	```
@@ -4463,7 +4465,7 @@ console.log(set.size); // 0
 
 Ex1.
 
-```javascript
+```js
 // sum
 const set = new Set([1,4,2]);
 set.add(5);
@@ -4487,7 +4489,7 @@ console.log(product); // 40
 	
 Ex2. delete obj from set
 
-```javascript
+```js
 const set = new Set();
 set.add({ x: 1, y: 2 }).add({ x: 10, y: 4 });
 set.forEach(elem => {
@@ -4499,12 +4501,12 @@ console.log(set); // Set(1) {{ x: 1, y: 2 }}
 ```
 - 注意这里可以delete的原因是elem指向同一个地址
 	
-```javascript
+```js
 set.isSubsetOf(superset) 
 ```
 **Returns** `true`/`false`
 
-```javascript
+```js
 if (!Set.prototype.isSubsetOf) {
   Set.prototype.isSubsetOf = function(superset) {
     if (this.size > superset.size) return false;
@@ -4525,7 +4527,7 @@ console.log(s2.isSubsetOf(s3)); // false
 - 注意如果要用s1.isSubsetOf(s2), 就得写成`Set.prototype.isSubsetOf`
 - 必须用`for...of`, 可以随时跳出循环
   - 区别于`forEach`无法跳出, 不会因为return false就跳出, 会一直走到最后return true
-  ```javascript
+  ```js
   // ERROR 
   this.forEach((elem) => {
       if(!superset.has(elem)) {
@@ -4535,14 +4537,14 @@ console.log(s2.isSubsetOf(s3)); // false
   return true; // 最终都是return true, 勿论是否循环里有return false
   ```
 
-```javascript
+```js
 set.union(otherSet)
 ```
 
 **Returns** a **new** Set object containing elements from both sets.
 Original set remain the same.
 
-```javascript
+```js
 // 3.2.1
 Set.prototype.union = Set.prototype.union || function(otherSet) {
   const _union = new Set(this);
@@ -4566,12 +4568,12 @@ console.log(s1.union(s2)); // Set(4) {1, 2, 3, 5}
 - 3.2.2中, 区别于`new Array(elem0, elem1, ..., elemN)`, set只能`new Set(iterable)`
   - <b>`[...set]`</b>spread可以用于set!! 
 
-```javascript
+```js
 set.intersection(otherSet)
 ```
 **Returns** a **new** Set containing elements in both this set and the other set.
 
-```javascript
+```js
 Set.prototype.intersection = Set.prototype.intersection || function(otherSet) {
   const [smaller, larger] = this.size <= otherSet.size ? [this, otherSet] : [otherSet, this];  
   
@@ -4588,12 +4590,12 @@ const squares = new Set([1, 4, 9]);
 console.log(odds.intersection(squares)); // Set(2) {1, 9}
 ```
 
-```javascript
+```js
 set.difference(otherSet)
 ```
 **Returns** a **new** Set of s1有但是s2没有的 (set-otherSet)
 
-```javascript
+```js
 if (!Set.prototype.difference) {
   Set.prototype.difference = function(otherSet) {
     const diff = new Set(this);
@@ -4618,7 +4620,7 @@ console.log(odds.difference(squares)); // Set(3) {3, 5, 7}
 
 ##### <u>Constructor</u>
 
-```javascript
+```js
 new Map(); // empty map
 new Map(iterable object);
 ```
@@ -4629,7 +4631,7 @@ new Map(iterable object);
 
 Ex1.
 
-```javascript
+```js
 // arry of [key, val]
 const map = new Map([["x", 1], ["y", 2]]);
 console.log(map); // Map(2) {'x' => 1, 'y' => 2}
@@ -4648,7 +4650,7 @@ console.log(copy === map); // false, copy并不等于原始的map
 
 Ex2.
 
-```javascript
+```js
 const arry1 = [[1, "a"], [2, "b"]];
 const arry2 = [[1, "aa"]];
 
@@ -4661,7 +4663,7 @@ console.log(map.get("1")); // undefined, strictly equal===
 
 ##### Instance Properties
 
-```javascript
+```js
 Map.prototype.size
 ```
 
@@ -4685,7 +4687,7 @@ Map用类似<b>`===`</b>判断key是否一样, 和Set一样.
 
 Ex1.
 
-```javascript
+```js
 const map = new Map([[undefined, 1], [null, 2], [NaN, 3]]);
 console.log(map.get(undefined)); // 1, undefined===undefined
 console.log(map.get(null)); // 2, null===null
@@ -4698,7 +4700,7 @@ console.log(map.get(Number("abc"))); // 3, 和直接map.get(NaN)一样
 
 Ex2.
 
-```javascript
+```js
 // The following way of setting a property does not interact with the Map data structure. 
 // It uses the feature of the generic object.
 const wrongMap = new Map();
@@ -4718,7 +4720,7 @@ console.log(wrongMap.delete("a")); // false
 
 Ex3.
 
-```javascript
+```js
 const map = new Map();
 map.set("1", 1).set(1, 2).set(true, 3); // 可以chain
 console.log(map); // Map(3) {'1' => 1, 1 => 2, true => 3}
@@ -4742,7 +4744,7 @@ console.log(map); // Map(2) {'1' => 1, true => 3}
 
 Ex4.
 
-```javascript
+```js
 const arry = [];
 const map = new Map();
 map.set("ref", arry);
@@ -4763,7 +4765,7 @@ console.log(map); // Map(1) {'ref' => ["a", "b"]}
 
 Ex1.
 
-```javascript
+```js
 const map = new Map([[1, "a"], [2, {}], [3, undefined]]);
 map.forEach((val, key) => { // 先val后key!!
   console.log(key, val); // 1 "a", 2 {}, 3 undefined
@@ -4786,7 +4788,7 @@ function logMapElem(val, key, map) { // 先val后key,
 		
 Ex2.
 
-```javascript
+```js
 const map = new Map();
 map.set("0", "foo").set(1, "bar").set({}, "baz");
 console.log([...map.keys()]); // ['0', 1, {}]. 注意本身m.keys()不是返回array, 要用[...]变成array
@@ -4816,7 +4818,7 @@ for(const entry of map.entries()) {
 
 Ex3.
 
-```javascript
+```js
 const map = new Map([["a", 1], ["b", 2]]);
 
 // 用arry.forEach要先把map变成arry
@@ -4845,7 +4847,7 @@ map.forEach((val, key) => { // 区别于上面, 先val后key
 	
 Ex1. range() as a factory function
   
-```javascript
+```js
 function range(from, to) { // range小写, 不用大写
   console.log(this); // Window. 区别于Constructor里的this是constructor本身, eg: Range {}
   // 必须有这句!! 否则range1.includes() is not a function
@@ -4875,7 +4877,7 @@ console.log(range.methods.isPrototypeOf(range1)); // true
   - `function a() {}; a.toString();`返回'function a() {}'
 - Singleton和Factory Function都需要export/return, 区别于Constructor/Class用this, 不需要return.
   - Singleton
-    ```javascript
+    ```js
     // logger.js - Singleton
     class Logger {
       log(msg) { // 没有return
@@ -4896,7 +4898,7 @@ console.log(range.methods.isPrototypeOf(range1)); // true
     ```
     - component1 and component2 share the same logger
   - Factory Function
-    ```javascript
+    ```js
     // createLogger.js
     function createLogger(name) {
       return {
@@ -4926,7 +4928,7 @@ console.log(range.methods.isPrototypeOf(range1)); // true
 
 Ex2. Range as Class
 
-```javascript
+```js
 class Range { // Range后没有(), 直接{}, params从constructor传进去
   constructor(from, to) {
     this.from = from;
@@ -4966,7 +4968,7 @@ console.log(Range instanceof Function); // true
 #### <a name="93-classes-with-the-class-keyword" id="93-classes-with-the-class-keyword">9.3 Classes with the class Keyword</a>
 
 区别于function declaration, classes <u>MUST be defined before</u> they can be constructed. Following will throw `ReferenceError`
-```javascript
+```js
 const range = new Range(); // ReferenceError
 class Range {}
 ```
@@ -4977,7 +4979,7 @@ A constructor can use `super` keyword to call the constructor of the super class
 	
 Ex1.
 	
-```javascript
+```js
 class Rect {
   constructor(width, height) {
     this.width = width;
@@ -5011,7 +5013,7 @@ console.log(filled.toString()); // [10, 2] red
 	
 Ex2.
 	
-```javascript
+```js
 class Range {
   constructor(from, to) {
     this.from = from;
@@ -5043,7 +5045,7 @@ Class lifecycle includes **class evaluation**, **instance construction**, and **
 
 Ex. 注意log顺序
 
-```javascript
+```js
 class MyClass {
   static f1 = console.log(`static f1 called`);
   static {
@@ -5100,7 +5102,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   - Triggered when execution reaches the `class` declaration.
   - **Run once**, regardless of how many instances are created.
 
-  ```javascript
+  ```js
   class Rect { // evaluated here
   }
   ```
@@ -5118,7 +5120,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 - **Instance construction** (every `new`)
   - <u>Instance fields</u> are initialized **before** the constructor body.
   - Every `new` creates <u>a fresh copy of instance fields</u>.
-  ```javascript
+  ```js
   const rect = new Rect(); // triggered by new
   ```
 
@@ -5139,7 +5141,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   <u>**Subclass construction**</u>
   For subclass, construction starts from **parent** class then to **subclass**.
 
-  ```javascript
+  ```js
   class Rect {
     static count = 0;
     width = 0; height = 0;
@@ -5178,7 +5180,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   </button>
   ```
 
-  ```javascript
+  ```js
   class Rect {
     mount() {
       document.querySelector("button")
@@ -5204,7 +5206,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   Ex2. arrow function `this` 
 
-  ```javascript
+  ```js
   // Ex2.1
   class Rect {
     width = 0;
@@ -5236,7 +5238,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   ```
   - these two are the same
 
-    ```javascript
+    ```js
     // lexical this
     () => this.handleClick()
 
@@ -5248,7 +5250,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     - `() => this.handleClick()` -> arrow function `this` is determined by surrounding lexcial scope, here `this === rect`, 所以handleClick的this.width = rect.width
   - 但他们有共同的问题: <u>Every call to `bind()` creates a new function, same as arrow function</u>, **listener can NOT be removed**
 
-    ```javascript
+    ```js
     mount() {
       button.addEventListener(
         "click",
@@ -5264,7 +5266,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
     }
     ```
 
-  ```javascript
+  ```js
   // Ex2.2
   class Rect {
     width = 0;
@@ -5291,7 +5293,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   This avoids writing:
 
-  ```javascript
+  ```js
   class Rect {
     constructor(width, height) {
       this.width = width; this.height = height;
@@ -5321,7 +5323,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
 - **Method invocation (`this`)**
 
-  ```javascript
+  ```js
   rect.toString();
   Rect.create();
   ```
@@ -5338,7 +5340,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   Ex1.1 Normal instance method ❌
 
-  ```javascript
+  ```js
   class Rect {
     constructor(width) {
       this.width = width;
@@ -5363,7 +5365,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
   Ex1.2 Arrow function field ✅
 
-  ```javascript
+  ```js
   class Rect {
     width = 10;
     handleClick = () => console.log(this.width);
@@ -5390,7 +5392,7 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
   <br>
 
   Ex1.3 Normal instance method + .bind(this) ✅
-  ```javascript
+  ```js
   class Rect {
     width = 10;
 
@@ -5428,13 +5430,13 @@ MyClass.f(); // static method f called. 区别于f2是var, 没有log
 
 **<u>`Function.prototype.bind()`</u>**
 
-```javascript
+```js
 func.bind(thisArg, arg1, arg2, ..., argN)
 ```
 
 Ex2.1 Bind `this`
 
-```javascript
+```js
 const module = {
   x: 81,
   init(x) {
@@ -5478,7 +5480,7 @@ console.log(module.x); // 3
 
 Ex2.2 Partial application
 
-```javascript
+```js
 function sum(x, y) {
   return x + y;
 }
@@ -5489,13 +5491,13 @@ console.log(sumOne(2)); // 3 = 1+2
 
 **<u>`setTimeout`</u>**
 
-```javascript
+```js
 setTimeout(callback, delay)
 ```
 
 Ex2.3 
 
-```javascript
+```js
 const person = {
   fName: "alice",
   getFName() {
@@ -5522,13 +5524,13 @@ setTimeout(person.getFName, 1000); // undefined
 
 ✅ To fix: with `bind()`
 
-```javascript
+```js
 setTimeout(person.getFName.bind(person), 1000); // alice
 ```
 
 ✅ To fix: with an arrow callback
 
-```javascript
+```js
 setTimeout(() => person.getFName(), 1000); // alice
 ```
 - arrow function is the callback, 虽然是在global下执行的, 但是执行的是person.getFName(), where caller=person. 
@@ -5536,7 +5538,7 @@ setTimeout(() => person.getFName(), 1000); // alice
 
 ❌ Doesn't work (arrow function in person)
 
-```javascript
+```js
 // 2.3.1
 const person = {
   fName: "alice",
@@ -5551,7 +5553,7 @@ person.getFName();// undefined
 
 JavaScript is conceptually doing this:
 
-```javascript
+```js
 const getName = () => {
   console.log(this.name);
 };
@@ -5565,7 +5567,7 @@ const person = {
 
 ✅ To fix: using class
 
-```javascript
+```js
 // 2.3.2
 class Person {
   fName = "alice";
@@ -5581,7 +5583,7 @@ person.getFName(); // alice
 
 ✅ To fix: using arrow functions inside methods
 
-```javascript
+```js
 // 2.3.3
 const person = {
   fName: "alice",
@@ -5596,7 +5598,7 @@ person.getFNameLater(); // alice after 1000ms
 
 ❌ Doesn't work (compare with 2.3.3)
 
-```javascript
+```js
 // 2.3.4
 const person = {
   fName: "alice",
@@ -5630,7 +5632,7 @@ A `class` usually has these kinds of members:
 Members can also be **private** by prefixing them with `#`:
 - **Private instance fields**: Belong to **each** instance, and can only be used inside the class body.
   - <u>Private field必须**先**declare in class body</u>, 不能直接在constructor 里首次定义
-  ```javascript
+  ```js
   class Foo {
     #count; // 先declare
     constructor() {
@@ -5649,7 +5651,7 @@ Members can also be **private** by prefixing them with `#`:
 
 Ex1.1
 
-```javascript
+```js
 class Rect {
   // static field: Rect.count
   static count = 0; // static前面没有const
@@ -5734,7 +5736,7 @@ console.log(Rect.compareByArea(r1, r2)); // -13=12-25
 
 Ex1.2 subclass
 
-```javascript
+```js
 class FilledRect extends Rect {
   static defaultColor = "red";
   name = "Filled";
@@ -5825,7 +5827,7 @@ console.log(Object.hasOwn(Rect.prototype, "toString")); // true
 
 Ex1.3 Neither class has a constructor
 
-```javascript
+```js
 class Rect {
   static count = 0;
 }
@@ -5833,7 +5835,7 @@ class FilledRect extends Rect {}
 ```
 - JavaScript automatically inserts `constructor()` with `super()` in subclass. it's same as
 
-  ```javascript
+  ```js
   class Rectangle {
     static count = 0;
     constructor() {}
@@ -5848,7 +5850,7 @@ class FilledRect extends Rect {}
 
 Ex1.4
 
-```javascript
+```js
 class Point2d {
   x = 0;
   y = 0;
@@ -5891,7 +5893,7 @@ console.log(p2.toString()); // (0, undefined), z = undefined
 
 Ex1.5 when to use `super`
 
-```javascript
+```js
 class Point2d {
   getID() {
     return "2d";
@@ -5918,7 +5920,7 @@ p.print2(); // 2d
 
 Ex2. getter / setter
 
-```javascript
+```js
 class User {
   #name = ""; // private也没有const/function, 和static一样
 
@@ -5962,7 +5964,7 @@ console.log("end"); // 没有走到这一步!
 ```
 - 对于property, 它可以either是instance field, or是getter/setter (function name)
   
-  ```javascript
+  ```js
   class A {
     x = 0;
     set x(v) {}   // ❌ SyntaxError, x不能既是instance field, 又是function name
@@ -5977,7 +5979,7 @@ console.log("end"); // 没有走到这一步!
   ```
 - `getter`/`setter`既可用于public prop (common), 也可用于private prop (rarely)
 
-  ```javascript
+  ```js
   class Person {
     #name = ""; // #name是instance field, 要先declare后面才能用this.#name
 
@@ -6001,7 +6003,7 @@ console.log("end"); // 没有走到这一步!
 - 注意`u1.#name`会crash整个app (**SyntaxError** happens at **compile time**)
 - 对于u2, 如果想print end
 
-  ```javascript
+  ```js
   try {
     const u2 = new User("  "); // Uncaught Error: Name cannot be empty.
   } catch(err) {
@@ -6019,7 +6021,7 @@ console.log("end"); // 没有走到这一步!
 
 Ex3. static method用于cache
 
-```javascript
+```js
 class User {
   // 不需要private, 如果有subclass, 也可以用
   static cache = new Map(); // User.cache
@@ -6082,7 +6084,7 @@ console.log(User.findById(99)); // Cache miss + null
 
 Ex4. static method用于config
 
-```javascript
+```js
 class ApiClient {
   static baseUrl = "https://api.example.com"; // class level
   static timeout = 5000; // class level
@@ -6108,7 +6110,7 @@ client.request("/users"); // https://staging.example.com/users (timeout=5000ms),
 
 Ex5.
 
-```javascript
+```js
 class CalendarItem {
   static #count = 0; // count必须static, 因为用来做id, 勿论new哪一个subclass, count+1
   // #count是private, in case it's used outside class body as CalendarItem.count=100, messed up with id
@@ -6226,7 +6228,7 @@ console.log(interview instanceof Meeting); // true
 ```
 - **`new.target`** returns <u>constructor function</u>
 
-  ```javascript
+  ```js
   new.target === CalendarItem
 
   // similar to
@@ -6255,7 +6257,7 @@ console.log(interview instanceof Meeting); // true
     - `Z` means UTC.
   - `new Date()` returns <u>now</u>: "Sun Aug 09 2026 15:10:18 GMT-0700 (Pacific Daylight Time)" as a `Date` object
   - `date.toUTCString()` vs `date.toISOString()`
-    ```javascript
+    ```js
     const d = new Date("2026-05-24T11:00:00Z");
 
     console.log(d.toISOString()); // 2026-05-24T11:00:00.000Z
@@ -6291,7 +6293,7 @@ console.log(interview instanceof Meeting); // true
 
 Every task/callback contains synchronous JavaScript when it runs:
 
-```javascript
+```js
 // when setTimeout callback becomes current task
 setTimeout(() => {
   console.log("A"); // sync
@@ -6340,7 +6342,7 @@ setTimeout(() => {
 
 Ex1.
 
-```javascript
+```js
 console.log("A");
 
 setTimeout(() => console.log("B"), 0);
@@ -6357,7 +6359,7 @@ console.log("D");
 
 Ex2. `async`/`await` + `setTimeout`, **microtask queue**
 
-```javascript
+```js
 const arry = [1, 2, 3];
 
 (async () => {
@@ -6434,7 +6436,7 @@ timeout
 
 ### <a name="#102-promise" id="#102-promise">10.2 Promise</a>
 
-```javascript
+```js
 function getUser() {
   return fetch("/api/user");
 }
@@ -6460,20 +6462,20 @@ A Promise settles only once.
 - `new Promise((resolve, reject) => { ... })`
   - `resolve` and `reject` are functions provided by <u>Promise constructor</u> that let you <u>control the Promise's state</u>
 
-  ```javascript
+  ```js
   resolve(value) // mark this Promise successful with value, no return
   reject(error) // mark this Promise failed with error, no return
   ```
   - Order matters, naming doesn't: 前面的是`resolve`, 后面的是`reject`
 
-  ```javascript
+  ```js
   // technically this works too, apple=resolve, banana=reject 
   new Promise((apple, banana) => {
     banana("oops"); // reject with oops
   });
   ```
 
-  ```javascript
+  ```js
   const p = new Promise((resolve, reject) => {
     // Promise is currently pending
     // perform some operation
@@ -6487,7 +6489,7 @@ A Promise settles only once.
   ```
 - `Promise.resolve()` / `Promise.reject()`
 
-  ```javascript
+  ```js
   const p1 = Promise.resolve("hello");
   console.log(p1); // Promise {<fulfilled>: 'hello'}
 
@@ -6497,7 +6499,7 @@ A Promise settles only once.
 
   These are roughly equivalent:
   
-  ```javascript
+  ```js
   const p1 = new Promise((resolve) => {
     resolve("hello");
   });
@@ -6515,15 +6517,19 @@ The key difference btw above two
 - `Promise.resolve(value)` / `Promise.reject(error)`: 
   - Returns a Promise already fullfilled/rejected
 
-Ex1.
+Ex1.1
 
-```javascript
+```js
+// delay: generate a Promise that resolves after ms
 function delay(ms) {
-  return new Promise((resolve, reject) => {
+  // always returns a fullfilled promise, no rejected usecase
+  return new Promise((resolve) => {
     console.log("deley start");
+
     setTimeout(() => {
       resolve("1000");
     }, ms);
+
     console.log("delay end");
   });
 }
@@ -6537,8 +6543,17 @@ console.log("main start");
 })();
 
 console.log("main end");
+
+// main start
+// async start
+// deley start
+// delay end
+// main end
+// 1000
 ```
-- `await` doesn't pause the work that creates/starts the Promise. `delay()` runs IMMEDIATELY all the way until promise returns a pending state - `setTimout` async scheduled. then the rest of the async function pauses until the Promise settles.
+- `await` doesn't pause the work, `delay()` runs IMMEDIATELY all the way to the end and returns a pending promise.
+  - `setTimout` doesn't pause the `delay()`, it schedules the async and continues - printing "delay end" then returning the pending Promise.
+  - The rest of the async function now pauses until the Promise settles.
 
 ```
 The flow
@@ -6546,7 +6561,6 @@ The flow
 "main start"
 ↓
 async IIFE starts
-↓
 "async start"
 ↓
 delay(1000) is called
@@ -6562,8 +6576,7 @@ setTimeout(...) schedules the timer IMMEDIATELY
 new Promise(...) returns a PENDING Promise
 ↓
 await receives that pending Promise
-↓
-async function pauses HERE
+async function pauses and JUMPS OUT
 ↓
 JavaScript can do other work
 "main end"
@@ -6571,23 +6584,119 @@ JavaScript can do other work
 ~1000 ms later
 ↓
 setTimeout callback runs
+resolve("1000")
 ↓
-resolve("100")
-↓
-Promise becomes FULFILLED with "100"
+Promise becomes FULFILLED with "1000"
 ↓
 await continuation is scheduled as a microtask
-↓
 async function resumes
 ↓
 result = "1000"
-↓
 console.log(result)
 ```
 
+Ex1.2
+
+```js
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+delay(1000).then(() => { // then returns a new Promise
+  console.log("1000ms passed");
+});
+```
+- `setTimeout(resolve, ms)` equals to `setTimeout(() => resolve(), ms)` - it just call resolve() after ms
+
+### <a name="#1022-promise-chaining" id="#1022-promise-chaining">10.2.2 Promise Chaining</a>
+
+**`.then()`**, `.catch()`, and `.finally()` all return a <u>new Promise</u>.
+
+```js
+aPromise.then(something => {
+  // something = the fulfilled VALUE, not a Promise
+});
+```
+
+```js
+// if .catch() handles error and returns normally
+// the new Promise is fulfilled
+
+// the Promise returned by .catch() is fulfilled with 123.
+Promise.reject(new Error("failed"))
+  .catch(error => {
+    console.log(error);
+    return 123;
+  })
+  .then(value => {
+    console.log(value); // 123
+  });
+
+/**
+Error: failed
+    at test.js:20:16
+123
+*/
+
+// the Promise returned by .catch() is rejected because of throw
+Promise.reject(new Error("failed"))
+  .catch(error => {
+    throw new Error("failed");
+    return 123; // ❌ unreachable code
+  })
+  .then(val => {
+    console.log(val); // ❌ won't run
+  });
+```
+
+```js
+// .finally() normally passes through the previous value/error
+// preserving the fulfilled/rejected state
+Promise.resolve(123)
+  .finally(() => {
+    console.log("cleanup");
+  })
+  .then(value => {
+    console.log(value); // 123, 一开始resolve的123
+  });
+```
+
+Ex. 
+
+```js
+fetch("/api/user")
+  .then(response => { // response is the resolved value, not a promise
+    return response.json(); // returns a Promise
+  })
+  .then(user => { // user: resolved to a javascript object { id: 123, name: "John" }
+    return getOrders(user.id); // returns a Promise
+  })
+  .then(orders => {
+    return getOrderDetails(orders[0].id); // promise
+  })
+  .then(order => {
+    console.log(order);
+    return order.id; // returns a normal value
+  })
+  .then(id => {
+    console.log(id); // no return
+  })
+  .catch(error => {
+    console.error(error);
+  })
+  .finally(() => {
+    console.log("Finished");
+  });
+```
+- `fetch()` returns a Promise that resolves to a `Response` object.
+  - For a JSON API, the response body contains JSON string, e.g. '{"id":123,"name":"John"}'
+  - `response.json()` parse the response body and returns a Promise, which resolves to a javascript object: { id: 123, name: "John" }
+- function in `.then()` can return a normal value OR a Promise OR nothing
+
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
-```javascript
+```js
 async function task1() {
   console.log('task1 start');
   await task2();
@@ -6634,7 +6743,7 @@ For search boxes or filtering UIs, you want to react as the user types, but not 
 
 - for `debounce`, only the most recent action triggers the callback. eg: user types in "abc" and pauses, `debounce` shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous schedule.
 
-```javascript
+```js
 // without clearTimeout
 function debounce(callback, delay) {
     return function(...args) {
@@ -6666,7 +6775,7 @@ log("C");
 
 - `setTimeout(fnRef, delay)` expects a function reference, not a function call
 
-```javascript
+```js
 setTimeout(callback(...args), delay); 
 // This calls callback(...args) immediately — instead of scheduling it to run later
 
@@ -6694,7 +6803,7 @@ textNode, innerText, innerhtml
 
 Immediately Invoked Function Expression (IIFE), and it’s mainly about scoping and isolation
 
-```javascript
+```js
 let pool = []; // becomes window.pool
 
 (function () {
@@ -6745,7 +6854,7 @@ Instead, recycles a pool of DOM nodes and renders only the visible window. Uses 
   - on page load: mag is fully visible inside viewport -> `item.isIntersecting = true`
   - when scrolls and mag is out of viewport -> `item.isIntersecting = false`
 
-  ```javascript
+  ```js
   onMount() {
       const initStickyObserver = () => {
           const refinementRoot = document.getElementById('brw-refinement-root');
