@@ -7,6 +7,7 @@
 * [3.10.1 `var` + Hoisting](#3101-var--hoisting)
 * [3.10.2 `let`/`const` + TDZ](#3102-letconst--tdz)
 * [3.10.3 `catch` Block Scope](#3103-catch-block-scope)
+* [3.10.3.1 `Error` object](#31031-error-object)
 * [4.13.3 The `typeof` and `instanceof` Operator](#4133-the-typeof-and-instanceof-operator)
 * [4.13.4 Number](#4134-number)
 * [4.13.5 String](#4135-string)
@@ -53,6 +54,7 @@
 * [10.1 Event Loop](#101-event-loop)
 * [10.2.1 Creating a Promise](#1021-creating-a-promise)
 * [10.2.2 Promise Chaining](#1022-promise-chaining)
+* [10.3 async/await](#103-asyncawait)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -661,6 +663,70 @@ console.log(sum([1,"2", 3])); // TypeError: 2 is not a number, 1
   ```
 
   - Outside the function, the outer sum is unaffected.
+
+#### <a name="31031-error-object" id="31031-error-object">3.10.3.1 `Error` object</a>
+
+```js
+new Error(msg, optionObj); // 第一个param是string, 第二个param必须是object
+```
+
+Ex1.
+
+```js
+new Error("getUser failed")
+```
+returns
+
+```
+{
+  name: "Error",
+  message: "getUser failed",
+  stack: "Error: getUser failed\n    at ..."
+}
+```
+
+```js
+try {
+  throw new Error("getUser failed");
+} catch (error) {
+  console.error(error); 
+  /**
+  Error: getUser failed
+    at getUser (...)
+    at ...
+    */
+  console.log(error.name);    // "Error"
+  console.log(error.message); // "getUser failed", usually what we use
+  console.log(error.stack);   // stack trace
+}
+```
+
+Ex2.
+
+```js
+new Error("getUser failed", { cause: `${response.status}`})
+```
+returns
+
+```
+{
+  name: "Error",
+  message: "getUser failed",
+  cause: "404"  ← string because of `${}`
+  stack: "Error: getUser failed\n    at ..."
+}
+```
+
+```js
+try {
+  throw new Error("getUser failed", {
+    cause: `${response.status}`,
+  });
+} catch (error) {
+  console.log(error.message); // "getUser failed"
+  console.log(error.cause);   // "404"
+}
+```
 
 #### <a name="4133-the-typeof-and-instanceof-operator" id="4133-the-typeof-and-instanceof-operator">4.13.3 The `typeof` and `instanceof` Operator</a>
 
@@ -6437,11 +6503,11 @@ timeout
 ### <a name="#102-promise" id="#102-promise">10.2 Promise</a>
 
 ```js
-function getUser() {
-  return fetch("/api/user");
+function getUser(id) {
+  return fetch(`/api/users/${id}`);
 }
 console.log("A");
-console.log(getUser());
+console.log(getUser(123));
 console.log("B");
 
 // A
@@ -6524,7 +6590,7 @@ Ex1.1
 function delay(ms) {
   // always returns a fullfilled promise, no rejected usecase
   return new Promise((resolve) => {
-    console.log("deley start");
+    console.log("delay start");
 
     setTimeout(() => {
       resolve("1000");
@@ -6546,7 +6612,7 @@ console.log("main end");
 
 // main start
 // async start
-// deley start
+// delay start
 // delay end
 // main end
 // 1000
@@ -6665,7 +6731,7 @@ Promise.resolve(123)
 Ex. 
 
 ```js
-fetch("/api/user")
+fetch(`/api/users/${id}`)
   .then(response => { // response is the resolved value, not a promise
     return response.json(); // returns a Promise
   })
@@ -6693,6 +6759,112 @@ fetch("/api/user")
   - For a JSON API, the response body contains JSON string, e.g. '{"id":123,"name":"John"}'
   - `response.json()` parse the response body and returns a Promise, which resolves to a javascript object: { id: 123, name: "John" }
 - function in `.then()` can return a normal value OR a Promise OR nothing
+
+### <a name="#103-asyncawait" id="#103-asyncawait">10.3 async/await</a>
+
+Ex1.
+
+```js
+async function getNumber() {
+  return 42;
+}
+const p = getNumber();
+console.log(p); // Promise {<fulfilled>: 42}
+
+// conceptually the same as
+function getNumber() {
+  return Promise.resolove(42);
+}
+```
+- `async` always returns a Promise, 勿论function里return的什么
+
+```js
+// Ex1.1
+(async () => { // await必须包在async里
+  const number = await getNumber();
+  console.log(number); // 42
+})();
+// Ex1.2
+getNumber().then(num => {
+  console.log(num);
+})
+```
+- To consume a Promise, two options
+  - `aPromise.then(val => {..})` (Ex1.2): `.then()` still returns a Promise, but val is the resolved value.
+  - `await aPromise()` (Ex1.1): returns the resolved value, no longer a promise
+
+Ex2.
+
+```js
+async function run(id) {
+  showLoadingSpinner(); // 进入await前就show spinner
+
+  try {
+    const response = await fetch(`/api/users/${id}`);
+    const user = await response.json();
+    const oders = await getOrders(user.id);
+    const order = await getOrderDetail(oders[0].id);
+    console.log(order.id);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    hideLoadingSpinner(); // finally hide spinner (success/fail)
+  }
+}
+run(123);
+```
+- async **function** aFunc() {}, 勿忘function
+- `await`必须在`async`里
+- `try`/`catch` === `aPromise.catch()`
+- `finally {}` === `aPromise.finally()`
+
+| `async` / `await` | `Promise` APIs |
+|---|---|
+| Use `async` / `await` to express the workflow. | Use Promise APIs to <u>compose and coordinate</u> asynchronous operations. |
+
+Ex3.
+
+```js
+const user = await getUser();
+const products = await getProducts();
+```
+Should be run parallel if they are independent.
+
+```js
+const [user, products] = await Promise.all([ // 只有一个await, 在外面
+  getUser(), // 里面没有await, 里面就是promise
+  getProducts(),
+]);
+```
+- `Promise.all(arry of promises)`: returns an Promise
+- `await Promise.all([p1, p2, ...])`: 只有一个`await`, 在外面. 里面的[p1, p2,..]没有await
+
+Ex4. real example
+
+```js
+async function getUser(id) {
+  const response = await fetch(`/api/users/${id}`);
+  
+  if (!response.ok) {
+    // not new Error("failed", response.status)
+    throw new Error(`getUser failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+// usage
+try { // 勿忘try/catch
+  const user = await getUser(123);
+  console.log(user?.name);
+} catch (error) {
+  console.log(error);
+}
+```
+- `fetch()` <u>rejects only when it couldn't successfully complete the request</u>, eg: request/network failures, but does **NOT** fail on normal <u>HTTP error responses</u> `4xx` or `5xx`, check `response.ok` → `true`/`false`
+- `response.ok`: based on response.status (the response status code)
+  - 2xx → `true`: `200 OK`, `204 No Content`
+  - rest → `false`: `301 Redirect`, `400 Bad Request`, `404 Not Found`, `500 Internal Server Error`
+- `response.status`: returns a number of status code
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
