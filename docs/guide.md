@@ -6736,10 +6736,10 @@ fetch(`/api/users/${id}`)
     return response.json(); // returns a Promise
   })
   .then(user => { // user: resolved to a javascript object { id: 123, name: "John" }
-    return getOrders(user.id); // returns a Promise
+    return getOrders(user?.id); // returns a Promise
   })
   .then(orders => {
-    return getOrderDetails(orders[0].id); // promise
+    return getOrderDetail(orders?.[0]?.id); // promise
   })
   .then(order => {
     console.log(order);
@@ -6769,14 +6769,14 @@ async function getNumber() {
   return 42;
 }
 const p = getNumber();
-console.log(p); // Promise {<fulfilled>: 42}
+console.log(p); // Promise {<fulfilled>: 42}, 是fullfilled, not pending
 
 // conceptually the same as
 function getNumber() {
   return Promise.resolove(42);
 }
 ```
-- `async` always returns a Promise, 勿论function里return的什么
+- `async` always returns a Promise, 勿论function里return的是normal value还是no return还是promise
 
 ```js
 // Ex1.1
@@ -6784,45 +6784,21 @@ function getNumber() {
   const number = await getNumber();
   console.log(number); // 42
 })();
+
 // Ex1.2
 getNumber().then(num => {
   console.log(num);
 })
 ```
-- To consume a Promise, two options
-  - `aPromise.then(val => {..})` (Ex1.2): `.then()` still returns a Promise, but val is the resolved value.
+- `getNumber()` returns a Promise. To consume a Promise, two options
   - `await aPromise()` (Ex1.1): returns the resolved value, no longer a promise
-
-Ex2.
-
-```js
-async function run(id) {
-  showLoadingSpinner(); // 进入await前就show spinner
-
-  try {
-    const response = await fetch(`/api/users/${id}`);
-    const user = await response.json();
-    const oders = await getOrders(user.id);
-    const order = await getOrderDetail(oders[0].id);
-    console.log(order.id);
-  } catch (error) {
-    console.log(error);
-  } finally {
-    hideLoadingSpinner(); // finally hide spinner (success/fail)
-  }
-}
-run(123);
-```
-- async **function** aFunc() {}, 勿忘function
-- `await`必须在`async`里
-- `try`/`catch` === `aPromise.catch()`
-- `finally {}` === `aPromise.finally()`
+  - `aPromise.then(val => {..})` (Ex1.2): `.then()` still returns a Promise, but val is the resolved value.
 
 | `async` / `await` | `Promise` APIs |
 |---|---|
 | Use `async` / `await` to express the workflow. | Use Promise APIs to <u>compose and coordinate</u> asynchronous operations. |
 
-Ex3.
+Ex2.
 
 ```js
 const user = await getUser();
@@ -6839,6 +6815,44 @@ const [user, products] = await Promise.all([ // 只有一个await, 在外面
 - `Promise.all(arry of promises)`: returns an Promise
 - `await Promise.all([p1, p2, ...])`: 只有一个`await`, 在外面. 里面的[p1, p2,..]没有await
 
+Ex3.
+
+```js
+async function getOrderByUser(id) {
+  showLoadingSpinner(); // 进入await前就show spinner
+
+  try {
+    const response = await fetch(`/api/users/${id}`);
+    const user = await response.json();
+    const oders = await getOrders(user?.id);
+    const order = await getOrderDetail(oders?.[0].id);
+    return order;
+  } catch (error) {
+    throw new Error("getOrderByUser failed", { cause: error });
+  } finally {
+    hideLoadingSpinner(); // finally hide spinner (success/fail)
+  }
+}
+
+// usage
+(async () => { // consume the returned val from async function, need wrap it inside async/await block
+  try {
+    const order = await getOrderByUser(123);
+    console.log(order?.name);
+  } catch (error) {
+    console.log(error);
+    // error.message: "getOrderByUser failed"
+    // error.cause: error
+  }
+})();
+```
+- async **function** aFunc() {...}, 勿忘keyword function
+- `await`必须在`async`里
+  - 同样的, to consume the returned val from async function, 必须 **`await`** getOrderByUser(), 因为用了await, 所以要把整个wrap在`async`里
+- `try`/`catch` === `aPromise.catch()`
+- `finally {}` === `aPromise.finally()`: 注意这里`finally {}`没有param, 不是finally() {...}
+- `throw new Error("getOrderByUser failed", { cause: error })` - 注意{ cause: error }的用法
+
 Ex4. real example
 
 ```js
@@ -6853,17 +6867,39 @@ async function getUser(id) {
 }
 
 // usage
-try { // 勿忘try/catch
-  const user = await getUser(123);
-  console.log(user?.name);
-} catch (error) {
-  console.log(error);
-}
+(async () => { // 因为下面的await getUser, 要wrap在async里
+  showSpinner();
+
+  try { // 勿忘try/catch
+    const user = await getUser(123);
+    console.log(user?.name);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    removeSpinner();
+  }
+})();
 ```
 - `fetch()` <u>rejects only when it couldn't successfully complete the request</u>, eg: request/network failures, but does **NOT** fail on normal <u>HTTP error responses</u> `4xx` or `5xx`, check `response.ok` → `true`/`false`
 - `response.ok`: based on response.status (the response status code)
-  - 2xx → `true`: `200 OK`, `204 No Content`
-  - rest → `false`: `301 Redirect`, `400 Bad Request`, `404 Not Found`, `500 Internal Server Error`
+  - `true`: 2xx - `200 OK`, `204 No Content`
+  - `false`: rest - `301 Redirect`, `400 Bad Request`, `404 Not Found`, `500 Internal Server Error`
+    - `404` means the server was reached, but it couldn't find the resource/route you requested
+
+    ```js
+    // ❌ 404, actual route is /api/users/:id, server doesn't have route api/blahblah/:id
+    fetch("/api/blahblah/123");
+
+    // ❌ 404, route exists, but after db lookup, no user found
+    fetch("/api/users/999999");
+    ```
+    - `400` means the server was reached, but the request itself is NOT valid
+
+    ```js
+    // ❌ 400, /api/users/:id, id needs to be a number
+    fetch("/api/users/abc")
+    ```
+    
 - `response.status`: returns a number of status code
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
