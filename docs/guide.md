@@ -6593,7 +6593,7 @@ function delay(ms) {
     console.log("delay start");
 
     setTimeout(() => {
-      resolve("1000");
+      resolve(1000);
     }, ms);
 
     console.log("delay end");
@@ -6613,13 +6613,14 @@ console.log("main end");
 // main start
 // async start
 // delay start
-// delay end
+// delay end <--- not blocked by setTimeout
 // main end
 // 1000
 ```
 - `await` doesn't pause the work, `delay()` runs IMMEDIATELY all the way to the end and returns a pending promise.
   - `setTimout` doesn't pause the `delay()`, it schedules the async and continues - printing "delay end" then returning the pending Promise.
   - The rest of the async function now pauses until the Promise settles.
+- tho `resolve(1000)` doesn't have a return, it just fulfills the Promise, and `await` extracts the fulfilled value - result is value 1000
 
 ```
 The flow
@@ -6812,7 +6813,7 @@ const [user, products] = await Promise.all([ // 只有一个await, 在外面
   getProducts(),
 ]);
 ```
-- `Promise.all(arry of promises)`: returns an Promise
+- `Promise.all(arry of promises)`: returns ONE Promise
 - `await Promise.all([p1, p2, ...])`: 只有一个`await`, 在外面. 里面的[p1, p2,..]没有await
 
 Ex3.
