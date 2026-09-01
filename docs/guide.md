@@ -55,6 +55,7 @@
 * [10.2.1 Creating a Promise](#1021-creating-a-promise)
 * [10.2.2 Promise Chaining](#1022-promise-chaining)
 * [10.3 async/await](#103-asyncawait)
+* [10.4 Promise API](#104-promise-api)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -6802,17 +6803,22 @@ getNumber().then(num => {
 Ex2.
 
 ```js
+// Ex2.1 sequential runs
+const user = await getUser();
+const orders = await getOrders(user?.id);
+
+// Ex2.2 parallel runs
 const user = await getUser();
 const products = await getProducts();
-```
-Should be run parallel if they are independent.
 
-```js
+// Should be run parallel if they are independent.
 const [user, products] = await Promise.all([ // 只有一个await, 在外面
   getUser(), // 里面没有await, 里面就是promise
   getProducts(),
 ]);
 ```
+- 如果dependent (2.1) - sequential `await`
+- 如果independent (2.2) - concurrent execution: `Promise.all`
 - `Promise.all(arry of promises)`: returns ONE Promise
 - `await Promise.all([p1, p2, ...])`: 只有一个`await`, 在外面. 里面的[p1, p2,..]没有await
 
@@ -6902,6 +6908,223 @@ async function getUser(id) {
     ```
     
 - `response.status`: returns a number of status code
+
+### <a name="#104-promiseapi" id="#104-promiseapi">10.4 Promise API</a>
+
+| API | Meaning |
+|---|---|
+| `Promise.all()` | All must succeed, fail if anyone rejects (fail-fast) |
+| `Promise.allSettled()` | Wait for every outcome (Partial failure acceptable) |
+| `Promise.any()` | First success wins (Give me anything that works) |
+| `Promise.race()` | First settlement wins (Give me whatever finishes first) |
+
+##### `Promise.all()`
+
+> - I need **ALL** to succeed
+> - <u>Fail right away if any of the promises rejects</u>.
+
+Ex. the call to get modules on model page, assuming all of reqs can run independently
+
+```js
+async function getModelPage(bnId) {
+  try {
+    const [ // 是array
+      heroModule,
+      river
+    ] = await Promise.all([
+      getHero(bnId),
+      getRiver(bnId),
+    ]);
+    return {
+      heroModule,
+      river,
+    };
+  } catch (error) {
+    throw new Error(`loadModelPage failed`, { cause: error });
+  }
+}
+
+// usage
+(async () => {
+  try {
+    const { // 是object, 区别于Promise.all return的是array
+      heroModule,
+      river
+    } = await getModelPage(123);
+  } catch (error) {
+    console.log(error);
+    // error.message: loadModelPage failed
+    // error.cause: original error
+  }
+})();
+```
+- if any of the Promises rejects, `Promise.all()` rejects, execution jumps to catch -> fail-fast
+
+##### `Promise.allSettled()`
+
+> - I want the result of **EVERY** operation, success or failure
+> - <u>Partial failure is acceptable</u>.
+
+```js
+// 区别于Promise.all
+// Promise.allSettled returns {status,value} | {status,reason}
+[
+  { status: "fulfilled", value: ... },
+  { status: "rejected", reason: ... }
+]
+```
+
+Ex. model page can still display if some modules fail.
+
+```js
+// getHero(), getRiver()是fetch, handle response.ok
+async function getRiver(bnId) {
+  const response = await fetch(`/river/${bnId}`);
+
+  if (!response.ok) {
+    throw new Error(`getRiver failed, ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+async function getModelPage(bnId) {
+  const [
+    heroModule,
+    riverModule,
+  ] = await Promise.allSettled([
+    getHero(bnId),
+    getRiver(bnId),
+  ]);
+
+  // rejection handled here
+  // no try/catch needed in await getModelPage(123)
+  const hero = heroModule.status === "fulfilled" 
+    ? heroModule.value 
+    : {};
+  const river = riverModule.status === "fulfilled" 
+    ? riverModule.value 
+    : [];
+
+  return {
+    hero,
+    river,
+  };
+}
+
+// usage
+(async () => {
+  const page = await getModelPage(123); // no try/catch needed
+
+  console.log(page.hero);
+  console.log(page.river);
+})();
+```
+
+`Promise.allSettled()` returns
+```js
+[
+  {
+    status: "fulfilled",
+    value: {
+      title: "nike",
+      specs: [{ color: "red" }],
+    },
+  },
+  {
+    status: "rejected",
+    reason: Error("getRiver failed: 500"),
+  },
+]
+```
+
+getModelPage returns
+```js
+{
+  hero: {
+    title: "nike",
+    specs: [{ color: "red" }],
+  },
+  river: [],
+}
+```
+- 区别于其他Promise的API都需要`try`/`catch`, `Promise.allSettled()`不需要`try`/`catch`: any of promises fail, **no reject**, rejection turns into a result object: { status, reason }
+
+##### `Promise.any()`
+
+> - Give me the **FIRST Success**, not just first result - `Promise.race()`. 
+> - `Promise.any()` fails only when <u>all promises reject</u>.
+
+Ex1. requesting the same resource from multiple servers/CDNs
+
+```js
+async function getImage(imgId) {
+  try {
+    const img = await Promise.any([
+      fetchImg(`/cdn1/${imgId}`),
+      fetchImg(`/cdn2/${imgId}`),
+      fetchImg(`/cdn3/${imgId}`),
+    ]);
+    
+    return img;
+  } catch (error) {
+    throw new Error("getImage failed", { cause: error });
+  }
+}
+
+// usage
+(async () => {
+  try {
+    const imgUrl = await getImage(123);
+    console.log(imgUrl);
+  } catch (error) {
+    console.log(error);
+  }
+})();
+```
+
+```
+cdn1 ───── X - ignore
+cdn2 ─────────────── ✓ 
+cdn3 ────────── X - ignore
+
+Promise.any() fulfills with cdn2's value
+
+-----
+
+cdn1 ───── X - ignore
+cdn2 ────────── ✓ 
+cdn3 ──────────────────── ✓
+
+Promise.any() IMMEDIATELY fulfills with cdn2's value, instead of waiting for cdn3 resolves. tho the cdn3 req may still continue until finish
+
+-----
+
+if all three fail
+Promise.any() rejects
+       ↓
+error is an AggregateError
+       ↓
+catch
+       ↓
+throw new Error("getImage failed", { cause: error })
+       ↓
+caller's catch
+```
+
+Ex2. `repsonse.blob()`
+
+##### `Promise.race()`
+
+> - Give me the **FIRST settlement** (fulfilled OR rejected)
+
+
+
+
+
+
+
+
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
