@@ -54,8 +54,9 @@
 * [10.1 Event Loop](#101-event-loop)
 * [10.2.1 Creating a Promise](#1021-creating-a-promise)
 * [10.2.2 Promise Chaining](#1022-promise-chaining)
-* [10.3 async/await](#103-asyncawait)
-* [10.4 Promise API](#104-promise-api)
+* [10.3 `response.body`](#103-responsebody)
+* [10.4 async/await](#104-asyncawait)
+* [10.5 Promise API](#105-promise-api)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -6762,7 +6763,60 @@ fetch(`/api/users/${id}`)
   - `response.json()` parse the response body and returns a Promise, which resolves to a javascript object: { id: 123, name: "John" }
 - function in `.then()` can return a normal value OR a Promise OR nothing
 
-### <a name="#103-asyncawait" id="#103-asyncawait">10.3 async/await</a>
+### <a name="#103-responsebody" id="#103-responsebody">10.3 `response.body`</a>
+
+`response.body` is always a <u>ReadableStream of bytes</u>, which can represent JSON text, plain text, image/PDF data, etc.
+- JSON response: `response.json()` → JavaScript object
+- Binary response (image/PDF etc): `response.blob()` → Blob
+- Text response: `response.text()` → string
+
+A `Blob` represents binary/file-like data in the browser, such as an image, PDF, or other files. 
+- **`response.blob()`** returns a Promise that resolves to a `Blob`
+- **`URL.createObjectURL(blob)`** creates a temporary Blob URL that the browser can use to access that Blob
+  - the image/PDF is NOT uploaded to the domain. The browser holds the Blob data and creates a temporary URL that refers to it.
+    - running on localhost: generate url = blob:http://localhost:3000/550e8400-e29b-41d4-a716-446655440000.
+    - running on abc.com:, generate url = blob:https://abc.com/550e8400-e29b-41d4-a716-446655440000
+  - Clearing cookies/cache/site data does not necessarily destroy an in-memory Blob while the current page is still alive.
+  - Refresh / navigate away / close page → current document is destroyed → don't expect its Blob URL to remain usable.
+    - You can also explicitly release a Blob URL: `URL.revokeObjectURL(imageUrl)`;
+
+Ex.
+
+```html
+<img id = "product-image" />
+<iframe id = "pdf-viewer"></iframe>
+```
+
+```js
+async function fetchImg(imgId) {
+  const response = await fetch(`/api/images/${imgId}`);
+
+  if (!response.ok) {
+    throw new Error(`fetchImg failed: ${response.status}`);
+  }
+
+  return response.blob(); 
+}
+
+(async () => {
+  try {
+    const imgBlob = await getImage(123);
+    const imgUrl = URL.createObjectURL(imgBlob); // blob:https://example.com/550e8400-e29b-41d4-a716-446655440000
+    document.querySelector("#product-image").src = imgUrl;
+
+    const pdfBlob = await getPdf(123);
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    // Option 1: open PDF in a new tab
+    window.open(pdfUrl);
+    // Option 2: render PDF in an iframe, embeds the document directly inside the page
+    document.querySelector("#pdf-viewer").src = pdfUrl;
+  } catch (error) {
+    console.log(error);
+  }
+})();
+```
+
+### <a name="#104-asyncawait" id="#104-asyncawait">10.4 async/await</a>
 
 Ex1.
 
@@ -6909,14 +6963,14 @@ async function getUser(id) {
     
 - `response.status`: returns a number of status code
 
-### <a name="#104-promiseapi" id="#104-promiseapi">10.4 Promise API</a>
+### <a name="#105-promiseapi" id="#105-promiseapi">10.5 Promise API</a>
 
 | API | Meaning |
 |---|---|
-| `Promise.all()` | All must succeed, fail if anyone rejects (fail-fast) |
-| `Promise.allSettled()` | Wait for every outcome (Partial failure acceptable) |
-| `Promise.any()` | First success wins (Give me anything that works) |
-| `Promise.race()` | First settlement wins (Give me whatever finishes first) |
+| `Promise.all()` | All must succeed, fail if anyone rejects |
+| `Promise.allSettled()` | Wait for every outcome. Partial failure acceptable |
+| `Promise.any()` | Give me the first one that works |
+| `Promise.race()` | Give me whatever finishes first. Add timeout to an API req |
 
 ##### `Promise.all()`
 
@@ -7060,13 +7114,13 @@ Ex1. requesting the same resource from multiple servers/CDNs
 ```js
 async function getImage(imgId) {
   try {
-    const img = await Promise.any([
+    const imgUrl = await Promise.any([
       fetchImg(`/cdn1/${imgId}`),
       fetchImg(`/cdn2/${imgId}`),
       fetchImg(`/cdn3/${imgId}`),
     ]);
     
-    return img;
+    return imgUrl;
   } catch (error) {
     throw new Error("getImage failed", { cause: error });
   }
@@ -7112,16 +7166,98 @@ throw new Error("getImage failed", { cause: error })
 caller's catch
 ```
 
-Ex2. `repsonse.blob()`
-
 ##### `Promise.race()`
 
 > - Give me the **FIRST settlement** (fulfilled OR rejected)
+> - <u>Add a timeout</u> to an API request
 
+Ex1. reject after 3s if fetchModelPage hasn't settled
 
+```js
+function timeout(ms) {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Req timed out after ${ms}ms`));
+    }, ms);
+  });
+}
 
+async function getModel(bnId) {
+  try {
+    const model = await Promise.race([
+      fetchModelPage(bnId),
+      timeout(3000),
+    ]);
+    
+    return model;
+  } catch (error) {
+    throw error; // 直接throw, 不要throw new Error(error)
+    // error can come from:
+    // 1. timeout() -> Error("Req timed out after 3000ms")
+    // 2. fetchModelPage() -> rejected due to !response.ok or network issue
+  }
+}
+```
+- `Promise.race()` stops waiting, but fetchModelPage may still be running, just its eventual result is ignored (区别于`AbortController`)
+- 不要throw new Error(error)如果error已经是Error. 要么rethrow with `throw error`, 要么wrap it with cause: `throw new Error("getModel failed", { cause: error })` 
 
+```js
+// usage
+(async () => {
+  try {
+    const model = await getModel(123);
+    console.log(model);
+  } catch (error) {
+    console.log(error);
+    // If timeout won:
+    // error.message = Req timed out after 3000ms
+  }
+})();
+```
 
+Ex2. abort fetch after 3s
+
+```js
+async function fetchProduct(id) {
+  const controller = new AbortController();
+
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, 3000);
+
+  try {
+    const response = await fetch(`/api/products/${id}`, {
+      signal: controller.signal, // fetch listens to the controller
+    });
+
+    if (!response.ok) {
+      throw new Error(`fetchProduct failed: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Request timed out", { cause: error });
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+// usage
+(async () => {
+  try {
+    const product = await fetchProduct(123);
+    console.log(product);
+  } catch (error) {
+    console.log(error);
+  }
+})();
+```
+- 区别于`Promise.race()`
+  - `AbortController` aborts the fetch on the client side.
+  - If the request already reached the server, server-side processing may continue, unless the server detects the disconnect and explicitly supports cancellation
 
 
 
