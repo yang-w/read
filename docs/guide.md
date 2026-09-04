@@ -6765,11 +6765,78 @@ fetch(`/api/users/${id}`)
 
 ### <a name="#103-responsebody" id="#103-responsebody">10.3 `response.body`</a>
 
-`response.body` is always a <u>ReadableStream of bytes</u>, which can represent JSON text, plain text, image/PDF data, etc.
+`response.body` is a <u>ReadableStream of bytes</u>, which can represent JSON text, plain text, image/PDF data, etc.
 - JSON response: `response.json()` → JavaScript object
 - Binary response (image/PDF etc): `response.blob()` → Blob
 - Text response: `response.text()` → string
 
+#### <u>`response.json()`</u>
+  
+###### `JSON.parse()` vs `JSON.stringify()`
+
+| `JSON.parse(jsonStrInSingleQuote)` | `JSON.stringify(jsVal)` |
+|---|---|
+| Parse the jsonStr **inside the outer single quotes** → JavaScript value | JavaScript value → JSON string |
+| Fails if invalid JSON | Can fail on circular references |
+
+```js
+// JSON.parse()
+JSON.parse('{"a":1}');  // { a: 1 }
+JSON.parse('[1,2,3]');  // [1, 2, 3]
+JSON.parse('"hello"');  // "hello"
+JSON.parse('123');      // 123
+JSON.parse('true');      // boolean true
+
+// "123" vs 123, focus on what's inside '...'
+JSON.parse('"123"');    // string "123"
+JSON.parse('123');      // number 123
+
+// JSON strings/property names require double quotes
+JSON.parse("{'a': 1}"); // ❌ SyntaxError
+JSON.parse('{"a": 1}'); // ✅ { a: 1 }
+
+JSON.parse("hello"); // ❌ SyntaxError
+JSON.parse('hello'); // ❌ SyntaxError, JSON.parse()只看单引号里的value变成javascript value, 所以hello需要双引号, 否则不是string
+JSON.parse('"hello"'); // ✅ "hello"
+
+// JSON.stringify()
+JSON.stringify({ a: 1 }); // '{"a":1}'
+JSON.stringify([1, 2]);   // '[1,2]'
+JSON.stringify("hello"); // '"hello"'
+```
+
+> `response.json()` reads the response body and parses the JSON into a JavaScript value, similar to `JSON.parse()`.
+
+
+```js
+async function fetchHero(bnId) {
+  // 这里不需要try/catch
+  const response = await fetch(`api/hero/${bnId}`);
+
+  if (!response.ok) {
+    throw new Error(`fetchHero failed at ${bnId}, ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// usage
+(async () => {
+  try {
+    const hero = await fetchHero(123);
+  } catch (error) {
+    console.log(error);
+  }
+})();
+```
+<u>fetchHero不需要try/catch</u>, there are several ways it can fail:
+- `fetch()` network failure → `fetch()` rejects → fetchHero rejects automatically
+  -  `TypeError: Failed to fetch`
+- `!response.ok` → manually throw new Error() → fetchHero rejects
+- `response.json()` fails (invalid JSON) → its Promise rejects → fetchHero rejects automatically
+  - `SyntaxError: Expected property name or '}' in JSON...`
+
+#### <u>`response.blob()`</u>
 A `Blob` represents binary/file-like data in the browser, such as an image, PDF, or other files. 
 - **`response.blob()`** returns a Promise that resolves to a `Blob`
 - **`URL.createObjectURL(blob)`** creates a temporary Blob URL that the browser can use to access that Blob
@@ -6800,7 +6867,7 @@ async function fetchImg(imgId) {
 
 (async () => {
   try {
-    const imgBlob = await getImage(123);
+    const imgBlob = await fetchImg(123);
     const imgUrl = URL.createObjectURL(imgBlob); // blob:https://example.com/550e8400-e29b-41d4-a716-446655440000
     document.querySelector("#product-image").src = imgUrl;
 
@@ -6967,34 +7034,44 @@ async function getUser(id) {
 
 | API | Meaning |
 |---|---|
-| `Promise.all()` | All must succeed, fail if anyone rejects |
+| `Promise.all()` | All must succeed, fail fast if anyone rejects |
 | `Promise.allSettled()` | Wait for every outcome. Partial failure acceptable |
-| `Promise.any()` | Give me the first one that works |
+| `Promise.any()` | Give me the first one succeeds |
 | `Promise.race()` | Give me whatever finishes first. Add timeout to an API req |
 
 ##### `Promise.all()`
 
 > - I need **ALL** to succeed
-> - <u>Fail right away if any of the promises rejects</u>.
+> - <u>Fail fast if any of the promises rejects</u>.
 
 Ex. the call to get modules on model page, assuming all of reqs can run independently
 
 ```js
+async function fetchHero(bnId) {
+  const response = await fetch(`api/hero/${bnId}`);
+
+  if (!response.ok) {
+    throw new Error(`fetchHero failed at bnId=${bnId}, status=${response.status}`);
+  }
+
+  return response.json();
+}
+
 async function getModelPage(bnId) {
   try {
     const [ // 是array
-      heroModule,
+      hero,
       river
     ] = await Promise.all([
-      getHero(bnId),
-      getRiver(bnId),
+      fetchHero(bnId),
+      fetchRiver(bnId),
     ]);
     return {
-      heroModule,
+      hero,
       river,
     };
   } catch (error) {
-    throw new Error(`loadModelPage failed`, { cause: error });
+    throw new Error(`getModelPage failed`, { cause: error });
   }
 }
 
@@ -7002,17 +7079,20 @@ async function getModelPage(bnId) {
 (async () => {
   try {
     const { // 是object, 区别于Promise.all return的是array
-      heroModule,
+      hero,
       river
     } = await getModelPage(123);
+
+    console.log(hero, river);
   } catch (error) {
-    console.log(error);
-    // error.message: loadModelPage failed
+    console.error(error);
+    // error.message: getModelPage failed
     // error.cause: original error
   }
 })();
 ```
-- if any of the Promises rejects, `Promise.all()` rejects, execution jumps to catch -> fail-fast
+- `Promise.all()` rejects immediately if any of the Promises rejects, execution jumps to catch -> fail-fast
+- 如果fetchHero fail在了response.ok上, getModelPage的catch的error.cause就是`Error("fetchHero failed at bnId=123, status=404")`
 
 ##### `Promise.allSettled()`
 
@@ -7031,12 +7111,12 @@ async function getModelPage(bnId) {
 Ex. model page can still display if some modules fail.
 
 ```js
-// getHero(), getRiver()是fetch, handle response.ok
-async function getRiver(bnId) {
-  const response = await fetch(`/river/${bnId}`);
+// fetchHero(), fetchRiver()是fetch, handle response.ok
+async function fetchRiver(bnId) {
+  const response = await fetch(`/river/${bnId}`); // 勿忘await
 
   if (!response.ok) {
-    throw new Error(`getRiver failed, ${response.status}`);
+    throw new Error(`fetchRiver failed on bnId = ${bnId}, ${response.status}`);
   }
   
   return response.json();
@@ -7047,12 +7127,12 @@ async function getModelPage(bnId) {
     heroModule,
     riverModule,
   ] = await Promise.allSettled([
-    getHero(bnId),
-    getRiver(bnId),
+    fetchHero(bnId),
+    fetchRiver(bnId),
   ]);
 
   // rejection handled here
-  // no try/catch needed in await getModelPage(123)
+  // no try/catch needed in Promise.allSettled()
   const hero = heroModule.status === "fulfilled" 
     ? heroModule.value 
     : {};
@@ -7087,7 +7167,7 @@ async function getModelPage(bnId) {
   },
   {
     status: "rejected",
-    reason: Error("getRiver failed: 500"),
+    reason: Error("getRiver failed on bnId = 123, 500"),
   },
 ]
 ```
@@ -7102,7 +7182,7 @@ getModelPage returns
   river: [],
 }
 ```
-- 区别于其他Promise的API都需要`try`/`catch`, `Promise.allSettled()`不需要`try`/`catch`: any of promises fail, **no reject**, rejection turns into a result object: { status, reason }
+- 区别于其他Promise的API都需要`try`/`catch`, `Promise.allSettled()`不需要`try`/`catch`: the rejected promise turns into a result object: { status, reason }
 
 ##### `Promise.any()`
 
@@ -7150,7 +7230,8 @@ cdn1 ───── X - ignore
 cdn2 ────────── ✓ 
 cdn3 ──────────────────── ✓
 
-Promise.any() IMMEDIATELY fulfills with cdn2's value, instead of waiting for cdn3 resolves. tho the cdn3 req may still continue until finish
+Promise.any() IMMEDIATELY fulfills with cdn2's value, instead of waiting for cdn3 resolves. 
+tho the cdn3 req may still continue until finish
 
 -----
 
@@ -7171,41 +7252,51 @@ caller's catch
 > - Give me the **FIRST settlement** (fulfilled OR rejected)
 > - <u>Add a timeout</u> to an API request
 
-Ex1. reject after 3s if fetchModelPage hasn't settled
+Ex1. reject after 3s if fetchRiver hasn't settled
 
 ```js
-function timeout(ms) {
+async function fetchRiver(bnId) {
+  const response = await fetch(`/api/river/${bnId}`);
+
+  if (!response.ok) {
+    throw new Error(`fetchRiver failed on ${bnId}, status= ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function timeout(ms) { // return Promise不需要async!!
   return new Promise((_, reject) => {
     setTimeout(() => {
-      reject(new Error(`Req timed out after ${ms}ms`));
+      reject(new Error(`Req timed out after ${ms}ms`)); //reject(new Error(...))
     }, ms);
   });
 }
 
-async function getModel(bnId) {
+async function getRiver(bnId) {
   try {
-    const model = await Promise.race([
-      fetchModelPage(bnId),
+    const river = await Promise.race([
+      fetchRiver(bnId),
       timeout(3000),
     ]);
     
-    return model;
+    return river;
   } catch (error) {
     throw error; // 直接throw, 不要throw new Error(error)
     // error can come from:
     // 1. timeout() -> Error("Req timed out after 3000ms")
-    // 2. fetchModelPage() -> rejected due to !response.ok or network issue
+    // 2. fetchRiver() -> rejected due to !response.ok, network issue, or response.json()
   }
 }
 ```
-- `Promise.race()` stops waiting, but fetchModelPage may still be running, just its eventual result is ignored (区别于`AbortController`)
-- 不要throw new Error(error)如果error已经是Error. 要么rethrow with `throw error`, 要么wrap it with cause: `throw new Error("getModel failed", { cause: error })` 
+- `Promise.race()` stops waiting, but fetchRiver may still be running, just its eventual result is ignored (区别于`AbortController`)
+- 不要throw new Error(error)如果error已经是Error. 要么rethrow with `throw error`, 要么wrap it with cause: `throw new Error("getRiver failed", { cause: error })` 
 
 ```js
 // usage
 (async () => {
   try {
-    const model = await getModel(123);
+    const model = await getRiver(123);
     console.log(model);
   } catch (error) {
     console.log(error);
@@ -7218,29 +7309,29 @@ async function getModel(bnId) {
 Ex2. abort fetch after 3s
 
 ```js
-async function fetchProduct(id) {
+async function fetchRiver(bnId) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
     controller.abort();
   }, 3000);
 
-  try {
-    const response = await fetch(`/api/products/${id}`, {
-      signal: controller.signal, // fetch listens to the controller
+  try { // try/catch starts from fetch
+    const response = await fetch(`/api/river/${bnId}`, {
+      signal: controller.signal, // connect fetch to the controller
     });
 
     if (!response.ok) {
-      throw new Error(`fetchProduct failed: ${response.status}`);
+      throw new Error(`fetchRiver failed: ${response.status}`);
     }
 
     return response.json();
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error("Request timed out", { cause: error });
+      throw new Error("Request timed out after 3000ms", { cause: error });
     }
 
-    throw error;
+    throw error; // need propagate all other errors
   } finally {
     clearTimeout(timer);
   }
@@ -7248,19 +7339,20 @@ async function fetchProduct(id) {
 // usage
 (async () => {
   try {
-    const product = await fetchProduct(123);
-    console.log(product);
+    const river = await fetchRiver(123);
+    console.log(river);
   } catch (error) {
+    // error.name === "AbortError") 
     console.log(error);
   }
 })();
 ```
-- 区别于`Promise.race()`
-  - `AbortController` aborts the fetch on the client side.
+- fetchRiver()本身不需要try/catch. 但是因为用了`AbortController`, 我们想fetchRiver() recognizes an `AbortError` and translate it into a more meaningful application error.
+  - try/catch从fetch开始
+  - catch最后的`throw error` makes sure all other errors continue propagating instead of being accidentally swallowed. e.g. network failure, `!response.ok`, or `response.json()` failure.
+  - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the user navigated away, clicked Cancel, etc.
+- 区别于`Promise.race()`with timeout, 这里在fetch()里用`AbortController`, will abort the fetch on the client side.
   - If the request already reached the server, server-side processing may continue, unless the server detects the disconnect and explicitly supports cancellation
-
-
-
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
