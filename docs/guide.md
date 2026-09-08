@@ -6766,7 +6766,7 @@ fetch(`/api/users/${id}`)
 ### <a name="#103-responsebody" id="#103-responsebody">10.3 `response.body`</a>
 
 `response.body` is a <u>ReadableStream of bytes</u>, which can represent JSON text, plain text, image/PDF data, etc.
-- JSON response: `response.json()` → JavaScript object
+- JSON response: `response.json()` → JavaScript value
 - Binary response (image/PDF etc): `response.blob()` → Blob
 - Text response: `response.text()` → string
 
@@ -6776,7 +6776,7 @@ fetch(`/api/users/${id}`)
 
 | `JSON.parse(jsonStrInSingleQuote)` | `JSON.stringify(jsVal)` |
 |---|---|
-| Parse the jsonStr **inside the outer single quotes** → JavaScript value | JavaScript value → JSON string |
+| Parse the jsonStr **inside the outer single quotes** → JavaScript value | JavaScript value → JSON string in **single quotes** |
 | Fails if invalid JSON | Can fail on circular references |
 
 ```js
@@ -6791,18 +6791,21 @@ JSON.parse('true');      // boolean true
 JSON.parse('"123"');    // string "123"
 JSON.parse('123');      // number 123
 
-// JSON strings/property names require double quotes
-JSON.parse("{'a': 1}"); // ❌ SyntaxError
-JSON.parse('{"a": 1}'); // ✅ { a: 1 }
+// 1. JSON string requires single quotes outside
+// 2. inside, property names require double quotes
+JSON.parse("{ 'a': 1 }"); // ❌ SyntaxError, single quotes outside
+JSON.parse('{ a: 1 }'); // ❌ SyntaxError
+JSON.parse('{ "a": 1 }'); // ✅ { a: 1 }
 
-JSON.parse("hello"); // ❌ SyntaxError
+JSON.parse("hello"); // ❌ SyntaxError, single quotes outside
 JSON.parse('hello'); // ❌ SyntaxError, JSON.parse()只看单引号里的value变成javascript value, 所以hello需要双引号, 否则不是string
 JSON.parse('"hello"'); // ✅ "hello"
 
 // JSON.stringify()
+// 1. single quotes outside 2. prop name double quotes
 JSON.stringify({ a: 1 }); // '{"a":1}'
 JSON.stringify([1, 2]);   // '[1,2]'
-JSON.stringify("hello"); // '"hello"'
+JSON.stringify("hello"); // '"hello"', single quotes outside
 ```
 
 > `response.json()` reads the response body and parses the JSON into a JavaScript value, similar to `JSON.parse()`.
@@ -6840,10 +6843,11 @@ async function fetchHero(bnId) {
 A `Blob` represents binary/file-like data in the browser, such as an image, PDF, or other files. 
 - **`response.blob()`** returns a Promise that resolves to a `Blob`
 - **`URL.createObjectURL(blob)`** creates a temporary Blob URL that the browser can use to access that Blob
-  - the image/PDF is NOT uploaded to the domain. The browser holds the Blob data and creates a temporary URL that refers to it.
-    - running on localhost: generate url = blob:http://localhost:3000/550e8400-e29b-41d4-a716-446655440000.
-    - running on abc.com:, generate url = blob:https://abc.com/550e8400-e29b-41d4-a716-446655440000
-  - Clearing cookies/cache/site data does not necessarily destroy an in-memory Blob while the current page is still alive.
+  - the image/PDF is NOT uploaded to the domain. The browser holds the Blob data and creates a temporary URL that refers to it. 
+    - the blob URL is **generated at runtime** by the browser.
+      - running on localhost: generate url = blob:http://localhost:3000/550e8400-e29b-41d4-a716-446655440000.
+      - running on abc.com:, generate url = blob:https://abc.com/550e8400-e29b-41d4-a716-446655440000
+  - Clearing cookies/cache/site data does not necessarily destroy an <u>in-memory Blob while the current page is still alive</u>.
   - Refresh / navigate away / close page → current document is destroyed → don't expect its Blob URL to remain usable.
     - You can also explicitly release a Blob URL: `URL.revokeObjectURL(imageUrl)`;
 
@@ -6871,7 +6875,7 @@ async function fetchImg(imgId) {
     const imgUrl = URL.createObjectURL(imgBlob); // blob:https://example.com/550e8400-e29b-41d4-a716-446655440000
     document.querySelector("#product-image").src = imgUrl;
 
-    const pdfBlob = await getPdf(123);
+    const pdfBlob = await fetchPDF(123);
     const pdfUrl = URL.createObjectURL(pdfBlob);
     // Option 1: open PDF in a new tab
     window.open(pdfUrl);
@@ -6932,7 +6936,7 @@ const orders = await getOrders(user?.id);
 const user = await getUser();
 const products = await getProducts();
 
-// Should be run parallel if they are independent.
+// Should run parallel if they are independent.
 const [user, products] = await Promise.all([ // 只有一个await, 在外面
   getUser(), // 里面没有await, 里面就是promise
   getProducts(),
@@ -6946,68 +6950,53 @@ const [user, products] = await Promise.all([ // 只有一个await, 在外面
 Ex3.
 
 ```js
-async function getOrderByUser(id) {
-  showLoadingSpinner(); // 进入await前就show spinner
+async function fetchUser(userId) {
+  const response = await fetch(`/api/users/${userId}`);
 
+  if (!response.ok) {
+    throw new Error(`fetchUser failed at ${userId}, ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function getOrderDetailByUserId(userId) {
   try {
-    const response = await fetch(`/api/users/${id}`);
-    const user = await response.json();
-    const oders = await getOrders(user?.id);
-    const order = await getOrderDetail(oders?.[0].id);
-    return order;
+    const user = await fetchUser(userId);
+    const orders = await fetchOrders(user?.id);
+    const orderDetail = await fetchOrderDetail(orders?.[0]?.id);
+
+    return orderDetail;
   } catch (error) {
-    throw new Error("getOrderByUser failed", { cause: error });
-  } finally {
-    hideLoadingSpinner(); // finally hide spinner (success/fail)
+    throw new Error(
+      `getOrderDetailByUserId failed at ${userId}`,
+      { cause: error }
+    );
   }
 }
 
 // usage
-(async () => { // consume the returned val from async function, need wrap it inside async/await block
+(async () => {
+  showSpinner(); // try/catch前showSpinner
+
   try {
-    const order = await getOrderByUser(123);
+    const order = await getOrderDetailByUserId(123);
     console.log(order?.name);
   } catch (error) {
-    console.log(error);
-    // error.message: "getOrderByUser failed"
-    // error.cause: error
+    console.error(error);
+    // error.message: getOrderDetailByUserId failed at 123
+    // error.cause 
+  } finally {
+    hideSpinner(); // 勿论success/fail, hideSpinner in finally
   }
 })();
 ```
 - async **function** aFunc() {...}, 勿忘keyword function
 - `await`必须在`async`里
-  - 同样的, to consume the returned val from async function, 必须 **`await`** getOrderByUser(), 因为用了await, 所以要把整个wrap在`async`里
+  - 同样的, to consume the returned val from async function, 必须 **`await`** getOrderDetailByUserId(123), 因为用了await, 所以要把整个wrap在`async`里
 - `try`/`catch` === `aPromise.catch()`
 - `finally {}` === `aPromise.finally()`: 注意这里`finally {}`没有param, 不是finally() {...}
-- `throw new Error("getOrderByUser failed", { cause: error })` - 注意{ cause: error }的用法
-
-Ex4. real example
-
-```js
-async function getUser(id) {
-  const response = await fetch(`/api/users/${id}`);
-  
-  if (!response.ok) {
-    // not new Error("failed", response.status)
-    throw new Error(`getUser failed: ${response.status}`);
-  }
-  return response.json();
-}
-
-// usage
-(async () => { // 因为下面的await getUser, 要wrap在async里
-  showSpinner();
-
-  try { // 勿忘try/catch
-    const user = await getUser(123);
-    console.log(user?.name);
-  } catch (error) {
-    console.log(error);
-  } finally {
-    removeSpinner();
-  }
-})();
-```
+- `throw new Error("getOrderDetailByUserId failed", { cause: error })` - 注意{ cause: error }的用法
 - `fetch()` <u>rejects only when it couldn't successfully complete the request</u>, eg: request/network failures, but does **NOT** fail on normal <u>HTTP error responses</u> `4xx` or `5xx`, check `response.ok` → `true`/`false`
 - `response.ok`: based on response.status (the response status code)
   - `true`: 2xx - `200 OK`, `204 No Content`
@@ -7071,12 +7060,14 @@ async function getModelPage(bnId) {
       river,
     };
   } catch (error) {
-    throw new Error(`getModelPage failed`, { cause: error });
+    throw new Error(`getModelPage failed at ${bnId}`, { cause: error });
   }
 }
 
 // usage
 (async () => {
+  showSpinner();
+
   try {
     const { // 是object, 区别于Promise.all return的是array
       hero,
@@ -7088,10 +7079,12 @@ async function getModelPage(bnId) {
     console.error(error);
     // error.message: getModelPage failed
     // error.cause: original error
+  } finally {
+    hideSpinner();
   }
 })();
 ```
-- `Promise.all()` rejects immediately if any of the Promises rejects, execution jumps to catch -> fail-fast
+- `Promise.all()` rejects IMMEDIATELY if any of the Promises rejects, execution jumps to catch -> fail-fast
 - 如果fetchHero fail在了response.ok上, getModelPage的catch的error.cause就是`Error("fetchHero failed at bnId=123, status=404")`
 
 ##### `Promise.allSettled()`
@@ -7131,8 +7124,8 @@ async function getModelPage(bnId) {
     fetchRiver(bnId),
   ]);
 
-  // rejection handled here
   // no try/catch needed in Promise.allSettled()
+  // reject handled here
   const hero = heroModule.status === "fulfilled" 
     ? heroModule.value 
     : {};
@@ -7268,7 +7261,7 @@ async function fetchRiver(bnId) {
 function timeout(ms) { // return Promise不需要async!!
   return new Promise((_, reject) => {
     setTimeout(() => {
-      reject(new Error(`Req timed out after ${ms}ms`)); //reject(new Error(...))
+      reject(new Error(`Req timed out after ${ms}ms`)); //注意reject(new Error(...))
     }, ms);
   });
 }
@@ -7288,16 +7281,12 @@ async function getRiver(bnId) {
     // 2. fetchRiver() -> rejected due to !response.ok, network issue, or response.json()
   }
 }
-```
-- `Promise.race()` stops waiting, but fetchRiver may still be running, just its eventual result is ignored (区别于`AbortController`)
-- 不要throw new Error(error)如果error已经是Error. 要么rethrow with `throw error`, 要么wrap it with cause: `throw new Error("getRiver failed", { cause: error })` 
 
-```js
 // usage
 (async () => {
   try {
-    const model = await getRiver(123);
-    console.log(model);
+    const river = await getRiver(123);
+    console.log(river);
   } catch (error) {
     console.log(error);
     // If timeout won:
@@ -7305,6 +7294,8 @@ async function getRiver(bnId) {
   }
 })();
 ```
+- `Promise.race()` stops waiting, but fetchRiver may still be running, just its eventual result is ignored (区别于`AbortController`)
+- 不要throw new Error(error)如果error已经是Error. 要么rethrow with `throw error`, 要么wrap it with cause: `throw new Error("getRiver failed", { cause: error })` 
 
 Ex2. abort fetch after 3s
 
@@ -7333,7 +7324,7 @@ async function fetchRiver(bnId) {
 
     throw error; // need propagate all other errors
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timer); // 勿忘clearTimeout
   }
 }
 // usage
@@ -7347,12 +7338,27 @@ async function fetchRiver(bnId) {
   }
 })();
 ```
-- fetchRiver()本身不需要try/catch. 但是因为用了`AbortController`, 我们想fetchRiver() recognizes an `AbortError` and translate it into a more meaningful application error.
+- fetchRiver本身不需要try/catch. 但是因为用了`AbortController`, 我们想fetchRiver recognizes an `AbortError` and translate it into a more meaningful application error.
   - try/catch从fetch开始
   - catch最后的`throw error` makes sure all other errors continue propagating instead of being accidentally swallowed. e.g. network failure, `!response.ok`, or `response.json()` failure.
-  - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the user navigated away, clicked Cancel, etc.
-- 区别于`Promise.race()`with timeout, 这里在fetch()里用`AbortController`, will abort the fetch on the client side.
-  - If the request already reached the server, server-side processing may continue, unless the server detects the disconnect and explicitly supports cancellation
+  - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the <u>user navigated away, clicked Cancel</u>, etc.
+- 区别于`Promise.race()` with timeout, 这里在fetch()里用`AbortController`, will abort the fetch on the client side.
+  - If the request already reached the server, server-side processing may continue, unless the server <u>detects the disconnect</u> and explicitly supports cancellation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
 
