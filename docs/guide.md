@@ -7307,6 +7307,8 @@ async function fetchRiver(bnId) {
     controller.abort();
   }, 3000);
 
+  // 只有fetchX()里有AbortController时才需要try/catch
+  // 其他fetchX()里不需要try/catch
   try { // try/catch starts from fetch
     const response = await fetch(`/api/river/${bnId}`, {
       signal: controller.signal, // connect fetch to the controller
@@ -7330,6 +7332,8 @@ async function fetchRiver(bnId) {
 // usage
 (async () => {
   try {
+    // usage里直接fetchRiver()
+    // 不需要getRiver, 因为不需要套在Promise.all/any etc的API中
     const river = await fetchRiver(123);
     console.log(river);
   } catch (error) {
@@ -7338,11 +7342,14 @@ async function fetchRiver(bnId) {
   }
 })();
 ```
-- fetchRiver本身不需要try/catch. 但是因为用了`AbortController`, 我们想fetchRiver recognizes an `AbortError` and translate it into a more meaningful application error.
+- <u>fetchRiver本身不需要try/catch</u>. 但是因为用了 <u>**`AbortController`**</u>, 我们想fetchRiver <u>recognizes `AbortError`</u> and translate it into a more meaningful application error, 才在<u>fetchRiver里有了try/catch</u>.
   - try/catch从fetch开始
-  - catch最后的`throw error` makes sure all other errors continue propagating instead of being accidentally swallowed. e.g. network failure, `!response.ok`, or `response.json()` failure.
+  - catch最后的`throw error` makes sure all other errors continue propagating instead of being accidentally <u>swallowed</u>. e.g. network failure, `!response.ok`, or `response.json()` failure.
   - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the <u>user navigated away, clicked Cancel</u>, etc.
-- 区别于`Promise.race()` with timeout, 这里在fetch()里用`AbortController`, will abort the fetch on the client side.
+- <span class="underline-orange">`clearTimeout(timer)`</span>
+  - 如果req finishes before 3000ms, 我们就不需要abort了. 虽然`abort()` generally won't change already-settled result, but it's unnecessarily keeping a timer around and executing useless code, esp if making lots of reqs, each req has a useless timer.
+  - `finally { clearTimeout(timer) }` clears the pending timeout regardless of whether the request succeeds, fails (eg: fetch fails at 500ms), or is aborted, so the <u>timeout doesn't fire after the request is already finished (success/fail/aborted)</u>.
+- 区别于`Promise.race()` with timeout, 这里在fetchRiver()里用`AbortController`, will abort the fetch on the client side.
   - If the request already reached the server, server-side processing may continue, unless the server <u>detects the disconnect</u> and explicitly supports cancellation
 
 
