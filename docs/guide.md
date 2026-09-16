@@ -3222,202 +3222,6 @@ Array -> String
   - `delete arry[index];`: <span class="orange">creates a hole</span>. 用`arry.splice(index, 1);`保持dense
   - `Object.keys()` 返回的arry的key是string不是integer
 
-- `async/await`
-  - If the iteration method <span class="orange">takes a callback</span>, they generally **not async-aware**. eg: `arry.map` doesn't await until promise resolves, but <span class="orange">**returns the promise immediately, skip the rest of lines in current iteration, then continues to the next iteration**</span>.
-  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop UNTIL the promise resolves, then continue the rest of lines in current iteration, then move to the next loop**.
-
-  Ex1. 
-  ```js
-  const arry = [1,2,3];
-  // async写在function expression/declaration前
-  const asyncSum = async (a , b) => a + b; // async的位置
-  async function sumAsync(a, b) { return a + b; } // async的位置
-
-  let sum = 0;
-  arry.forEach(async elem => { // async的位置, 和上面const asyncSum = async (a, b) => ...一样
-    sum = await sumAsync(sum, elem); // sumAsync triggered且立刻返回promise, pause跳出当前iteration, 进入下一个iteration
-  });
-  console.log(`arry.forEach, sum = ${sum}`); // 0, loop没有等await resolve, 直接return了promise
-  // ...later, async work finishes
-
-
-  // 注意IIFE的括号打在async前!!
-  (async () => { // 勿忘async!! 这个async是和await Promise.all的await对应
-    let sum = 0;
-    const promises = arry.map(async (elem) => {
-      sum = await sumAsync(sum, elem); // sumAsync triggered且立刻返回promis, pause跳出当前iteration, 进入下一个iteration
-    });
-    console.log(`arry.map, sum = ${sum}`); // 0
-    console.log(promises); // [Promise, Promise, Promise], 没有等resolve
-    
-    await Promise.all(promises); // async从这里才开始!! 先执行block外的done再回来
-    console.log(`arry.map, sum after settle = ${sum}`);
-  })();
-
-  console.log("done");
-
-  (async () => { // 勿忘async!!
-    await Promise.resolve(); // 跳出async block, 先C再回来
-    console.log("B");
-  })();
-  console.log("C");
-
-  (async () => { // 勿忘async!!
-    let sum = 0;
-    for (const elem of arry) {
-      sum = await sumAsync(sum, elem); // sumAsync triggered, pause跳出async block, 先D再回来
-    }
-    console.log(`for...of, sum = ${sum}`);
-  })();
-
-  console.log("D");
-
-  /** 
-   * 注意log顺序!!
-   *
-   * arry.forEach, sum = 0
-   * 
-   * arry.map, sum = 0
-   * [Promise, Promise, Promise]
-   *
-   * done
-   * 
-   * C
-   *
-   * D
-   * 
-   * B
-   * 
-   * arry.map, sum after settle = 3 <- 是3不是6!!
-   * 
-   * for...of, sum = 6 <- 区别于arry.map, 这才是对的sum=1+2+3
-   * */
-  ```
-  - **async function**() {}, const sumA = **async ()**=> {}` - async都写在function定义前
-  - **await所在的block开始必须有async** - 几个await就得有几个async
-  - <span class="orange">**(**</span>async ()=>{...}<span class="orange">)()</span> - async的IIFE的括号要打在async之前!!
-    - async的IIFE就是直接执行, 直到遇见await才跳出async block
-  - <span class="orange">async不是整个block直接跳过</span>, 而是**先sync执行, 直到遇见await才pause跳出**，先执行async block之外的
-    - arry.map里的async/await也一样, 虽然callback里的await没有await, 但是也是pause跳出当前async iteration, 进入下一个iteration
-  - 注意log <span class="underline-orange">arry.map, sum after settle = 3 <- 不是6=1+2+3</span>! 因为arry.map的3个callbacks start before any of them finishes, and each one reads sum while it is still 0!! 
-    - arry.map的3个callback虽然是sequentially triggered, 但是<u>没有await, they all start before any of them finishes</u>. 
-    - 和for...of, sum = 6不一样, for...of的3个callback也是sequentially triggered, 但是<span class="underline-orange">每个都有await, the next iteration doesn't begin until the previous one has finished</span>
-  - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
-    - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
-    - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async, 跳出 -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all resolve
-
-  Ex2. `await` callback in arry.map VS for...of
-
-  ```js
-  const arry = [1,2,3];
-  arry.map(async (elem) => {
-    console.log("start", elem);
-    await delay(elem); // delay(elem) is triggered first, then pause
-    console.log("end", elem);
-  });
-  ```
-  Execution looks like this:
-
-  ```
-  start 1
-  await ... await delay没有resolve, sync直接return promise
-  // delay(1)先triggered
-  // 然后pause跳出当前async iteration, 继续map
-
-  start 2
-  await ...
-  // delay(2)先triggered
-  // 然后pause跳出当前async iteration, 继续map
-
-  start 3
-  await ...
-  // delay(3)先triggered
-  // 然后pause跳出当前async iteration
-
-  map returns
-
-  Later:
-  end x 的顺序取决于哪一个delay(elem)先执行完, each callback is independent.
-
-  如果
-  delay(1) -> resolves after 300 ms
-  delay(2) -> resolves after 100 ms
-  delay(3) -> resolves after 200 ms
-  则output是
-  end 2
-  end 3
-  end 1
-  ```
-
-  ```js
-  (async () => {
-    let sum = 0;
-    for (const elem of arry) {
-      console.log("start", elem);
-      await delay(elem);
-      console.log("end", elem);
-    }
-  })();
-  console.log("done");
-  ```
-  Execution looks like this:
-
-  ```
-  start 1
-  await ... delay(1)先triggered, 然后pause, 跳出整个async block, 
-
-  done
-
-  等delay(1) resolve之后
-  end 1
-  start 2
-  
-  await ... delay(2)先triggered, 然后pause, wait until delay(2) resolves
-  end 2
-  start 3
-
-  await ... delay(3)先triggered, 然后pause, wait until delay(3) resolves
-  end 3
-
-  即使
-  delay(1) -> resolves after 300 ms
-  delay(2) -> resolves after 100 ms
-  delay(3) -> resolves after 200 ms
-  
-  end x的order也不变 - 区别于map!!!
-  ```
-  - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<span class="orange">skip following lines in current iteration, 直接进入下一个iteration</span>
-  - 区别map和for...of的`await`: `await` pauses the async function it belongs to.
-    - <span class="underline-orange">map的callback starts right away, each iteration is an async, waits independently, so completion order depends on which delay resolves first</span>.
-    - <span class="underline-orange">for...of is inside one async, each `await` pauses the function and therefore pauses the loop.</span>.
-
-  Ex3. scope
-  ```js
-  let sum = 0;
-  (async () => {
-    for(const elem of arry) {
-      sum = await sumA(sum, elem);
-    }
-    console.log(`for..of, sum = ${sum}`)
-  })();
-
-  (async () => {
-    // let sum = 0; // 没有这一行, 两个async share同一个sum. UNPREDICTABLE sum at the end
-    const promises = arry.map(async elem => {
-      console.log(`map.sum = ${sum}`);
-      sum = await sumA(sum, elem);
-    });
-    await Promise.all(promises);
-    console.log(`map, promise.all, sum = ${sum}`);
-  })();
-
-  // 3个map.sum = 0
-  // for..of, sum = 6
-  // map, promise.all, sum = 6!!!
-  ```
-  - 注意sum是shared, <span class="underline-orange">最后一个log的sum = 6是unpredictable的, 完全取决于上面async callback的sum继续到了哪里</span>
-  - `let`是block scope, 但也满足lexical scope, <u>可以跳出当前function向上寻找, 只要在一个大的block里就可以</u>
-
 ##### <a name="781-array-iterator-methods" id="781-array-iterator-methods">7.8.1 Array Iterator Methods</a>
 
 ##### <span class="white-on-black">forEach(for...of)</span>
@@ -7321,10 +7125,13 @@ async function fetchRiver(bnId) {
     return response.json();
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error("Request timed out after 3000ms", { cause: error });
+      throw new Error("fetchRiver at ${bnId} req timed out after 3000ms", { cause: error });
     }
 
-    throw error; // need propagate all other errors
+    // need propagate all other errors
+    // instead of just "throw error"
+    // keep error shape the same, so caller can access error.cause for all types of error
+    throw new Error(`fetchRvier at ${bnId} failed`, { cause: error });
   } finally {
     clearTimeout(timer); // 勿忘clearTimeout
   }
@@ -7344,15 +7151,392 @@ async function fetchRiver(bnId) {
 ```
 - <u>fetchRiver本身不需要try/catch</u>. 但是因为用了 <u>**`AbortController`**</u>, 我们想fetchRiver <u>recognizes `AbortError`</u> and translate it into a more meaningful application error, 才在<u>fetchRiver里有了try/catch</u>.
   - try/catch从fetch开始
-  - catch最后的`throw error` makes sure all other errors continue propagating instead of being accidentally <u>swallowed</u>. e.g. network failure, `!response.ok`, or `response.json()` failure.
+  - catch最后的`throw error` makes sure all other errors <u>continue propagating</u> instead of being accidentally <u>swallowed</u>. e.g. network failure, `!response.ok`, or `response.json()` failure.
+    - `throw new Error(..., { cause: error })` - to keep error shape the same as if `AbortError`
   - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the <u>user navigated away, clicked Cancel</u>, etc.
-- <span class="underline-orange">`clearTimeout(timer)`</span>
-  - 如果req finishes before 3000ms, 我们就不需要abort了. 虽然`abort()` generally won't change already-settled result, but it's unnecessarily keeping a timer around and executing useless code, esp if making lots of reqs, each req has a useless timer.
-  - `finally { clearTimeout(timer) }` clears the pending timeout regardless of whether the request succeeds, fails (eg: fetch fails at 500ms), or is aborted, so the <u>timeout doesn't fire after the request is already finished (success/fail/aborted)</u>.
+- `clearTimeout(timer)`
+  - 如果req finishes (success or failure) before 3000ms, 我们就不需要abort了. 虽然`abort()` generally won't change already-settled result, but it's unnecessarily keeping a timer around and executing useless code, esp if making lots of reqs, each req has a useless timer.
+  - <span class="underline-orange">`finally { clearTimeout(timer) }`</span> clears the pending timeout regardless of whether the request succeeds, fails (eg: fetch fails at 500ms), or is aborted, so the <u>timeout doesn't fire after the request is already finished (success/fail/aborted)</u>.
 - 区别于`Promise.race()` with timeout, 这里在fetchRiver()里用`AbortController`, will abort the fetch on the client side.
   - If the request already reached the server, server-side processing may continue, unless the server <u>detects the disconnect</u> and explicitly supports cancellation
 
+##### `async`/`await` + Promise APIs
 
+Ex. DoorDash user dashboard with orders + YAML
+
+```js
+async function getDashboard() {
+  try {
+    const user = await getUser();
+
+    const [
+      orders,
+      ymal,
+    ] = await Promise.all([
+      fetchOrders(user?.id),
+      fetchYMAL(user?.id),
+    ]);
+
+    return {
+      orders,
+      ymal,
+    };
+  } catch (error) {
+    throw new Error(`getDashboard failed`, { cause: error });
+  }
+}
+```
+- 先await, 再Promise.all() - user是fetchOrders和fetchYMAL的前提
+
+### <a name="106-async-loops-with-array" id="106-async-loops-with-array">10.6 Async Loops with Array</a>
+
+- **Sequential** — `for...of` / classic `for`
+  - `await` pauses the surrounding `async` at that iteration.
+  - The loop continues <u>only after the current Promise settles</u>.
+    - Promise execution <u>order is guaranteed</u> (eg: sum needs wait for prev sum done)
+    - One iteration reject will <u>stop all the following iterations</u> unless error is caught inside the iteration
+- **Concurrent** — array iteration methods **with callbacks**
+  - eg: `arry.map`, `arry.forEach`, they are **not async-aware** - they don't await for promise settle before starting next iteration
+  - `await` pauses the surrounding `async`. the iteration (async)callback returns a pending Promise, and <u>continues to the next iteration right away</u>.
+    - One iteration reject, <u>the rest iterations still execute</u>
+    - Failures are handled based on Promise API:
+      - `Promise.all()` → one rejection rejects the whole `Promise.all()`.
+      - `Promise.allSettled()` → collects all fulfilled/rejected results.
+  - **Don't use this pattern when the next iteration depends on the previous iteration's awaited result**
+    - ALL promises in each iteration are triggered almost concurrently, and NO guarantee which promsie resolves first
+
+  Ex1.1 concurrent loop
+
+  ```js
+  const arry = [1,2,3];
+
+  // const sum  = async (a, b) => a+b; // async的位置
+  async function sum(a, b) { // async的位置
+    return a+b;
+  }
+
+  // concurrent
+  let result = 0;
+  arry.forEach(async elem => { // 注意async在每个iteration里
+    result = await sum(result, elem);
+    // sum triggered且async callback立刻返回promise
+    // 当前iteration paused, 跳出当前async callback, 进入下一个iteration
+  });
+  console.log(`arry.forEach, sum = ${result}`); // 0, loop没有等await resolve
+  ```
+  - 注意`async`的位置: `async function A {}` | `const func = async (a) => {}`
+  - `arry.forEach(async elem => {...})` - 注意每个iteration都是一个async
+  - `forEach` doesn't wait for the async callbacks settles, so <u>all 3 iterations start with `result = 0`</u>.
+    - and <u>the order of which promise resolves first is NOT guranteed</u>
+
+    ```js
+    // The flow
+
+    result = 0;
+
+    💡 iteratation是sequential的
+    💡 只是async callback立刻trigger了, 类似concurrent async loops
+
+    iteration 1, async callback(1) starts
+    → sum(0, 1) triggered, 🚨 result是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    iteration 2
+    → sum(0, 2) triggered, 🚨 result还是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    iteration 3
+    → sum(0, 3) triggered, 🚨 result还是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    forEach finishes → returns undefined
+    → console.log(result) // 0
+
+    // 🚨 resolve order NOT guaranteed 🚨 
+    Assume resolve order: 2 → 3 → 1 
+
+    microtasks run:
+    → callback 2 resumes → result = 2
+    → callback 3 resumes → result = 3
+    → callback 1 resumes → result = 1
+
+    final result = 1
+    ```
+
+  Ex1.2 suquetial loop
+
+  ```js
+  const arry = [1,2,3];
+  async function sum(a, b) { return a+b; }
+
+  let result = 0;
+
+  (async () => {
+    for(const elem of arry) {
+      result = await sum(result, elem); // // sum() triggered and asyc paused. 跳出current async block, ouside sync call first "done"
+    }
+    console.log(`for...of, result = ${result}`);
+  })();
+
+  console.log("done");
+
+  /**
+   * log顺序:
+   * done
+   * for...of, result = 6
+   */
+  ```
+  - 区别于`arry.forEach`, `for...of`是sequential loop, next iteration won't start until the previous one settles
+    - order is guaranteed
+  - `for...of`的`async`在loop外, await pause整个loop. 区别于Ex1.1 arry.forEach(**async** elem => {}) - 每个iteration有自己的`async`, await只pause当前的iteration
+
+    ```js
+    // the flow
+    
+    IIFE starts
+
+    loop 1:
+    → await sum(0, 1)
+    → current async pauses - 🚨 jumps out整个async block, 包括the log after for loop 🚨 
+
+    console.log("done") 🚨 先执行following sync code 🚨 
+
+    → sum(0, 1) resolves, result = 1
+    → loop continues
+
+    loop 2: 
+    → await sum(1, 2)
+    → current async pauses: jumps out async block
+
+    → sum(1, 2) resolves, result = 3
+    → loop continues
+
+    loop 3: 
+    → await sum(3, 3)
+    → current async pauses: jumps out async block
+
+    
+    → sum(3, 3) resolves, result = 6
+    → loop finishes
+    → console.log("for...of, result = 6")
+    ```
+  
+  Ex2.
+
+  ```js
+  const arry = [1, 2, 3];
+
+  async function sum(a, b) { return a+b; }
+
+  let result = 0;
+  arry.forEach(async elem => {
+    // sum() triggered, 且立刻返回promise
+    // pause跳出当前async callback, 进入下一个iteration
+    // 每个iteration的result都是0
+    result = await sum(result, elem);
+  });
+  console.log(`arry.forEach, result = ${result}`); // 0
+
+  (async () => {
+    let result = 0;
+    const promises = arry.map(async (elem) => {
+      // sum() triggered, 且立刻返回promise
+      // pause跳出当前async callback, 进入下一个iteration
+      // 每个iteration的result都是0
+      sum = await sum(result, elem);
+    });
+    console.log(`arry.map, result = ${result}`); // 0
+    console.log(promises); // [Promise, Promise, Promise]
+    
+    await Promise.all(promises); // 跳出所在async, 先执行block外的done再回来
+    console.log(`arry.map, result after settle = ${result}`); // result取决于which promise resolve first: 1 | 2 | 3, 不是6～
+  })();
+
+  console.log("done");
+
+  (async () => {
+    await Promise.resolve(); // 跳出async block, 先C再回来
+    console.log("B");
+  })();
+  console.log("C");
+
+  (async () => {
+    let result = 0;
+    for (const elem of arry) {
+      result = await sum(result, elem); // sum() triggered, pause跳出async block, 先D再回来
+    }
+    console.log(`for...of, result = ${result}`);
+  })();
+
+  console.log("D");
+
+  /** 
+   * 注意log顺序!!
+   *
+   * arry.forEach, result = 0
+   * 
+   * arry.map, result = 0
+   * [Promise, Promise, Promise]
+   *
+   * done
+   * 
+   * C
+   *
+   * D
+   * 
+   * B
+   * 
+   * arry.map, result after settle = 1|2|3 <- 不一定, 肯定不是6
+   * 
+   * for...of, result = 6 <- 区别于arry.map, 这才是对的result=1+2+3
+   * */
+  ```
+  - <span class="orange">`async`不是整个block直接跳过</span>, 而是**先sync执行, 直到遇见`await`才pause跳出**，先执行async block之外的
+    - `arry.map`里的async/await也一样, 虽然callback里的await没有await, 直接返回了pending promise, 但是也是pause跳出当前async iteration, 进入下一个iteration
+  - 注意`arry.map, result after settle = 1|2|3` <- 不一定, 但<span class="underline-orange">肯定不是6</span>! 因为`arry.map`的3个async callbacks start before any of them finishes, and <span class="underline-orange">each one reads result while it is still 0</span>! 
+    - `arry.map`的3个callback虽然是sequentially triggered, 但是<u>没有await, they all start before any of them finishes</u>. 
+    - 和log`for...of, result = 6`不一样, `for...of`的3个callback也是sequentially triggered, 但是<span class="underline-orange">每个都有`await`, 且the next iteration doesn't begin until the previous one has finished</span>
+  - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
+    - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="orange">Queue happens after promise resolve</span> / The continuation is only queued after the awaited promise settles)
+    - 这里arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在Promise.resolve()的async, 跳出 -> print C,D -> Promise.resolve() is already settled -> print B -> map的await Promise.all resolve
+
+  Ex2. `await` callback in arry.map VS for...of
+
+  ```js
+  const arry = [1,2,3];
+  arry.map(async (elem) => {
+    console.log("start", elem);
+    await delay(elem); // delay(elem) is triggered first, then pause
+    console.log("end", elem);
+  });
+  ```
+  Execution looks like this:
+
+  ```
+  start 1
+  await ... await delay没有resolve, sync直接return promise
+  // delay(1)先triggered
+  // 然后pause跳出当前async iteration, 继续map
+
+  start 2
+  await ...
+  // delay(2)先triggered
+  // 然后pause跳出当前async iteration, 继续map
+
+  start 3
+  await ...
+  // delay(3)先triggered
+  // 然后pause跳出当前async iteration
+
+  map returns
+
+  Later:
+  end x 的顺序取决于哪一个delay(elem)先执行完, each callback is independent.
+
+  如果
+  delay(1) -> resolves after 300 ms
+  delay(2) -> resolves after 100 ms
+  delay(3) -> resolves after 200 ms
+  则output是
+  end 2
+  end 3
+  end 1
+  ```
+
+  ```js
+  (async () => {
+    let sum = 0;
+    for (const elem of arry) {
+      console.log("start", elem);
+      await delay(elem);
+      console.log("end", elem);
+    }
+  })();
+  console.log("done");
+  ```
+  Execution looks like this:
+
+  ```
+  start 1
+  await ... delay(1)先triggered, 然后pause, 跳出整个async block, 
+
+  done
+
+  等delay(1) resolve之后
+  end 1
+  start 2
+  
+  await ... delay(2)先triggered, 然后pause, wait until delay(2) resolves
+  end 2
+  start 3
+
+  await ... delay(3)先triggered, 然后pause, wait until delay(3) resolves
+  end 3
+
+  即使
+  delay(1) -> resolves after 300 ms
+  delay(2) -> resolves after 100 ms
+  delay(3) -> resolves after 200 ms
+  
+  end x的order也不变 - 区别于map!!!
+  ```
+  - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<span class="orange">skip following lines in current iteration, 直接进入下一个iteration</span>
+  - 区别map和for...of的`await`: `await` pauses the async function it belongs to.
+    - <span class="underline-orange">map的callback starts right away, each iteration is an async, waits independently, so completion order depends on which delay resolves first</span>.
+    - <span class="underline-orange">for...of is inside one async, each `await` pauses the function and therefore pauses the loop.</span>.
+
+  Ex3. scope
+  ```js
+  let sum = 0;
+  (async () => {
+    for(const elem of arry) {
+      sum = await sumA(sum, elem);
+    }
+    console.log(`for..of, sum = ${sum}`)
+  })();
+
+  (async () => {
+    // let sum = 0; // 没有这一行, 两个async share同一个sum. UNPREDICTABLE sum at the end
+    const promises = arry.map(async elem => {
+      console.log(`map.sum = ${sum}`);
+      sum = await sumA(sum, elem);
+    });
+    await Promise.all(promises);
+    console.log(`map, promise.all, sum = ${sum}`);
+  })();
+
+  // 3个map.sum = 0
+  // for..of, sum = 6
+  // map, promise.all, sum = 6 - not guranteed!!
+  ```
+  - 注意sum是shared, <span class="underline-orange">最后一个log的sum = 6是unpredictable的, 完全取决于上面async callback的sum继续到了哪里</span>
+  - `let`是block scope, 但也满足lexical scope, <u>可以跳出当前function向上寻找, 只要在一个大的block里就可以</u>
+  - map的sum不一定是6
+    three callbacks are started sequentially:
+    ```
+    elem 1: reads sum = 0 → starts sumA(0, 1) → pauses
+    elem 2: reads sum = 0 → starts sumA(0, 2) → pauses
+    elem 3: reads sum = 0 → starts sumA(0, 3) → pauses
+    ```
+    So all three calls can receive sum = 0.
+
+    ```
+    sumA(0, 2) finishes first
+    → sum = 2
+
+    sumA(0, 3) finishes second
+    → sum = 3   // overwrites 2!
+
+    sumA(0, 1) finishes last
+    → sum = 1   // overwrites 3!
+    ```
+    then final log sum=1
+    should use for...of, make sure each await waits
+    ```js
+      for (const elem of arry) {
+      sum = await sumA(sum, elem);
+    }
+    ```
 
 
 

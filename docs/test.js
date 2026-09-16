@@ -32,10 +32,6 @@ async function updateUser(userId) {
   );
 })();
 
-<a name="78-array-methods" id="78-array-methods">7.8 Array Methods</a>
-- If the iteration method <span class="orange">takes a callback</span>, they generally **not async-aware**. eg: `arry.map` doesn't await until promise resolves, but <span class="orange">**returns the promise immediately, skip the rest of lines in current iteration, then continues to the next iteration**</span>.
-  - If the iteration method <span class="orange">doesn't have callback</span> (`for...of`, `values`, `entries`, classic `for` loop), `await` will **pause the loop UNTIL the promise resolves, then continue the rest of lines in current iteration, then move to the next loop**.
-
 // sequential loop
 (async () => {
   // forEach doesn't wait
@@ -89,10 +85,6 @@ async function updateUsersWithLimit(users, limit) {
 (async () => {
   await updateUsersWithLimit(users, 3);
 })();
-
-
-
-
 
 
 
