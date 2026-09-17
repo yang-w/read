@@ -86,7 +86,16 @@ async function updateUsersWithLimit(users, limit) {
   await updateUsersWithLimit(users, 3);
 })();
 
+const arry = [1,2,3];
+async function sum(a, b) { return a+b; }
 
+(async () => {
+  let result = 0;
+  await Promise.all(arry.map(async elem => {
+    result = await sum(result, elem);
+  }));
+  console.log(`arry.map, result = ${result}`);
+})();
 
   
 

@@ -7205,7 +7205,7 @@ async function getDashboard() {
   - **Don't use this pattern when the next iteration depends on the previous iteration's awaited result**
     - ALL promises in each iteration are triggered almost concurrently, and NO guarantee which promsie resolves first
 
-  Ex1.1 concurrent loop
+  Ex1.1 concurrent loop `arry.forEach`
 
   ```js
   const arry = [1,2,3];
@@ -7222,11 +7222,11 @@ async function getDashboard() {
     // sum triggered且async callback立刻返回promise
     // 当前iteration paused, 跳出当前async callback, 进入下一个iteration
   });
-  console.log(`arry.forEach, sum = ${result}`); // 0, loop没有等await resolve
+  console.log(`arry.forEach, result = ${result}`); // 0, loop没有等await resolve
   ```
   - 注意`async`的位置: `async function A {}` | `const func = async (a) => {}`
   - `arry.forEach(async elem => {...})` - 注意每个iteration都是一个async
-  - `forEach` doesn't wait for the async callbacks settles, so <u>all 3 iterations start with `result = 0`</u>.
+  - `arry.forEach` doesn't wait for the async callbacks settles, so <u>all 3 iterations start with `result = 0`</u>.
     - and <u>the order of which promise resolves first is NOT guranteed</u>
 
     ```js
@@ -7234,7 +7234,7 @@ async function getDashboard() {
 
     result = 0;
 
-    💡 iteratation是sequential的
+    💡 arry.forEach的iteratation是sequential的
     💡 只是async callback立刻trigger了, 类似concurrent async loops
 
     iteration 1, async callback(1) starts
@@ -7249,7 +7249,7 @@ async function getDashboard() {
     → sum(0, 3) triggered, 🚨 result还是0 🚨 
     → callback pauses at await → async callback returns a pending Promise
 
-    forEach finishes → returns undefined
+    arry.forEach finishes → returns undefined
     → console.log(result) // 0
 
     // 🚨 resolve order NOT guaranteed 🚨 
@@ -7263,7 +7263,60 @@ async function getDashboard() {
     final result = 1
     ```
 
-  Ex1.2 suquetial loop
+  Ex1.2 concurrent loop `arry.map`
+
+  ```js
+  const arry = [1,2,3];
+  async function sum(a, b) { return a+b; }
+
+  (async () => {
+    let result = 0;
+    await Promise.all(arry.map(async elem => {
+      result = await sum(result, elem); // result is 0 for all 3 iteration
+    }));
+    console.log(`arry.map, result = ${result}`); // NOT 6 ❌. can be 1 | 2 | 3, depending on which promise resolves first
+  })();
+  ```
+  - `arry.map` is NOT async aware: result in `await sum(result, elem)` of all 3 iterations are all 0.
+  - with nested await, code will start from `arry.map` first, then `Promise.all`
+    ```js
+    // The flow
+
+    result = 0;
+
+    💡 arry.map的iteratation是sequential的
+    💡 只是async callback立刻trigger了, 类似concurrent async loops
+
+    map callback 1
+    → sum(0, 1) triggered, 🚨 result是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    map callback 2
+    → sum(0, 2) triggered, 🚨 result还是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    map callback 3
+    → sum(0, 3) triggered, 🚨 result还是0 🚨 
+    → callback pauses at await → async callback returns a pending Promise
+
+    🚨 arry.map finishes → returns an array of promises 🚨
+    [Promise, Promise, Promise]
+
+    Promise.all(...)
+    → waits for all 3 callbacks, jumps out of outter async and do other sync calls if any
+
+    // 🚨 resolve order NOT guaranteed 🚨 
+    Assume resolve order: 2 → 3 → 1 
+
+    microtasks run:
+    → callback 2 resumes → result = 2
+    → callback 3 resumes → result = 3
+    → callback 1 resumes → result = 1
+
+    final result = 1
+    ```
+
+  Ex1.3 suquetial loop
 
   ```js
   const arry = [1,2,3];
@@ -7286,7 +7339,7 @@ async function getDashboard() {
    * for...of, result = 6
    */
   ```
-  - 区别于`arry.forEach`, `for...of`是sequential loop, next iteration won't start until the previous one settles
+  - 区别于`arry.forEach`和`arry.map`, `for...of`是sequential loop, next iteration won't start until the previous one settles
     - order is guaranteed
   - `for...of`的`async`在loop外, await pause整个loop. 区别于Ex1.1 arry.forEach(**async** elem => {}) - 每个iteration有自己的`async`, await只pause当前的iteration
 
@@ -7416,17 +7469,17 @@ async function getDashboard() {
   start 1
   await ... await delay没有resolve, sync直接return promise
   // delay(1)先triggered
-  // 然后pause跳出当前async iteration, 继续map
+  // 然后pause跳出当前async callback, 继续map
 
   start 2
   await ...
   // delay(2)先triggered
-  // 然后pause跳出当前async iteration, 继续map
+  // 然后pause跳出当前async callback, 继续map
 
   start 3
   await ...
   // delay(3)先triggered
-  // 然后pause跳出当前async iteration
+  // 然后pause跳出当前async callback
 
   map returns
 
