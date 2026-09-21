@@ -17,87 +17,90 @@ function handleChange(evt) {
 
 console.log(`-----------------`);
 
+// const users = [user1, user2, user3];
+
+// async function updateUser(userId) {
+//   // update user
+// }
+
+// // concurrent
+// (async () => {
+//   await Promise.all(
+//     // map returns an array of promises
+//     // not Promise.all([...]) - no need []
+//     users.map(user => updateUser(user?.id))
+//   );
+// })();
+
+// // sequential loop
+// (async () => {
+//   // forEach doesn't wait
+//   users.forEach(async user => {
+//     await updateUser(user?.id);
+//   });
+//   console.log("finished");
+  
+//   // use this
+//   for (const user of users) {
+//     await updateUser(user?.id);
+//   }
+//   console.log("finished");
+// })();
+
+
+// const users = await Promise.all(ids.map(id => fetchUser(id)));
+
+// // bounded concurrency
+// // limit how many requests hit a server at once.
+// const batchSize = 10;
+// (async () => {
+//   for (let i = 0; i < users.length; i += batchSize) {
+//     const batch = users.slice(i, i + batchSize);
+
+//     await Promise.all(
+//       batch.map(user => updateUser(user?.id))
+//     );
+//   }
+// })();
+
+// // worker pool / concurrency limiter
+// async function updateUsersWithLimit(users, limit) {
+//   let nextIndex = 0;
+
+//   async function worker() {
+//     while (nextIndex < users.length) {
+//       const index = nextIndex++;
+//       const user = users[index];
+
+//       await updateUser(user.id);
+//     }
+//   }
+
+//   // Start 3 workers
+//   await Promise.all(
+//     Array.from({ length: limit }, () => worker())
+//   );
+// }
+
+// (async () => {
+//   await updateUsersWithLimit(users, 3);
+// })();
+
+
+// arry.forEach(async user => {
+//   await updateUser(user?.id)
+// })
+
+// (async () => {
+//   for (const elem of arry) {
+//     await updateUser(elem?.id);
+//   }
+// })
+
+
 const users = [user1, user2, user3];
 
-async function updateUser(userId) {
-  // update user
+async () => {
+  await Promise.all(users.map(user => updateUser(user)));
 }
-
-// concurrent
-(async () => {
-  await Promise.all(
-    // map returns an array of promises
-    // not Promise.all([...]) - no need []
-    users.map(user => updateUser(user?.id))
-  );
-})();
-
-// sequential loop
-(async () => {
-  // forEach doesn't wait
-  users.forEach(async user => {
-    await updateUser(user?.id);
-  });
-  console.log("finished");
-  
-  // use this
-  for (const user of users) {
-    await updateUser(user?.id);
-  }
-  console.log("finished");
-})();
-
-
-const users = await Promise.all(ids.map(id => fetchUser(id)));
-
-// bounded concurrency
-// limit how many requests hit a server at once.
-const batchSize = 10;
-(async () => {
-  for (let i = 0; i < users.length; i += batchSize) {
-    const batch = users.slice(i, i + batchSize);
-
-    await Promise.all(
-      batch.map(user => updateUser(user?.id))
-    );
-  }
-})();
-
-// worker pool / concurrency limiter
-async function updateUsersWithLimit(users, limit) {
-  let nextIndex = 0;
-
-  async function worker() {
-    while (nextIndex < users.length) {
-      const index = nextIndex++;
-      const user = users[index];
-
-      await updateUser(user.id);
-    }
-  }
-
-  // Start 3 workers
-  await Promise.all(
-    Array.from({ length: limit }, () => worker())
-  );
-}
-
-(async () => {
-  await updateUsersWithLimit(users, 3);
-})();
-
-const arry = [1,2,3];
-async function sum(a, b) { return a+b; }
-
-(async () => {
-  let result = 0;
-  await Promise.all(arry.map(async elem => {
-    result = await sum(result, elem);
-  }));
-  console.log(`arry.map, result = ${result}`);
-})();
-
-  
-
-
 
