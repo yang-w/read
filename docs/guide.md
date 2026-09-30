@@ -58,6 +58,7 @@
 * [10.4 async/await](#104-asyncawait)
 * [10.5 Promise API](#105-promise-api)
 * [10.6 Async Loops with Array](#106-async-loops-with-array)
+* [10.6.1 `Promise.all` + `arry.map` - Concurrency Risk](#1061-promiseall--arrymap---concurrency-risk)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -7158,7 +7159,7 @@ async function fetchRiver(bnId) {
   - 如果没有这个try/catch, caller也可以detect `error.name === "AbortError"`. 但是`AbortError` technically means the operation was aborted, not necessarily that it timed out. An abort could also happen because the <u>user navigated away, clicked Cancel</u>, etc.
 - `clearTimeout(timer)`
   - 如果req finishes (success or failure) before 3000ms, 我们就不需要abort了. 虽然`abort()` generally won't change already-settled result, but it's unnecessarily keeping a timer around and executing useless code, esp if making lots of reqs, each req has a useless timer.
-  - <span class="underline-orange">`finally { clearTimeout(timer) }`</span> clears the pending timeout regardless of whether the request succeeds, fails (eg: fetch fails at 500ms), or is aborted, so the <u>timeout doesn't fire after the request is already finished (success/fail/aborted)</u>.
+  - <span class="underline-orange">`finally { clearTimeout(timer) }`</span> clears the pending timeout regardless of whether the request succeeds, fails (eg: fetch fails at 500ms), or is aborted, so the <u>timeout doesn't fire after the request is already settled (success/fail/aborted)</u>.
 - 区别于`Promise.race()` with timeout, 这里在fetchRiver()里用`AbortController`, will abort the fetch on the client side.
   - If the request already reached the server, server-side processing may continue, unless the server <u>detects the disconnect</u> and explicitly supports cancellation
 
@@ -7204,7 +7205,7 @@ async function getDashboard() {
     - Failures are handled based on Promise API:
       - `Promise.all()` → one rejection rejects the whole `Promise.all()`.
       - `Promise.allSettled()` → collects all fulfilled/rejected results.
-  - **Don't use this pattern when the next iteration depends on the previous iteration's awaited result**
+  - **Don't use this pattern when the next iteration depends on the current iteration's awaited result**
     - Promise in each iteration are triggered almost concurrently, and NO guarantee which promsie resolves first
 
   Ex1.1 concurrent loop `arry.forEach`
@@ -7221,13 +7222,13 @@ async function getDashboard() {
   let result = 0;
   arry.forEach(async elem => { // 注意async在每个iteration里
     result = await sum(result, elem);
-    // sum triggered且async callback立刻返回promise
+    // sum() triggered且async callback立刻返回pending promise
     // 当前iteration paused, 跳出当前async callback, 进入下一个iteration
   });
   console.log(result); // 0, loop没有等await resolve
   ```
-  - `arry.forEach` is **NOT async-aware**
   - 注意`async`的位置: `async function A {}` | `const func = async (a) => {}`
+  - `arry.forEach` is **NOT async-aware**
   - `arry.forEach(async elem => {...})` - 注意每个iteration都是一个async
   - `arry.forEach` doesn't wait for the async callbacks settles, so <u>all 3 iterations start with `result = 0`</u>.
     - and <u>the order of which promise resolves first is NOT guranteed</u>
@@ -7285,6 +7286,7 @@ async function getDashboard() {
   - <u>with nested await, code will start from `arry.map` first, then `Promise.all`</u>
     - `Promise.all(arry.map)`: `arry.map`正好returns an array of promises, 勿须Promise.all([...])
       - 区别于`arry.forEach`没有return, 不能直接和`Promise.all`搭配
+      - 区别于<u>Ex1.1log的时候三个iteration的promise都还没resolve</u>, 所以log是0. 这里<u>Promise.all保证了三个iteration的promises都settle了</u>, log是1|2|3.
 
     ```js
     // The flow
@@ -7310,7 +7312,7 @@ async function getDashboard() {
     →  🚨 returns an array of promises 🚨
     [Promise, Promise, Promise]
 
-    ⭐ Promise.all(...)
+    ⭐ Promise.all(...)保证了三个promises都结束 (区别于Ex1.1 arry.forEach)
     → waits for all 3 callbacks, jumps out of outter async and do other sync calls if any
 
     // 🚨 resolve order NOT guaranteed 🚨 
@@ -7349,7 +7351,7 @@ async function getDashboard() {
   ```
   - 区别于`arry.forEach`和`arry.map`, `for...of`是sequential loop, next iteration won't start until current one settles
     - **Order is guaranteed**
-  - `for...of`的`async`在loop外, await pause整个loop. 区别于Ex1.1 arry.forEach(**async** elem => {}) - 每个iteration有自己的`async`, await只pause当前的iteration
+  - `for...of`的`async`在loop外, await pause整个loop. 区别于Ex1.1, Ex1.2中arry.forEach/map(**async** elem => {}) - 每个iteration有自己的`async`, await只pause当前的iteration
 
     ```js
     // the flow
@@ -7382,7 +7384,7 @@ async function getDashboard() {
     → console.log("for...of, result = 6") 👈 继续async block里loop外的code
     ```
 
-  Ex2. `await` callback in `arry.map` VS `for...of`
+  Ex2. `await` in `arry.map` VS `for...of`
 
   ```js
   // Ex2.1
@@ -7397,17 +7399,17 @@ async function getDashboard() {
 
   ```
   start 1
-  await ... await delay没有resolve, sync直接return promise
+  await delay(1)直接return pending promise
   // delay(1)先triggered
   // 然后pause跳出当前async callback, 继续map
 
   start 2
-  await ...
+  await delay(2)直接return pending promise
   // delay(2)先triggered
   // 然后pause跳出当前async callback, 继续map
 
   start 3
-  await ...
+  await delay(3)直接return pending promise
   // delay(3)先triggered
   // 然后pause跳出当前async callback
 
@@ -7442,7 +7444,7 @@ async function getDashboard() {
 
   ```
   start 1
-  await ... delay(1)先triggered, 然后pause, 跳出整个async block, 
+  await delay(1)先triggered, 然后pause, 跳出整个async block, 
 
   done
 
@@ -7450,11 +7452,11 @@ async function getDashboard() {
   end 1
   start 2
   
-  await ... delay(2)先triggered, 然后pause, wait until delay(2) resolves
+  await delay(2)先triggered, 然后pause, wait until delay(2) resolves
   end 2
   start 3
 
-  await ... delay(3)先triggered, 然后pause, wait until delay(3) resolves
+  await delay(3)先triggered, 然后pause, wait until delay(3) resolves
   end 3
 
   即使
@@ -7464,9 +7466,9 @@ async function getDashboard() {
   
   end x的order也不变 - 区别于map!!!
   ```
-  - arry.map的await也是await, 虽然直接返回promise没有await resolve, 但是也会<u>skip following lines in current iteration, 直接进入下一个iteration</u>
+  - arry.map的await也是await, 虽然直接返回pending promise没有resolve, 但是也会<u>skip following lines in current iteration, 直接进入下一个iteration</u>
   - 区别map和for...of的`await`: `await` pauses the async function it belongs to.
-    - `arry.map`的callback starts right away, each iteration is an async, waits independently, so <span class="underline-orange">completion order depends on which delay resolves first</span>.
+    - `arry.map`的callback starts right away, each iteration is an async, <u>waits independently</u>, so <span class="underline-orange">completion order depends on which delay resolves first</span>.
     - `for...of` is inside one async, each `await` pauses the for loop function, <span class="underline-orange">execution order is guaranteed.</span>.
   
   Ex3.
@@ -7551,18 +7553,22 @@ async function getDashboard() {
       - in this example, `sum()` resolves immediately, so `map + Promise.all` finishes before the sequential `for...of`
       - if `sum()` involved real async work with different timing, the order is not guaranteed
 
-Ex4.
+Ex4.1 `Promise.all` + `arry.map`
 
 ```js
 // suppose need to update users in this arry
 const users = [user1, user2, user3];
+
+async function updateUser(userId) {
+  // update user
+}
 
 // should do it concurrently
 // Ex4.1
 (async () => {
   try {
     await Promise.all(
-      // 不用map(async ..)
+      // 不用map(async .. await...)
       users.map(user => updateUser(user))
     );
   } catch (error) {
@@ -7577,13 +7583,14 @@ await Promise.all(
   })
 );
 ```
-- we only need `async`/`await` inside `arry.map()` when the callback itself needs to pause and do something with the resolved value
-  - Ex1.1/Ex1.2中`result = await sum(result, elem)` - callback需要await, 然后把resolve的值赋给result
+- we only need `async`/`await` inside `arry.map()` when we need do something with the resolved await value
+  - Ex1.1/Ex1.2中`result = await sum(result, elem)` - callback需要把resolve的值赋给result
   - Ex2.1中 `await delay(elem); console.log("end", elem)` - callback需要await, 然后log
 - 这里Ex4.1, simply passing the Promise `updateUser(user)` through, no need to add `async`/`await` inside `arry.map()`
 - `users.map(user => updateUser(user))` 
-  - `updateUser(user)` is an async function returns a Promise
+  - `updateUser(user)` is an <u>async function returns a Promise</u>
   - `map()` returns [Promise, Promise, Promise]
+    - 不需要Promise.all([...]) - no need []
   - `Promise.all()` waits for them
   - so there's no need to add `async`/`await`
 
@@ -7593,11 +7600,146 @@ await Promise.all(
 | declared with `async` | no `async` |
 | always return a Promise | returns a Promise because `updateUser(user)` returns a Promise |
 
+Ex4.2 `Promise.all` + `arry.map`
 
+```js
+const ids = [id1, id2, id3];
 
+(async () => {
+  try {
+    const users = await Promise.all(
+      // 不用map(async .. await...)
+      ids.map(id => getUser(id))
+    );
+  } catch (error) {
+    console.error(error);
+  }
+})();
+```
+- 和Ex4.1一样, arry.map里不需要async/await, 没有要用getUser() resolve的value做什么的需求, id=>getUser(id)已经return的是promise了
+- 注意<u>const users</u> = await Promise.all(...): Promise.all return的是an arry of resolved promises (getUser()的user)
 
+#### <a name="1061-promiseall--arrymap---concurrency-risk" id="1061-promiseall--arrymap---concurrency-risk">10.6.1 `Promise.all` + `arry.map` - Concurrency Risk</a>
 
+This can be dangerous if users.length is very large, e.g. 100,000:
 
+```js
+await Promise.all(
+  users.map(user => updateUser(user))
+);
+```
+`arry.map()` will launch 100,000 async operations concurrently. This could overwhelm:
+- the server/database
+- third-party API limits
+  - **rate limit** — max requests within a time window, e.g. `100 req/sec`
+  - **concurrency limit** — max requests <u>in flight at once</u>, e.g. `10 concurrent requests`
+  - if exceeded, extra requests may be rejected (`429` too many requests), throttled, or queued depending on the API
+  - limits may be per user, IP, API key/token (Bearer `<token>`), endpoint, etc.
+- network/request capacity
+  - too many requests/connections can cause queuing, congestion, or timeouts
+- browser/runtime resources
+  - consume memory: keep states of <u>pending operations</u> in memory
+  - JS runtime: manages large numbers of Promises, callbacks/microtasks, etc.
+
+For large workloads, consider **bounded concurrency** (batching) or a **concurrency limiter** (worker pool) instead of starting everything at once.
+
+##### <u>Bounded concurrency (batch)</u>
+
+```js
+// limit how many requests hit a server at a time
+const batchSize = 10;
+(async () => {
+  // 是let i, 不是const!!
+  for (let i = 0; i < users.length; i += batchSize) {
+    const batch = users.slice(i, i + batchSize);
+
+    await Promise.all(
+      batch.map(user => updateUser(user?.id))
+    );
+  }
+})();
+```
+
+##### <u>Concurrency limiter (worker pool)</u>
+
+```js
+// up to `limit` async calls in flight at once
+async function updateUsersWithLimit(users, limit) {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < users.length) { // 👈 关键是while, 保证了每个worker会一直pick下一个user直到结束 
+      const index = nextIndex++;
+      const user = users[index];
+
+      await updateUser(user.id);
+    }
+  }
+  // Start 3 workers, each worker handles ONE user update at a time
+  await Promise.all(
+    Array.from({ length: limit }, () => worker())
+  );
+
+}
+
+(async () => {
+  await updateUsersWithLimit(users, 3);
+})();
+```
+- ❌ 不能把 `await Promise.all(...worker())`放在 `updateUsersWithLimit`一开始 ❌ 
+  - 虽然 `function worker() {}`会被hoisted - 可以在定义前使用
+  - 但是`let nextIndex = 0`虽然也会被hoisted, 但是nextIndex will **NOT** be initialized until execution reaches its declaration (TDZ - Temporal Dead Zone)
+  → 在init前都不能访问
+  → `worker()` 访问 `nextIndex` 时会 ❌ `ReferenceError`
+
+  ```js
+  foo(); // ✅ works
+
+  function foo() { // hoisted + initialized
+    console.log("foo");
+  }
+
+  console.log(x); // ❌ ReferenceError
+  let x = 0; // hoisted, but initialization happens here. 在此之前都不能访问
+  ```
+
+```js
+// the flow
+
+⭐ always up to 3 async calls in flight at once ⭐
+
+nextIndex = 0
+
+worker 1 → take user[0] → await
+worker 2 → take user[1] → await
+worker 3 → take user[2] → await
+                         ↓
+              nextIndex = 3
+
+worker 2 finishes first
+→ loops back while(nextIndex < users.length)
+→ take user[3] → await
+                ↓
+    nextIndex = 4
+
+worker 3 finishes
+→ loops back while(nextIndex < users.length)
+→ take user[4] → await
+                ↓
+    nextIndex = 5
+
+worker 1 finishes
+→ loops back while(nextIndex < users.length)
+→ take user[5] → await
+                ↓
+    nextIndex = 6
+
+...repeat until nextIndex === users.length
+
+↓
+all workers finish
+↓
+Promise.all resolves
+```
 
 
 
