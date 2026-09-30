@@ -7741,12 +7741,85 @@ all workers finish
 Promise.all resolves
 ```
 
+#### <a name="1062-input-change-debounce--fetch-abort" id="1062-input-change-debounce--fetch-abort">10.6.2 Input change debounce + fetch abort</a>
 
+| | ⏳ Debounce | ⏱️ Throttle |
+| :--- | :--- | :--- |
+| **What it does** | Waits until you **stop** doing the action. | Pauses between actions at a **fixed speed**. |
+| **When it runs** | **Once**, after the timeout delay expires without any new activity. | **Repeatedly**, at regular intervals while the activity is ongoing. |
+| **If you keep clicking...** | It resets the timer and **will not run** until you take a break. | It will run **steady updates** at fixed times regardless of your clicks. |
+| **Best use case** | • **Search bar** (only search when typing pauses)<br>• **Form validation** (validate form 500ms after typing stops)<br>• **Autosave** (autosave 2 seconds after typing stops) | • **Infinite scrolling** (check page position while scrolling)<br>• **Window resizing** (smoothly update charts during drag)|
 
+##### <u>`debounce` with `input` event</u>
 
+Pair `debounce` with `input` event
+- `input` fires whenever the input value changes — usually on every keystroke.
+- `change` generally fires when the user commits the change, often after the input loses focus.
 
+For search boxes or filtering UIs, we usually want to react as the user types, but not on every keystroke
 
+👉 `input` + `debounce` is a common combination.
 
+- for `debounce`, only the most recent action triggers the `callback`, after `delay`ms after user stops calling debounce. 
+eg: user types in "abc" and pauses, callback shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous scheduled callbacks.
+- `debounce()` <u>returns a function</u>. Each time that function is called, it schedules `callback` to run after `delay`ms and <u>cancels the previous schedule</u>.
+
+Ex1.1 debounce without `clearTimeout` ❌
+
+```js
+function debounce(callback, delay) {
+  return function(...args) {
+    setTimeout(() => {
+      callback(...args)
+    }, delay)
+  }
+}
+
+const log = debounce(console.log, 1000);
+log("A");
+log("B");
+log("C");
+
+// after 1000ms:
+// prints A, B, C — all after 1000ms (NOT debounce)
+```
+
+Ex1.2 debounce with `clearTimeout` ✅
+
+```js
+function debounce(callback, delay) {
+  let timeoutId;
+
+  return function(...args) {
+    clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      callback(...args)
+    }, delay);
+  }
+}
+
+const log = debounce(console.log, 1000);
+log("A");
+log("B");
+log("C");
+
+// after 1000ms:
+// only "C" prints (GOOD for debounce)
+```
+- `debounce(cb, delay)` return的是一个function, `debounce()(...args)`才是真的执行`callback(...args)` after delay
+  - 注意`...args`的应用, `...args`来自debounce return的function的param, eg: log("A")的A
+- `setTimeout(fnRef, delay)` expects a function to call later, not the result of calling the function.
+
+  ```js
+  setTimeout(callback(...args), delay); // ❌
+  // callback(...args) runs immediately — instead of scheduling it to run later
+  // its return value is passed to setTimeout
+
+  setTimeout(() => callback(...args), delay); // ✅
+  // arrow function is passed to setTimeout
+  // callback(...args) runs LATER after delay
+  ```
 
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>
@@ -7790,53 +7863,6 @@ JavaScript uses an event loop and a mircrotask queue to handle asynchronous beha
 
 [debounce/throttle](./debounce.html)
 
-- pair `debounce` with `input` event
-  - `input` fires every time the value of the input changes
-  - `change` fires only after input loses focus or the user confirms the edit (e.g., pressing Enter in a text box).
-
-For search boxes or filtering UIs, you want to react as the user types, but not on every keystroke — hence `debounced` and  `input` is the perfect combo.
-
-- for `debounce`, only the most recent action triggers the callback. eg: user types in "abc" and pauses, `debounce` shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous schedule.
-
-```js
-// without clearTimeout
-function debounce(callback, delay) {
-    return function(...args) {
-        setTimeout(() => callback(...args), delay);
-    };
-}
-
-const log = debounce(console.log, 500);
-log("A"); // schedules "A"
-log("B"); // schedules "B"
-log("C"); // schedules "C"
-// result: prints A, B, C — all after 500ms (BAD for debounce)
-
-// with clearTimeout
-function debounce(callback, delay) {
-    let id;
-    return function(...args) {
-        clearTimeout(id); // cancel any previous timer
-        id = setTimeout(() => callback(...args), delay); // schedule a new one
-    };
-}
-
-const log = debounce(console.log, 500);
-log("A");
-log("B");
-log("C");
-// result: only "C" prints (GOOD for debounce)
-```
-
-- `setTimeout(fnRef, delay)` expects a function reference, not a function call
-
-```js
-setTimeout(callback(...args), delay); 
-// This calls callback(...args) immediately — instead of scheduling it to run later
-
-setTimeout(() => callback(...args), delay);
-// giving setTimeout the arrow function to call later
-```
 ### <a name="big-data-with-virtualization" id="big-data-with-virtualization">Big data with virtualization</a>
 
 The scrolling list that only renders a subset of items (recycling a fixed pool of rows) — is called <b>virtualization</b> or <b>windowing</b> or <b>DOM virtualization</b>, not "Virtual DOM".
