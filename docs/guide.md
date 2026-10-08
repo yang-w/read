@@ -7075,13 +7075,13 @@ async function getProfilePage() {
   }
 })();
 ```
-- `Promise.all()` 中的每个Promise可以加自己的`.catch()`, 来决定这个 failure是:
+- `Promise.all()` 中的每个Promise可以加自己的`.catch()`, 来决定这个failure是:
   - fatal → throw, Promise stays rejected
   - recoverable → return fallback value, Promise becomes fulfilled
 - Ex1.1和Ex1.2最终实现的behavior很类似:
   - `getProfile()` rejects → `getProfilePage()` rejects
   - `getLegacyUserId()` rejects → fallback to null, `getProfilePage()`依然resolves
-- 区别在于`getProfilePage()` rejects的时间
+- 区别在于`getProfilePage()`rejects的时间
   - Ex1.1 `Promise.all()` → `getProfile()` fails时可以fail fast, 不用等另一个Promise settle
   - Ex1.2 `Promise.allSettled()` → 一定等两个Promise都settle, 然后检查结果, 再决定是否throw
 
