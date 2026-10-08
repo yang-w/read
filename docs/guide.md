@@ -59,6 +59,7 @@
 * [10.5 Promise API](#105-promise-api)
 * [10.6 Async Loops with Array](#106-async-loops-with-array)
 * [10.6.1 `Promise.all` + `arry.map` - Concurrency Risk](#1061-promiseall--arrymap---concurrency-risk)
+* [10.6.2 Input change debounce + fetch abort](#1062-input-change-debounce--fetch-abort)
 * [async/await](#asyncawait)
 * [Input change debounce](#input-change-debounce)
 * [Big data with virtualization](#big-data-with-virtualization)
@@ -6830,7 +6831,8 @@ async function getOrderDetailByUserId(userId) {
 | API | Meaning |
 |---|---|
 | `Promise.all()` | All must succeed, fail fast if anyone rejects |
-| `Promise.allSettled()` | Wait for every outcome. Partial failure acceptable |
+| `Promise.all()` + individual `.catch()` | Partial failure acceptable and <u>have a clear fallback for failure calls</u> |
+| `Promise.allSettled()` | Partial failure acceptable, but need wait for every outcome. |
 | `Promise.any()` | Give me the first one succeeds |
 | `Promise.race()` | Give me whatever finishes first. Add timeout to an API req |
 
@@ -6923,8 +6925,8 @@ async function fetchRiver(bnId) {
 
 async function getModelPage(bnId) {
   const [
-    heroModule,
-    riverModule,
+    heroResp,
+    riverResp,
   ] = await Promise.allSettled([
     fetchHero(bnId),
     fetchRiver(bnId),
@@ -6932,11 +6934,11 @@ async function getModelPage(bnId) {
 
   // no try/catch needed in Promise.allSettled()
   // reject handled here
-  const hero = heroModule.status === "fulfilled" 
-    ? heroModule.value 
+  const hero = heroResp.status === "fulfilled" 
+    ? heroResp.value 
     : {};
-  const river = riverModule.status === "fulfilled" 
-    ? riverModule.value 
+  const river = riverResp.status === "fulfilled" 
+    ? riverResp.value 
     : [];
 
   return {
@@ -6982,6 +6984,106 @@ getModelPage returns
 }
 ```
 - 区别于其他Promise的API都需要`try`/`catch`, `Promise.allSettled()`不需要`try`/`catch`: the rejected promise turns into a result object: { status, reason }
+
+##### `Promise.all()` VS `Promise.allSettled()`
+
+- For <u>concurrent operations</u>, if know which failures are recoverable, should **always use `Promise.all()`**, since it fails fast. 👈
+  - <u>`.catch()` recoverable failures individually and return a fallback value</u>. 
+- Use `Promise.allSettled()` only when specifically need inspect every result.
+
+Ex1.1 `Promise.all()` + individual `.catch()`
+
+```js
+// Promise.all rejects immediately if getProfileEntryPoint rejects
+// Promise.all can still resolve if getLegacyUserId rejects
+async function getProfilePage() {
+  const [profile, legacyUserId] = await Promise.all([
+    getProfile().catch((error) => {
+      console.error(error);
+      throw new Error(`getProfile failed`); // rethrow → stays rejected
+    }),
+    getLegacyUserId().catch(error => {
+      console.error(error);
+      return null; // recover → becomes fulfilled with null
+    })
+  ]);
+  return {
+    profile,
+    legacyUserId,
+  };
+}
+
+(async () => {
+  try {
+    const {
+      profile,
+      legacyUserId,
+    } = await getProfilePage();
+    console.log(profile, legacyUserId);
+  } catch (error) {
+    console.error(error); 
+    // error.message = "getProfile failed"
+  }
+})();
+```
+
+Ex1.2 `Promise.allSettled()`
+
+```js
+async function getProfilePage() {
+  const [profileResp, legacyUserIdResp] = await Promise.allSettled([
+    getProfile(),
+    getLegacyUserId(),
+  ]);
+
+  // Required call failed → fail the whole function
+  if (profileResp.status === "rejected") {
+    console.error(profileResp.reason);
+
+    // throw stops the function immediately; code below won't run
+    // the error propagates until a caller catches it
+    throw new Error("getProfile failed", { cause: profileResp.reason });
+  }
+
+  const profile = profileResp.value;
+
+  // Optional call failed → fall back to null
+  let legacyUserId = null;
+  if (legacyUserIdResp.status === "fulfilled") {
+    legacyUserId = legacyUserIdResp.value;
+  } else {
+    console.error(legacyUserIdResp.reason);
+  }
+
+  return {
+    profile,
+    legacyUserId,
+  }
+}
+
+(async () => {
+  try {
+    const {
+      profile,
+      legacyUserId,
+    } = await getProfilePage();
+    console.log(profile, legacyUserId);
+  } catch (error) {
+    console.error(error); 
+    // error.message = "getProfile failed"
+    // error.cause = original error from getProfile()
+  }
+})();
+```
+- `Promise.all()` 中的每个Promise可以加自己的`.catch()`, 来决定这个 failure是:
+  - fatal → throw, Promise stays rejected
+  - recoverable → return fallback value, Promise becomes fulfilled
+- Ex1.1和Ex1.2最终实现的behavior很类似:
+  - `getProfile()` rejects → `getProfilePage()` rejects
+  - `getLegacyUserId()` rejects → fallback to null, `getProfilePage()`依然resolves
+- 区别在于`getProfilePage()` rejects的时间
+  - Ex1.1 `Promise.all()` → `getProfile()` fails时可以fail fast, 不用等另一个Promise settle
+  - Ex1.2 `Promise.allSettled()` → 一定等两个Promise都settle, 然后检查结果, 再决定是否throw
 
 ##### `Promise.any()`
 
@@ -7632,9 +7734,9 @@ await Promise.all(
 - the server/database
 - third-party API limits
   - **rate limit** — max requests within a time window, e.g. `100 req/sec`
-  - **concurrency limit** — max requests <u>in flight at once</u>, e.g. `10 concurrent requests`
+  - **concurrency limit** — max requests <u>in flight at once per</u>, e.g. `10 concurrent requests per token`
+  - both may be scoped per user, IP, API key/token (Bearer `<token>`), endpoint, etc.
   - if exceeded, extra requests may be rejected (`429` too many requests), throttled, or queued depending on the API
-  - limits may be per user, IP, API key/token (Bearer `<token>`), endpoint, etc.
 - network/request capacity
   - too many requests/connections can cause queuing, congestion, or timeouts
 - browser/runtime resources
@@ -7664,6 +7766,11 @@ const batchSize = 10;
 
 ```js
 // up to `limit` async calls in flight at once
+
+// create X workers
+// each worker returns a promise
+// they share the same state nextIndex
+// each worker will keep picking up next user in the array and call updateUser() until finish 
 async function updateUsersWithLimit(users, limit) {
   let nextIndex = 0;
   async function worker() {
@@ -7675,16 +7782,17 @@ async function updateUsersWithLimit(users, limit) {
     }
   }
   // Start 3 workers, each worker handles ONE user update at a time
+  // each worker() is an async, returns a promise
   await Promise.all(
     Array.from({ length: limit }, () => worker())
   );
-
 }
 
 (async () => {
   await updateUsersWithLimit(users, 3);
 })();
 ```
+- `Array.from()` is **NOT** async-aware and returns the pending Promise right away.
 - ❌ 不能把 `await Promise.all(...worker())`放在 `updateUsersWithLimit`一开始 ❌ 
   - 虽然 `function worker() {}`会被hoisted - 可以在定义前使用
   - 但是`let nextIndex = 0`虽然也会被hoisted, 但是nextIndex will **NOT** be initialized until execution reaches its declaration (TDZ - Temporal Dead Zone)
@@ -7709,11 +7817,14 @@ async function updateUsersWithLimit(users, limit) {
 
 nextIndex = 0
 
-worker 1 → take user[0] → await
-worker 2 → take user[1] → await
-worker 3 → take user[2] → await
+worker 1 → take user[0] → reaches await → worker 1 pauses and returns a Promise
+worker 2 → take user[1] → reaches await → worker 2 pauses and returns a Promise
+worker 3 → take user[2] → reaches await → worker 3 pauses and returns a Promise
                          ↓
               nextIndex = 3
+
+❗ Array.from is NOT async aware ❗ 
+returns [Promise, Promise, Promise]
 
 worker 2 finishes first
 → loops back while(nextIndex < users.length)
