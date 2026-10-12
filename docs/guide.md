@@ -6994,35 +6994,35 @@ getModelPage returns
 Ex1.1 `Promise.all()` + individual `.catch()`
 
 ```js
-// Promise.all rejects immediately if getProfileEntryPoint rejects
-// Promise.all can still resolve if getLegacyUserId rejects
+// Promise.all rejects immediately if getProfile rejects
+// Promise.all can still resolve if getUserId rejects
 async function getProfilePage() {
-  const [profile, legacyUserId] = await Promise.all([
-    getProfile().catch((error) => {
-      console.error(error);
-      throw new Error(`getProfile failed`); // rethrow → stays rejected
-    }),
-    getLegacyUserId().catch(error => {
-      console.error(error);
-      return null; // recover → becomes fulfilled with null
-    })
-  ]);
-  return {
-    profile,
-    legacyUserId,
-  };
+  try {
+    const [profile, userId] = await Promise.all([
+      fetchProfile(), // required → rejection causes Promise.all to reject
+
+      fetchUserId().catch((error) => {
+        console.error(error);
+        return null; // optional → recover with null
+      }),
+    ]);
+
+    return {
+      profile,
+      userId,
+    };
+  } catch (error) {
+    throw new Error("getProfilePage failed", { cause: error });
+  }
 }
 
 (async () => {
   try {
-    const {
-      profile,
-      legacyUserId,
-    } = await getProfilePage();
-    console.log(profile, legacyUserId);
+    const { profile, userId } = await getProfilePage();
+    console.log(profile, userId);
   } catch (error) {
-    console.error(error); 
-    // error.message = "getProfile failed"
+    console.log(error.message); // "getProfilePage failed"
+    console.log(error.cause);   // original error from fetchProfile()
   }
 })();
 ```
@@ -7031,47 +7031,46 @@ Ex1.2 `Promise.allSettled()`
 
 ```js
 async function getProfilePage() {
-  const [profileResp, legacyUserIdResp] = await Promise.allSettled([
-    getProfile(),
-    getLegacyUserId(),
+  const [
+    profileResp,
+    userIdResp,
+  ] = await Promise.allSettled([
+    fetchProfile(), // required
+    fetchUserId(), // optional
   ]);
 
-  // Required call failed → fail the whole function
   if (profileResp.status === "rejected") {
-    console.error(profileResp.reason);
-
     // throw stops the function immediately; code below won't run
     // the error propagates until a caller catches it
-    throw new Error("getProfile failed", { cause: profileResp.reason });
+    throw new Error(`fetchProfile failed`, { cause: profileResp.reason });
   }
 
-  const profile = profileResp.value;
-
   // Optional call failed → fall back to null
-  let legacyUserId = null;
-  if (legacyUserIdResp.status === "fulfilled") {
-    legacyUserId = legacyUserIdResp.value;
+  let userId = null;
+
+  if (userIdResp.status === "fulfilled") {
+    userId = userIdResp.value;
   } else {
-    console.error(legacyUserIdResp.reason);
+    console.error(`fetchUserId failed`, userIdResp.reason);
   }
 
   return {
-    profile,
-    legacyUserId,
-  }
+    profile: profileResp.value,
+    userId,
+  };
 }
 
 (async () => {
   try {
     const {
       profile,
-      legacyUserId,
+      userId,
     } = await getProfilePage();
-    console.log(profile, legacyUserId);
+    console.log(profile, userId);
   } catch (error) {
-    console.error(error); 
-    // error.message = "getProfile failed"
-    // error.cause = original error from getProfile()
+    console.error(error);
+    // error.message = "fetchProfile failed"
+    // error.cause = original error from fetchProfile()
   }
 })();
 ```
@@ -7080,7 +7079,7 @@ async function getProfilePage() {
   - recoverable → return fallback value, Promise becomes fulfilled
 - Ex1.1和Ex1.2最终实现的behavior很类似:
   - `getProfile()` rejects → `getProfilePage()` rejects
-  - `getLegacyUserId()` rejects → fallback to null, `getProfilePage()`依然resolves
+  - `getUserId()` rejects → fallback to null, `getProfilePage()`依然resolves
 - 区别在于`getProfilePage()`rejects的时间
   - Ex1.1 `Promise.all()` → `getProfile()` fails时可以fail fast, 不用等另一个Promise settle
   - Ex1.2 `Promise.allSettled()` → 一定等两个Promise都settle, 然后检查结果, 再决定是否throw
@@ -7169,7 +7168,7 @@ async function fetchRiver(bnId) {
 function timeout(ms) { // return Promise不需要async!!
   return new Promise((_, reject) => {
     setTimeout(() => {
-      reject(new Error(`Req timed out after ${ms}ms`)); //注意reject(new Error(...))
+      reject(new Error(`Req timed out after ${ms}ms`)); //注意reject里new Error的使用
     }, ms);
   });
 }
@@ -7301,7 +7300,7 @@ async function getDashboard() {
     - Promise execution <u>**order is guaranteed**</u> (eg: sum needs wait for prev sum done)
     - One iteration reject will <u>stop all the following iterations</u> unless error is caught inside the iteration
 - **Concurrent async loops** — array iteration methods **with callbacks**
-  - eg: `arry.map`, `arry.forEach`, they are **not async-aware** - they don't await for promise settle before starting next iteration
+  - eg: `arry.map`, `arry.forEach`, `Array.from`, they are **not async-aware** - they don't await for promise settle before starting next iteration
   - `await` pauses the surrounding `async`. the iteration (async) callback returns a pending Promise, and <u>continues to the next iteration right away</u>.
     - One iteration reject, <u>the rest iterations still execute</u>
     - Failures are handled based on Promise API:
@@ -7356,7 +7355,7 @@ async function getDashboard() {
     → callback pauses at await → async callback returns a pending Promise
 
     arry.forEach finishes → returns undefined
-    → console.log(result) // 0
+    → console.log(result) // 0❗
 
     // 🚨 resolve order NOT guaranteed 🚨 
     Assume resolve order: 2 → 3 → 1 
@@ -7499,7 +7498,7 @@ async function getDashboard() {
   ```
   Execution looks like this:
 
-  ```
+  ```js
   start 1
   await delay(1)直接return pending promise
   // delay(1)先triggered
@@ -7515,7 +7514,7 @@ async function getDashboard() {
   // delay(3)先triggered
   // 然后pause跳出当前async callback
 
-  map returns
+  map returns with [Promise, Promise, Promise]❗
 
   Later:
   end x 的顺序取决于哪一个delay(elem)先执行完, each callback is independent.
@@ -7544,7 +7543,7 @@ async function getDashboard() {
   ```
   Execution looks like this:
 
-  ```
+  ```js
   start 1
   await delay(1)先triggered, 然后pause, 跳出整个async block, 
 
@@ -7645,7 +7644,7 @@ async function getDashboard() {
       - order not guaranteed 
     - 和log`for...of, result = 6`不一样, `for...of`的3个callback也是sequentially triggered, 但是<span class="underline-orange">每个都有`await`, 且the next iteration doesn't begin until current one finishes</span>
   - log的顺序!! 先callback log B, 再回到一开始的arry.map, 然后是最后的for...of
-    - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="underline-orange">The continuation is queued **only after** the awaited Promise settles</span>)
+    - 理解queue: The **microtask queue** is not a queue of promises, it's a **queue of continuations** (<span class="underline-orange">The continuation is queued **only after the awaited Promise settles**</span>)
     - arry.map的3个callback在当前iteration就立刻trigger了 -> map结束 -> pause在await Promise.resolve()的async, 跳出 -> print done,C,D 
     - then microtasks start running
       - -> <u>Promise.resolve() is already fulfilled</u> -> <span class="underline-orange">B already in microtask queue</span> -> print B immediately
@@ -7691,7 +7690,7 @@ await Promise.all(
 - 这里Ex4.1, simply passing the Promise `updateUser(user)` through, no need to add `async`/`await` inside `arry.map()`
 - `users.map(user => updateUser(user))` 
   - `updateUser(user)` is an <u>async function returns a Promise</u>
-  - `map()` returns [Promise, Promise, Promise]
+  - `arry.map()` returns [Promise, Promise, Promise]
     - 不需要Promise.all([...]) - no need []
   - `Promise.all()` waits for them
   - so there's no need to add `async`/`await`
@@ -7859,11 +7858,20 @@ Promise.all resolves
 | **What it does** | Waits until you **stop** doing the action. | Pauses between actions at a **fixed speed**. |
 | **When it runs** | **Once**, after the timeout delay expires without any new activity. | **Repeatedly**, at regular intervals while the activity is ongoing. |
 | **If you keep clicking...** | It resets the timer and **will not run** until you take a break. | It will run **steady updates** at fixed times regardless of your clicks. |
-| **Best use case** | • **Search bar** (only search when typing pauses)<br>• **Form validation** (validate form 500ms after typing stops)<br>• **Autosave** (autosave 2 seconds after typing stops) | • **Infinite scrolling** (check page position while scrolling)<br>• **Window resizing** (smoothly update charts during drag)|
+| **Best use case** | • **Search bar** (only search when typing pauses for 300ms)<br>• **Form validation** (validate form 500ms after typing stops)<br>• **Autosave** (autosave 2 seconds after typing stops) | • **Infinite scrolling** (check page position while scrolling every 200ms)<br>• **Window resizing** (smoothly update charts during drag)|
 
 ##### <u>`debounce` with `input` event</u>
 
 Pair `debounce` with `input` event
+
+```js
+document.querySelector("input")
+  .addEventListener(
+    "input", 
+    debounce(handleInputChange, 300) // handleInputChange is the callback
+  )
+```
+
 - `input` fires whenever the input value changes — usually on every keystroke.
 - `change` generally fires when the user commits the change, often after the input loses focus.
 
@@ -7873,7 +7881,8 @@ For search boxes or filtering UIs, we usually want to react as the user types, b
 
 - for `debounce`, only the most recent action triggers the `callback`, after `delay`ms after user stops calling debounce. 
 eg: user types in "abc" and pauses, callback shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous scheduled callbacks.
-- `debounce()` <u>returns a function</u>. Each time that function is called, it schedules `callback` to run after `delay`ms and <u>cancels the previous schedule</u>.
+- `debounce()` <u>returns a function</u>.
+> Each time that function is called, it schedules `callback` to run after `delay`ms and <u>cancels the previous schedule</u>.
 
 Ex1.1 debounce without `clearTimeout` ❌
 
