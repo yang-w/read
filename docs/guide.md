@@ -7002,7 +7002,7 @@ async function getProfilePage() {
       fetchProfile(), // required → rejection causes Promise.all to reject
 
       fetchUserId().catch((error) => {
-        console.error(error);
+        console.error(`fetchUserId failed`, error);
         return null; // optional → recover with null
       }),
     ]);
@@ -7857,41 +7857,22 @@ Promise.all resolves
 | :--- | :--- | :--- |
 | **What it does** | Waits until you **stop** doing the action. | Pauses between actions at a **fixed speed**. |
 | **When it runs** | **Once**, after the timeout delay expires without any new activity. | **Repeatedly**, at regular intervals while the activity is ongoing. |
-| **If you keep clicking...** | It resets the timer and **will not run** until you take a break. | It will run **steady updates** at fixed times regardless of your clicks. |
-| **Best use case** | • **Search bar** (only search when typing pauses for 300ms)<br>• **Form validation** (validate form 500ms after typing stops)<br>• **Autosave** (autosave 2 seconds after typing stops) | • **Infinite scrolling** (check page position while scrolling every 200ms)<br>• **Window resizing** (smoothly update charts during drag)|
+| **If you keep clicking...** | It resets the timer and **will not run** until you pause. | It will run **steady updates** at fixed times regardless of your clicks. |
+| **Best use case** | • **Search bar** (only search when typing pauses for 300ms)<br>• **Form validation** (validate form 500ms after typing pauses)<br>• **Autosave** (autosave 2 seconds after typing pauses) | • **Infinite scrolling** (check page position while scrolling every 200ms)<br>• **Window resizing** (smoothly update charts during drag)|
 
-##### <u>`debounce` with `input` event</u>
+##### <u>`debounce`</u>
 
-Pair `debounce` with `input` event
-
-```js
-document.querySelector("input")
-  .addEventListener(
-    "input", 
-    debounce(handleInputChange, 300) // handleInputChange is the callback
-  )
-```
-
-- `input` fires whenever the input value changes — usually on every keystroke.
-- `change` generally fires when the user commits the change, often after the input loses focus.
-
-For search boxes or filtering UIs, we usually want to react as the user types, but not on every keystroke
-
-👉 `input` + `debounce` is a common combination.
-
-- for `debounce`, only the most recent action triggers the `callback`, after `delay`ms after user stops calling debounce. 
-eg: user types in "abc" and pauses, callback shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous scheduled callbacks.
 - `debounce()` <u>returns a function</u>.
 > Each time that function is called, it schedules `callback` to run after `delay`ms and <u>cancels the previous schedule</u>.
+- in `debounce()`, only the most recent action triggers the `callback`, after `delay`ms after user stops calling debounce. 
+eg: user types in "abc" and pauses, callback shouldn't be triggered when "a"/"ab" is in, but only when "abc" is done. so we need `clearTimeout` to cancel previous scheduled callbacks.
 
 Ex1.1 debounce without `clearTimeout` ❌
 
 ```js
 function debounce(callback, delay) {
   return function(...args) {
-    setTimeout(() => {
-      callback(...args)
-    }, delay)
+    setTimeout(() => callback(...args), delay)
   }
 }
 
@@ -7913,9 +7894,7 @@ function debounce(callback, delay) {
   return function(...args) {
     clearTimeout(timeoutId);
 
-    timeoutId = setTimeout(() => {
-      callback(...args)
-    }, delay);
+    timeoutId = setTimeout(() => callback(...args), delay);
   }
 }
 
@@ -7940,6 +7919,115 @@ log("C");
   // arrow function is passed to setTimeout
   // callback(...args) runs LATER after delay
   ```
+
+##### <u>`encodeURIComponent()` VS `URLSearchParams`</u>
+
+###### `encodeURIComponent()`
+
+```js
+// Ex1.
+const query = "iphone & ipad";
+const url = `/api/search?name=${encodeURIComponent(query)}`;
+console.log(url); // "/api/search?name=iphone%20%26%20ipad"
+```
+- without encoding, url would be "/api/search?name=iphone & ipad", where "&" could be interpreted as a separator between query parameters.
+
+###### `URLSearchParams`
+
+usually used when constructing multiple query params.
+`URLSearchParams` accepts 2 common input formats:
+
+```js
+// 1. An object of key/value pairs
+const searchParams = new URLSearchParams({ key1: "val1", key2: "val2" });
+
+// 2. A query string, with or without the leading "?"
+new URLSearchParams("key1=val1&key2=val2");
+new URLSearchParams("?key1=val1&key2=val2");
+
+// and both serialize to
+searchParams.toString(); // "key1=val1&key2=val2", no "?"
+// OR
+`/api/search?${searchParams}`; // /api/search?key1=val1&key2=val2, 勿忘"?"
+```
+
+```js
+// Ex2.1
+const searchParams = new URLSearchParams({
+  name: "iphone & ipad",
+  sort: true, // boolean true
+});
+
+// encoded
+console.log(searchParams.toString()); // name=iphone+%26+ipad&sort=true, 没有"?"
+
+// decoded
+console.log(searchParams.get("name")); // "iphone & ipad"
+
+console.log(searchParams.get("sort")); // "true", 变成了string "true", 不是boolean了
+
+const url = `/api/search?${queryParams}`; // 勿忘"?", queryParams不包括"?"
+console.log(url); // /api/search?name=iphone+%26+ipad&sort=true
+
+// Ex2.2
+// https://example.com/search?test=&name=iphone%20%26%20ipad'
+const query = window.location.search; // '?test=&name=iphone%20%26%20ipad', 包括"?", 区别于URLSearchParams
+
+const searchParams = new URLSearchParams(query);
+console.log(searchParams.get("name")); // iphone & ipad, decoded
+console.log(searchParams.get("test")); // ""
+console.log(searchParams.get("hello")); // null, 区别于test
+
+// 不能chain, 必须一个一个写
+searchParams.set("name", "mac book");
+searchParams.append("hello", "hihihi"); // 用append添加
+searchParams.delete("test");
+
+console.log(searchParams.toString()); // "name=mac+book&hello=hihihi" 
+```
+- `window.location.search`return整个query string, **包括"?"**
+- `URLSearchParams()`return的是key/value pairs, 无论`toString()`还是`${queryParms}`都只有key/value pairs, **NO "?"** - 区别于`window.location.search`  
+
+```js
+// Ex2.3
+const url = new URL("https://example.com/search?test=&name=iphone%20%26%20ipad"); // or new URL(window.location.href)
+
+const searchParams = url.searchParams; // URLSearchParams object
+
+console.log(searchParams.get("name")); // iphone & ipad
+```
+- 如果用`new URL`, 就不用`new URLSearchParams(window.location.search)`了. 有了new的`URL` object, 可以直接用`.searchParams`
+
+```js
+// Ex2.4
+// 类似 for (const [key, value] of Object.entries(obj)) {...}
+for (const [key, value] of searchParams) {
+  console.log(key, value);
+}
+```
+- 类似 `Object.entries(obj)` returns an array of [key, value] pairs
+
+##### <u>`debounce` with `input` event</u>
+
+Pair `debounce` with `input` event
+
+```js
+document.querySelector("input")
+  .addEventListener(
+    "input", 
+    debounce(handleInputChange, 300) // handleInputChange is the callback
+  )
+```
+
+- `input` fires whenever the input value changes — usually on every keystroke.
+- `change` generally fires when the user commits the change, often after the input loses focus.
+
+For search boxes or filtering UIs, we usually want to react as the user types, but not on every keystroke
+
+👉 `input` + `debounce` is a common combination.
+
+##### `debounce` + `fetch` abort for search input
+
 
 
 ### <a name="asyncawait" id="asyncawait">async/await</a>

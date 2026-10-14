@@ -17,6 +17,16 @@ function handleChange(evt) {
 
 console.log(`-----------------`);
 
+const searchParams = new URLSearchParams({
+  name: "iphone & ipad",
+  sorted: true,
+});
 
+const url = `/api/search?${searchParams}`;
+console.log(url);
+console.log(searchParams.get("sorted"));
+console.log(searchParams.get("name"));
+
+console.log(searchParams.toString());
 
 
